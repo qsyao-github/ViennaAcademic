@@ -3,7 +3,7 @@ import perplexica
 from ipython import execute_code
 class chatbot:
   def __init__(self):
-    self.chatHistory=[{'role': 'system', 'content': """如有必要，请用以下命令请求搜索引擎或执行python代码：\\websearch{your_query}，\\python{your_code}。python可使用numpy, scipy, sympy"""}]
+    self.chatHistory=[{'role': 'system', 'content': """如有必要，请用以下命令请求搜索引擎或向命令行发送python代码：\\websearch{your_query}，\\python{your_code}。numpy, scipy, sympy已安装"""}]
   def answer(self, query=None):
     if query is not None:
       self.chatHistory.append({'role': 'user', 'content': query})
