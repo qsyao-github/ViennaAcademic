@@ -1,41 +1,73 @@
 import ollama
-import perplexica
+import regex
 from ipython import execute_code
-class chatbot:
-  def __init__(self):
-    self.chatHistory=[{'role': 'system', 'content': """如有必要，请用以下命令请求搜索引擎或向命令行发送python代码：\\websearch{your_query}，\\python{your_code}。numpy, scipy, sympy已安装"""}]
-  def answer(self, query=None):
-    if query is not None:
-      self.chatHistory.append({'role': 'user', 'content': query})
-    message=""
-    stream = ollama.chat(model='glm4',messages=self.chatHistory,stream=True)
-    for chunk in stream:
-      print(chunk['message']['content'], end='', flush=True)
-      message+=chunk['message']['content']
-    self.chatHistory.append({'role':'assistant', 'content': message})
+from perplexica import ppsearch
+from omniparse import parseEverything
+
+
+def websearch(query):
+    return f'''\n```
+{ppsearch(query)}
+```\n'''
+
+
+def python(code):
+    return f"""\n```python
+{code}
+```
+```
+{execute_code(code)}
+```\n"""
+
+
+def attach(file):
+    return f"""\n```
+{parseEverything(file)}
+```\n"""
+
+
+def toolcall(message):
+    functions = {'#websearch': websearch, '#python': python, '#attach': attach}
+    pattern = r'#(websearch|python|attach)\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}'
+    matches = regex.findall(pattern, message)
+    for tag, param in matches:
+        function_to_call = functions[f"#{tag}"]
+        replacement = function_to_call(param)
+        message = message.replace(f"#{tag}{{{param}}}", replacement)
     return message
-  def toolcall(self, message):
-    tooluse=False
-    while "\\websearch{" in message:
-      queryStart=message.find("\\websearch{")+11
-      queryEnd=message.find("}",queryStart)
-      query=message[queryStart:queryEnd]
-      searchResult = perplexica.search(query)
-      self.chatHistory.append({'role': 'search engine', 'content': searchResult})
-      tooluse=True
-    while "\\python{" in message:
-      codeStart=message.find("\\python{")+8
-      codeEnd=message.find("}",codeStart)
-      code=message[codeStart:codeEnd]
-      execResult = execute_code(code)
-      self.chatHistory.append({'role': 'python', 'content': execResult})
-      print('Debugger Code', code)
-      print('Debugger Result', execResult)
-      message=message[codeEnd+1:]
-      tooluse=True
-    if tooluse:
-      self.answer()
-  def chat(self, query):
-    self.toolcall(self.answer(query))
-glmchatbot=chatbot()
-glmchatbot.chat("计算半径为31的圆的面积")
+
+
+class chatbot:
+
+    def __init__(self):
+        self.chatHistory = [{
+            'role':
+            'system',
+            'content':
+            """你可能需要上网搜索或执行python代码，请调用函数。函数由井号、函数名和大括号内的参数组成：#websearch{search_query}使用搜索引擎；#python{your_code}执行python代码"""
+        }]
+
+    def answer(self, query=None):
+        if query is not None:
+            self.chatHistory.append({'role': 'user', 'content': query})
+            message = ""
+            stream = ollama.chat(model='glm4',
+                                 messages=self.chatHistory,
+                                 stream=True)
+            for chunk in stream:
+                print(chunk['message']['content'], end='', flush=True)
+                message += chunk['message']['content']
+            message = toolcall(message)
+            self.chatHistory.append({'role': 'assistant', 'content': message})
+            return message
+        return "请输入内容"
+
+
+def chat():
+    bot = chatbot()
+    while True:
+        query = input("用户：")
+        if query == "exit":
+            break
+        else:
+            print(bot.answer(query))
