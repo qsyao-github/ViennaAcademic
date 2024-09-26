@@ -12,4 +12,5 @@ def ppsearch(query):
     search_btn.click(by_js=None)
     tab.wait.eles_loaded('xpath:/html/body/div/main/div/div/div/div[2]/div[2]/div/div[1]/div[2]/div[5]/div[2]/div[1]/div[2]/p',timeout=60)
     answer=tab.ele('xpath:/html/body/div/main/div/div/div/div[2]/div[2]/div/div[1]/div[2]/div[2]')
+    browser.quit()
     return answer.text
