@@ -4,8 +4,8 @@ from executeCode import execute_code
 from perplexica import ppsearch
 from omniparse import parseEverything
 
-client=OpenAI(api_key="sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9",
-              base_url="https://api.kenxu.top:5/v1")
+client=OpenAI(api_key="sk-abcdefg",
+              base_url="https://baseUrl.com/v1")
 
 def websearch(query):
     return f'''\n```
