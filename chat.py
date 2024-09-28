@@ -1,15 +1,16 @@
-import ollama
+from openai import OpenAI
 import regex
-from ipython import execute_code
+from executeCode import execute_code
 from perplexica import ppsearch
 from omniparse import parseEverything
 
+client=OpenAI(api_key="sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9",
+              base_url="https://api.kenxu.top:5/v1")
 
 def websearch(query):
     return f'''\n```
 {ppsearch(query)}
 ```\n'''
-
 
 def python(code):
     return f"""\n```python
@@ -35,39 +36,30 @@ def toolcall(message):
         replacement = function_to_call(param)
         message = message.replace(f"#{tag}{{{param}}}", replacement)
     return message
+def promptcall(message):
+    return message
+def historyParse(history):
+    returnList=[]
+    for ans in history:
+        returnList+=[{'role': 'user', 'content': ans[0]}, {'role':'assistant','content': ans[1]}]
+    return returnList
+class chatBot:
 
-
-class chatbot:
-
-    def __init__(self):
+    def __init__(self, history):
         self.chatHistory = [{
             'role':
             'system',
             'content':
-            """你可能需要上网搜索或执行python代码，请调用函数。函数由井号、函数名和大括号内的参数组成：#websearch{search_query}使用搜索引擎；#python{your_code}执行python代码"""
-        }]
+            """对话过程中支持使用函数调用，由#、函数名、大括号内参数构成。#websearch{搜索关键词}调用搜索引擎。#python{完整代码，空行}执行代码"""
+        }]+historyParse(history)
 
-    def answer(self, query=None):
+    def answer(self, query):
         if query is not None:
-            self.chatHistory.append({'role': 'user', 'content': query})
-            message = ""
-            stream = ollama.chat(model='glm4',
-                                 messages=self.chatHistory,
-                                 stream=True)
-            for chunk in stream:
-                print(chunk['message']['content'], end='', flush=True)
-                message += chunk['message']['content']
-            message = toolcall(message)
-            self.chatHistory.append({'role': 'assistant', 'content': message})
-            return message
+            query=toolcall(query)
+            response=client.chat.completions.create(
+    model="glm4",
+    messages=self.chatHistory+[{"role":"user","content":query}]
+)
+            response = toolcall(response.choices[0].message.content)
+            return response
         return "请输入内容"
-
-
-def chat():
-    bot = chatbot()
-    while True:
-        query = input("用户：")
-        if query == "exit":
-            break
-        else:
-            print(bot.answer(query))
