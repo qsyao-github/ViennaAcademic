@@ -14,20 +14,8 @@ def codegeex_generate(prompt):
     )
     for chunk in stream:
         chunks = chunk['message']['content']
-        print(chunks, end='', flush=True)
         answer += chunks
     return answer
-
-
-def comment(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        code = file.read()
-    Prompt = "请为输入代码提供格式规范的注释，包含多行注释和单行注释，请注意不要改动原始代码，只需要添加注释。\n" + code
-    commentedCode = codegeex_generate(Prompt)
-    if commentedCode.startswith("`"):
-        commentedCode = commentedCode[10:-4]
-    with open(file_path, 'w', encoding='utf-8') as file:
-        file.write(commentedCode)
 
 
 def is_program_file(filename):
@@ -88,4 +76,6 @@ def generate_markdown(commentPair):
 
 def analyze_folder(folder_path):
     structure = get_folder_structure(folder_path)
-    return generate_mermaid(structure), generate_markdown(find_files_comment(structure))
+    repoStructure = generate_mermaid(structure)
+    repoFunction = generate_markdown(find_files_comment(structure))
+    return repoStructure + '\n' + repoFunction
