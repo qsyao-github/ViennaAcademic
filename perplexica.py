@@ -1,16 +1,61 @@
-from DrissionPage import Chromium
+import requests
 
-def ppsearch(query):
-    browser = Chromium()  
-    # 获取标签页对象
-    tab = browser.latest_tab  
-    # 创建页面对象，并启动或接管浏览器
-    tab.get('http://localhost:3000')
-    textbox=tab.ele('xpath:/html/body/div/main/div/div/div/div/div/form/div/textarea')
-    search_btn=tab.ele('xpath:/html/body/div/main/div/div/div/div/div/form/div/div/div[2]/button')
-    textbox.input(query)
-    search_btn.click(by_js=None)
-    tab.wait.eles_loaded('xpath:/html/body/div/main/div/div/div/div[2]/div[2]/div/div[1]/div[2]/div[5]/div[2]/div[1]/div[2]/p',timeout=60)
-    answer=tab.ele('xpath:/html/body/div/main/div/div/div/div[2]/div[2]/div/div[1]/div[2]/div[2]')
-    browser.quit()
-    return answer.text
+
+def webSearch(query):
+    jsonquery = {
+        "chatModel": {
+            "provider":
+            "custom_openai",
+            "model":
+            "gpt-4o-mini",
+            "customOpenAIBaseURL":
+            "https://api.kenxu.top:5/v1",
+            "customOpenAIKey":
+            "sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9"
+        },
+        "embeddingModel": {
+            "provider": "ollama",
+            "model": "mxbai-embed-large:latest"
+        },
+        "focusMode": "webSearch",
+        "query": query
+    }
+    response = requests.post('http://115.45.12.77:3001/api/search',
+                             json=jsonquery)
+    message = response.json()['message']
+    sourcesList = response.json()['sources']
+    referenceList = [
+        f'[{source["metadata"]["title"]}]({source["metadata"]["url"]})'
+        for source in sourcesList
+    ]
+    return message + '\n\n' + '\n\n'.join(referenceList)
+
+
+def academicSearch(query):
+    jsonquery = {
+        "chatModel": {
+            "provider":
+            "custom_openai",
+            "model":
+            "gpt-4o-mini",
+            "customOpenAIBaseURL":
+            "https://api.kenxu.top:5/v1",
+            "customOpenAIKey":
+            "sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9"
+        },
+        "embeddingModel": {
+            "provider": "ollama",
+            "model": "mxbai-embed-large:latest"
+        },
+        "focusMode": "academicSearch",
+        "query": query
+    }
+    response = requests.post('http://115.45.12.77:3001/api/search',
+                             json=jsonquery)
+    message = response.json()['message']
+    sourcesList = response.json()['sources']
+    referenceList = [
+        f'[{source["metadata"]["title"]}]({source["metadata"]["url"]})'
+        for source in sourcesList
+    ]
+    return message + '\n\n' + '\n\n'.join(referenceList)
