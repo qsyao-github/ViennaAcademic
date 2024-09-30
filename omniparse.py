@@ -1,28 +1,58 @@
 import re
 import subprocess
+
+
 def outputHandling(result):
-    text=result.stdout if result.returncode==0 else result.stderr
-    text=text[text.find('''"text":"''')+8:text.find('''","images":''')].replace("\\n","\n")
+    text = result.stdout if result.returncode == 0 else result.stderr
+    text = text[text.find('''"text":"''') +
+                8:text.find('''","images":''')].replace("\\n", "\n")
     return text
+
+
 def parseDocument(file_path):
-    result=subprocess.run(f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_document""", shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_document""",
+        shell=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     return outputHandling(result)
 
 
 def parseImage(file_path):
-    result=subprocess.run(f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/image""", shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/image""",
+        shell=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     return outputHandling(result)
 
+
 def parseVideo(file_path):
-    result=subprocess.run(f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/video""", shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/video""",
+        shell=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     return outputHandling(result)
+
+
 def parseAudio(file_path):
-    result=subprocess.run(f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/audio""", shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(
+        f"""curl -X POST -F "file=@{file_path}" https://blocking-so-rebecca-description.trycloudflare.com/parse_media/audio""",
+        shell=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     return outputHandling(result)
 
 
 def parseWebsite(webUrl):
-    result=subprocess.run(f"""curl -X POST -H "Content-Type: application/json" -d '{"url": "{webUrl}"}' https://blocking-so-rebecca-description.trycloudflare.com/parse_website""")
+    result = subprocess.run(
+        f"""curl -X POST -H "Content-Type: application/json" -d '{"url": "{webUrl}"}' https://blocking-so-rebecca-description.trycloudflare.com/parse_website"""
+    )
     return outputHandling(result)
 
 
@@ -31,7 +61,7 @@ def parseEverything(unknownQuery):
     image_pattern = re.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
                                re.IGNORECASE)
     video_pattern = re.compile(r'.*\.(mp4|mkv|avi|mov)$', re.IGNORECASE)
-    audio_pattern=re.compile(r'.*\.(mp3|wav|aac)$', re.IGNORECASE)
+    audio_pattern = re.compile(r'.*\.(mp3|wav|aac)$', re.IGNORECASE)
     if file_pattern.match(unknownQuery):
         return parseDocument(unknownQuery)
     elif image_pattern.match(unknownQuery):
