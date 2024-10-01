@@ -9,9 +9,9 @@ def webSearch(query):
             "model":
             "gpt-4o-mini",
             "customOpenAIBaseURL":
-            "https://api.kenxu.top:5/v1",
+            "http://114514.com/v1",
             "customOpenAIKey":
-            "sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9"
+            "sk-1145141919810"
         },
         "embeddingModel": {
             "provider": "ollama",
@@ -20,7 +20,7 @@ def webSearch(query):
         "focusMode": "webSearch",
         "query": query
     }
-    response = requests.post('http://115.45.12.77:3001/api/search',
+    response = requests.post('http://114514.com/api/search',
                              json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
@@ -39,9 +39,9 @@ def academicSearch(query):
             "model":
             "gpt-4o-mini",
             "customOpenAIBaseURL":
-            "https://api.kenxu.top:5/v1",
+            "http://114514.com/v1",
             "customOpenAIKey":
-            "sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9"
+            "sk-1145141919810"
         },
         "embeddingModel": {
             "provider": "ollama",
@@ -50,7 +50,7 @@ def academicSearch(query):
         "focusMode": "academicSearch",
         "query": query
     }
-    response = requests.post('http://115.45.12.77:3001/api/search',
+    response = requests.post('http://114514.com/api/search',
                              json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
