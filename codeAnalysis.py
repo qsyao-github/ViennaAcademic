@@ -1,21 +1,18 @@
-import ollama
 import os
+import subprocess
+from openai import OpenAI
+
+client = OpenAI(api_key="sk-114514",
+                base_url="https://1919810.com/v1")
 
 
 def codegeex_generate(prompt):
-    answer = ""
-    stream = ollama.chat(
-        model='codegeex4',
-        messages=[{
-            'role': 'user',
-            'content': prompt
-        }],
-        stream=True,
-    )
-    for chunk in stream:
-        chunks = chunk['message']['content']
-        answer += chunks
-    return answer
+    response = client.chat.completions.create(model="codegeex4",
+                                              messages=[{
+                                                  "role": "user",
+                                                  "content": prompt
+                                              }])
+    return response.choices[0].message.content
 
 
 def is_program_file(filename):
@@ -60,6 +57,23 @@ def generate_mermaid(structure):
     return mermaid_str
 
 
+def generate_tree(folder_path):
+    folder_path = folder_path[folder_path.rfind('/') + 1:]
+    tree_str = subprocess.run(f"""cd repositry && tree {folder_path}""",
+                              shell=True,
+                              text=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE).stdout
+    tree_array = tree_str.split('\n')
+    new_tree_array = []
+    for file in tree_array:
+        if '.' in file:
+            if not is_program_file(file):
+                continue
+        new_tree_array.append(file)
+    return '\n'.join(new_tree_array[:-2])
+
+
 def find_files_comment(structure):
     commentPair = []
     for folder in structure['subfolders']:
@@ -76,6 +90,6 @@ def generate_markdown(commentPair):
 
 def analyze_folder(folder_path):
     structure = get_folder_structure(folder_path)
-    repoStructure = generate_mermaid(structure)
+    repoStructure = generate_tree(folder_path)
     repoFunction = generate_markdown(find_files_comment(structure))
     return repoStructure + '\n' + repoFunction
