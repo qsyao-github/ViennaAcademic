@@ -1,7 +1,7 @@
 import subprocess
-import tempfile
 import os
 import shutil
+import time
 
 
 def execute_code(code):
@@ -18,29 +18,19 @@ def execute_code(code):
 
 
 def manim_render(code):
-    # 找到code中construct方法
-    start = code.find('def construct(self):')
-    # 在construct后的换行符后添加：\usepackage{CJK}
-    code = "from manim import *\n"
-    # 删除相对路径media/videos/中所有文件夹名不为fileNames的文件夹
-    os.chdir(r'C:\Users\15081\Desktop\glmacademic')
-    # 强制删除media文件夹(非空)
-    shutil.rmtree('media')
-    # 保存临时文件
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=True) as f:
-        f.write(code)
-        f.flush()
-        os.fsync(f.fileno())
-        # 用manim指令
-        process = subprocess.Popen(['manim', f.name, '-ql'])
-        process.wait()
-        fileName = f.name.strip('.py')
 
-    # 找到最近的输出文件的目录
-    output_dir = max([
-        os.path.join(os.path.dirname(f.name),
-                     f'media/videos/{fileName}/480p15')
-        for f in os.scandir(os.path.dirname(f.name)) if f.is_dir()
-    ],
-                     key=os.path.getmtime)
+    start = code.find('def construct(self):')
+
+    code = "from manim import *\n" + code
+
+    os.chdir(r'C:\Users\15081\Desktop\glmacademic')
+
+    if os.path.exists('media'):
+        shutil.rmtree('media')
+
+    with open('temp.py', 'w') as f:
+        f.write(code)
+    os.system(f'manim temp.py -ql')
+    os.chdir(r'C:/Users/15081/Desktop/glmacademic/media/videos/temp/480p15')
+    output_dir = [f for f in os.listdir() if f.endswith('.mp4')][0]
     return output_dir
