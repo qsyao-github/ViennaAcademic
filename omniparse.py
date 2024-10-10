@@ -4,8 +4,7 @@ import subprocess
 
 def outputHandling(result):
     text = result.stdout if result.returncode == 0 else result.stderr
-    text = text[text.find('''"text":"''') +
-                8:text.find('''","images":''')]
+    text = text[text.find('''"text":"''') + 8:text.find('''","images":''')]
     text = re.sub(r'!\[.*?\]\(.*?\)', '', text).replace("\\n", "\n")
     return text
 
@@ -67,10 +66,11 @@ def parseEverything(unknownQuery):
         '.vue', '.js', '.ts', '.html', '.htm', '.css', '.jsx', '.c', '.cpp',
         '.cxx', '.cc', '.java', '.py', '.go', '.php', '.rs', '.sql', '.m',
         '.mm', '.kt', '.swift', '.pl', '.pm', '.rb', '.graphql', '.gql',
-        '.cbl', '.cob', '.h', '.hpp','txt','md'
+        '.cbl', '.cob', '.h', '.hpp', 'txt', 'md'
     }
     # construct text_pattern
-    text_pattern = re.compile(r'.*\.(' + '|'.join(text_extensions) + ')$', re.IGNORECASE)
+    text_pattern = re.compile(r'.*\.(' + '|'.join(text_extensions) + ')$',
+                              re.IGNORECASE)
     if file_pattern.match(unknownQuery):
         return parseDocument(unknownQuery)
     elif image_pattern.match(unknownQuery):
