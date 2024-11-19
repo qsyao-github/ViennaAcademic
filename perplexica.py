@@ -9,9 +9,9 @@ def webSearch(query):
             "model":
             "gpt-4o-mini",
             "customOpenAIBaseURL":
-            "https://1919810.com/v1",
+            "https://114514.com/v1",
             "customOpenAIKey":
-            "sk-114514"
+            "114514"
         },
         "embeddingModel": {
             "provider": "ollama",
@@ -20,7 +20,7 @@ def webSearch(query):
         "focusMode": "webSearch",
         "query": query
     }
-    response = requests.post('http://192.168.1.250:3001/api/search',
+    response = requests.post('http://114514:3001/api/search',
                              json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
@@ -39,9 +39,9 @@ def academicSearch(query):
             "model":
             "gpt-4o-mini",
             "customOpenAIBaseURL":
-            "https://1919810.com/v1",
+            "https://114514.com/v1",
             "customOpenAIKey":
-            "sk-114514"
+            "114514"
         },
         "embeddingModel": {
             "provider": "ollama",
@@ -50,7 +50,7 @@ def academicSearch(query):
         "focusMode": "academicSearch",
         "query": query
     }
-    response = requests.post('http://192.168.1.250:3001/api/search',
+    response = requests.post('http://114514:3001/api/search',
                              json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
