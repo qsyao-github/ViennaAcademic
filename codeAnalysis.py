@@ -2,8 +2,8 @@ import os
 import subprocess
 from openai import OpenAI
 
-client = OpenAI(api_key="sk-114514",
-                base_url="https://1919810.com/v1")
+client = OpenAI(api_key="114514",
+                base_url="https://114514/v1")
 
 
 def codegeex_generate(prompt):
