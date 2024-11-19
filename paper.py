@@ -2,12 +2,11 @@ import os
 import re
 from zhipuai import ZhipuAI
 from openai import OpenAI
-import time
 import threading
 
-client1 = OpenAI(api_key="sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9",
-                 base_url="https://api.kenxu.top:5/v1")
-client2 = ZhipuAI(api_key="1d24ec7d1a60b512b355ea27747f8e35.TQaJOi2u6ksywqwi")
+client1 = OpenAI(api_key="114514",
+                 base_url="https://114514.com/v1")
+client2 = ZhipuAI(api_key="114514")
 
 
 def attach(file):
@@ -49,7 +48,7 @@ def readPaper(file_Path):
 4. 这篇论文的方法是怎样的？它如何突破了这个核心困难？
 5. 论文是如何设计实验验证的？有什么值得学习之处？
 6. 这篇论文有什么局限？'''
-    response = client1.chat.completions.create(model="gemini-1.5-flash",
+    response = client2.chat.completions.create(model="glm-4-flash",
                                                messages=[{
                                                    "role": "user",
                                                    "content": prompt
@@ -89,11 +88,11 @@ def translatePapertoChinese(file_Path):
     length = len(content)
     threads = []
     result_list = [None] * length
-    if length >= 3:
-        chunk_size = length // 3
-        for i in range(3):
-            start_index = length - (3 - i) * chunk_size if i else 0
-            end_index = length - (2 - i) * chunk_size
+    if length >= 64:
+        chunk_size = length // 64
+        for i in range(64):
+            start_index = length - (64 - i) * chunk_size if i else 0
+            end_index = length - (63 - i) * chunk_size
             t = threading.Thread(target=process_part_of_list,
                                  args=(content, start_index, end_index,
                                        result_list, "将论文译为中文，仅需翻译，不作说明"))
@@ -130,11 +129,11 @@ def translatePapertoEnglish(file_Path):
     length = len(content)
     threads = []
     result_list = [None] * length
-    if length >= 3:
-        chunk_size = length // 3
-        for i in range(3):
-            start_index = length - (3 - i) * chunk_size if i else 0
-            end_index = length - (2 - i) * chunk_size
+    if length >= 64:
+        chunk_size = length // 64
+        for i in range(64):
+            start_index = length - (64 - i) * chunk_size if i else 0
+            end_index = length - (63 - i) * chunk_size
             t = threading.Thread(target=process_part_of_list,
                                  args=(content, start_index, end_index,
                                        result_list, "将论文译为英文，仅需翻译，不作说明"))
@@ -172,11 +171,11 @@ def polishPaper(file_Path):
     length = len(content)
     threads = []
     result_list = [None] * length
-    if length >= 3:
-        chunk_size = length // 3
-        for i in range(3):
-            start_index = length - (3 - i) * chunk_size if i else 0
-            end_index = length - (2 - i) * chunk_size
+    if length >= 64:
+        chunk_size = length // 64
+        for i in range(64):
+            start_index = length - (64 - i) * chunk_size if i else 0
+            end_index = length - (63 - i) * chunk_size
             t = threading.Thread(target=process_part_of_list,
                                  args=(content, start_index, end_index,
                                        result_list,
