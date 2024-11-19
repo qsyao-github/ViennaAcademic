@@ -10,8 +10,8 @@ import shutil
 def main(topic,max_conv_turn=3, max_perspective=3, search_top_k=3, max_thread_num=1):
     lm_configs = STORMWikiLMConfigs()
     openai_kwargs = {
-        'api_key': 'sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9',
-        'api_base': 'https://api.kenxu.top:5/v1/chat/',
+        'api_key': '114514',
+        'api_base': 'https://114514.com/v1/chat/',
         'temperature': 1.0,
         'top_p': 0.9
     }
