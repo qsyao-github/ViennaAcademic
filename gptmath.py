@@ -14,8 +14,8 @@ def qwenmath(question):
     return result
 
 
-client1 = OpenAI(api_key="sk-xCBtJ7y0e9Eg7kAR895b5b7739A4490386E0E0Fc6c2a18C9",
-                 base_url="https://api.kenxu.top:5/v1")
+client1 = OpenAI(api_key="114514",
+                 base_url="https://114514.com/v1")
 
 
 def gptChat(message):
