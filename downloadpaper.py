@@ -1,10 +1,8 @@
-from laoweiService import parseEverything
+from doclingParse import parseEverything
 import os
 import arxiv
 from openai import OpenAI
-
-client = OpenAI(api_key="114514",
-                base_url="https://114514.com/v1")
+from modelclient import client1 as client
 
 
 def title_generate(prompt):
@@ -22,12 +20,19 @@ def downloadArxivPaper(arxivID):
             arxiv.Search(id_list=[f"{arxivID}"])))
         # Download the PDF to a specified directory with a custom filename.
         paper.download_pdf(dirpath="paper", filename="temporaryPaper.pdf")
-        print('startParsing')
         text = parseEverything('./paper/temporaryPaper.pdf')
-        print('parsingDone')
-        title = title_generate(f"下面是论文节选，请提取论文标题，不要返回其它内容：\n{text[:255]}")
-        abstract = text[text.find('Abstract') + 9:][:text.find('\n')]
-        abstract = title_generate(f"将论文摘要译为中文，不要返回其它内容：\n{abstract}")
-        with open(f'knowledgeBase/{title.strip()}.md', mode='w') as f:
-            f.write(text)
-        os.rename('./paper/temporaryPaper.pdf', f'./paper/{title.strip()}.pdf')
+        try:
+            title = title_generate(f"下面是论文节选，请提取论文标题，不要返回其它内容：\n{text[:255]}")
+        except:
+            title = arxivID
+        try:
+            abstractStart=text.find('Abstract')
+            if abstractStart!=-1:
+                abstract = text[text.find('Abstract') + 9:][:text.find('\n')]
+                abstract = title_generate(f"将论文摘要译为中文，不要返回其它内容：\n{abstract}")
+            else:
+                abstract = "摘要识别失败"
+        except:
+            abstract = "摘要识别失败"
+        os.remove(r'paper\temporaryPaper.pdf')
+        return title, abstract, text
