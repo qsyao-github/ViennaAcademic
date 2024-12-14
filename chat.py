@@ -1,17 +1,10 @@
-from openai import OpenAI
-from zhipuai import ZhipuAI
 import regex
 from executeCode import execute_code, manim_render
 from perplexica import webSearch, academicSearch
 from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper, attach
 from imageUtils import get_total_pixels, encode_image
-import re
+from modelclient import client1, client2
 import os
-
-client1 = OpenAI(api_key="114514",
-                 base_url="https://114514.com/v1")
-client2 = ZhipuAI(api_key="114514")
-
 
 def python(code):
     return f"""\n```
@@ -75,8 +68,8 @@ def historyParse(history, multimodal=False):
                 'content': ans[1].text
             }]
     else:
-        image_pattern = re.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
-                                   re.IGNORECASE)
+        image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
+                                      regex.IGNORECASE)
         for ans in history:
             for dialogue in ans:
                 files = dialogue.files
@@ -132,8 +125,8 @@ def queryParse(query, multimodal=False):
             returnList = [{'role': 'user', 'content': query["text"]}]
             size = 0
         else:
-            image_pattern = re.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
-                                       re.IGNORECASE)
+            image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
+                                          regex.IGNORECASE)
             files = query["files"]
             if files:
                 file = files[0]["file"].path
@@ -208,10 +201,17 @@ class chatBot:
                     content[0]['text'])
                 totalLength = contentLength + token
                 pixelLength = max(self.size, size)
-                if totalLength < 8000 and pixelLength < 1806336:
+                try:
                     response = client1.chat.completions.create(
-                        model="minicpm-v", messages=self.chatHistory + query)
+                        model="pixtral-large-latest",
+                        messages=self.chatHistory + query)
                     response = response.choices[0].message.content
-                else:
-                    response = "牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
+                except:
+                    if totalLength < 8000 and pixelLength < 1806336:
+                        response = client1.chat.completions.create(
+                            model="minicpm-v",
+                            messages=self.chatHistory + query)
+                        response = response.choices[0].message.content
+                    else:
+                        response = "牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
                 return response
