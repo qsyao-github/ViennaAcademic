@@ -1,27 +1,24 @@
 import requests
+from modelclient import client1API_KEY, client1BASE_URL
 
 
 def webSearch(query):
     jsonquery = {
         "chatModel": {
-            "provider":
-            "custom_openai",
-            "model":
-            "gpt-4o-mini",
-            "customOpenAIBaseURL":
-            "https://114514.com/v1",
-            "customOpenAIKey":
-            "114514"
+            "provider": "custom_openai",
+            "model": "gpt-4o-mini",
+            "customOpenAIBaseURL": client1BASE_URL,
+            "customOpenAIKey": client1API_KEY
         },
         "embeddingModel": {
             "provider": "ollama",
             "model": "mxbai-embed-large:latest"
         },
+        "optimizationMode": "balanced",
         "focusMode": "webSearch",
         "query": query
     }
-    response = requests.post('http://114514:3001/api/search',
-                             json=jsonquery)
+    response = requests.post('http://127.0.0.1:3001/api/search', json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
     referenceList = [
@@ -34,24 +31,20 @@ def webSearch(query):
 def academicSearch(query):
     jsonquery = {
         "chatModel": {
-            "provider":
-            "custom_openai",
-            "model":
-            "gpt-4o-mini",
-            "customOpenAIBaseURL":
-            "https://114514.com/v1",
-            "customOpenAIKey":
-            "114514"
+            "provider": "custom_openai",
+            "model": "gpt-4o-mini",
+            "customOpenAIBaseURL": client1BASE_URL,
+            "customOpenAIKey": client1API_KEY
         },
         "embeddingModel": {
             "provider": "ollama",
             "model": "mxbai-embed-large:latest"
         },
+        "optimizationMode": "balanced",
         "focusMode": "academicSearch",
         "query": query
     }
-    response = requests.post('http://114514:3001/api/search',
-                             json=jsonquery)
+    response = requests.post('http://127.0.0.1:3001/api/search', json=jsonquery)
     message = response.json()['message']
     sourcesList = response.json()['sources']
     referenceList = [
