@@ -5,11 +5,11 @@ from chat import chatBot, promptcall
 import time
 import os
 import shutil
-from downloadpaper import downloadArxivPaper
 from codeAnalysis import analyze_folder
 import datetime
-import re
-from laoweiService import generate, solve, parseEverything
+import regex as re
+from laoweiService import generate, parseEverything, downloadArxivPaper
+from gptmath import solve
 
 
 def remove_newlines_from_formulas(text):
@@ -168,7 +168,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                     simpfile = file[file.rfind("/") + 1:file.rfind(".")]
                     suffix = file[file.rfind("."):]
                     if suffix not in [".md", ".txt"]:
-                        gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要2分钟，请耐心等候")
+                        gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要1分钟，请耐心等候")
                         if os.path.exists(f"userUpload/{simpfile}.md"):
                             return
                         shutil.copy(file, "userUpload")
@@ -184,16 +184,16 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         uploadThesis = gr.UploadButton("上传论文/学术专著", scale=1)
                         uploadThesis.upload(upload_paper, uploadThesis)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
-                    arxivNum = gr.Textbox()
+                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762")
                     downloadArxiv = gr.Button("arxiv论文下载", scale=0)
 
-                    def gradiodownloadArxivPaper(arxivNum):
+                    def gradiodownloadArxivPaper(arxivNum, chat_history=chatbot):
                         gr.Info("正在下载，请耐心等候")
-                        downloadArxivPaper(arxivNum)
+                        chat_history.append(downloadArxivPaper(arxivNum))
                         gr.Info("下载完成，请刷新")
-                        return ""
+                        return "", chat_history
 
-                    downloadArxiv.click(downloadArxivPaper, arxivNum, arxivNum)
+                    downloadArxiv.click(gradiodownloadArxivPaper, [arxivNum,chatbot], [arxivNum,chatbot])
 
                     @gr.render(triggers=[refresh.click])
                     def show_Files():
@@ -280,10 +280,14 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                             deleteFolder.click(delete_folder, None, None)
 
                             def output_analysis(chathistory, folder=folder):
-                                chathistory.append(
-                                    (f"分析{folder}",
-                                     f"{analyze_folder(f'repositry/{folder}')}"
-                                     ))
+                                chathistory.append([{
+                                    "text": f"解析{folder}",
+                                    "files": []
+                                }, {
+                                    "text":
+                                    f"{analyze_folder(f'repositry/{folder}')}",
+                                    "files": []
+                                }])
                                 return chathistory
 
                             folderBtn.click(output_analysis, chatbot, chatbot)
@@ -327,19 +331,17 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                   info="与文章丰富程度正相关。默认为3，可不填写",
                                   precision=0)
             generate_button = gr.Button("生成论文")
-            thesisBox = gr.Markdown(
-                "生成的论文将显示在此，markdown源文件在VA主页面“已解析文件”下，可下载")
+            thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件在VA主页面“已解析文件”下，可下载")
 
             def generateAndSave(title, max_conv_turn, perspective, top_k):
                 max_conv_turn = max_conv_turn if max_conv_turn > 3 else 3
                 max_perspective = perspective if perspective > 3 else 3
                 search_top_k = top_k if top_k > 3 else 3
-                print(max_conv_turn, max_perspective, search_top_k)
                 if title.strip() == "":
                     return "请输入主题"
                 else:
                     gr.Info(
-                        f"正在生成，大概需要{int(180/27*max_conv_turn*max_perspective*search_top_k)}s，请不要关闭界面。稍后可去已解析文件中获取md文件"
+                        f"正在生成，大概需要{int(600/27*max_conv_turn*max_perspective*search_top_k)}s，请不要关闭界面。稍后可去已解析文件中获取md文件"
                     )
                     thesis = generate(title, max_conv_turn, max_perspective,
                                       search_top_k)
@@ -350,11 +352,11 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
             generate_button.click(generateAndSave,
                                   [title, max_conv_turn, perspective, top_k],
                                   thesisBox)
-        with gr.Tab("解数竞题"):
+        with gr.Tab("解理科题目"):
 
             def solveAndFormat(question):
                 if question.strip() == "":
-                    return "请输入数竞题"
+                    return "请输入题目"
                 else:
                     gr.Info("正在解题，不要关闭页面，大约需2min")
                     answer = solve(question)
@@ -363,7 +365,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                     answer = remove_newlines_from_formulas(answer)
                     return answer
 
-            problem = gr.Textbox(placeholder="输入数竞题，难度不宜低于小学奥数，不宜高于IMO第1, 4题")
+            problem = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题")
             solve_button = gr.Button("解题")
             answerBox = gr.Markdown("答案将显示在此，若存在明显错误或报错，可多次尝试。每次的回答未必相同",
                                     latex_delimiters=[{
@@ -386,4 +388,4 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                     show_copy_button=True)
             solve_button.click(solve, problem, answerBox)
 
-demo.launch()
+demo.launch(auth=("laowei","1145141919810"))
