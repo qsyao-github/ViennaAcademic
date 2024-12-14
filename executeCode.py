@@ -23,7 +23,9 @@ def execute_code(code):
 
 
 def manim_render(code, nowTime):
-    code = "from manim import *\n" + code
+    if '```' in code:
+        code = code[code.find('```python') + 10:code.rfind('```')]
+    code = "from manim import *\n"+code
     if os.path.exists('media'):
         shutil.rmtree('media')
     with open('temp.py', 'w') as f:
