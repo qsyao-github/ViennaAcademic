@@ -1,12 +1,7 @@
 import os
-import re
-from zhipuai import ZhipuAI
-from openai import OpenAI
+import regex
 import threading
-
-client1 = OpenAI(api_key="114514",
-                 base_url="https://114514.com/v1")
-client2 = ZhipuAI(api_key="114514")
+from modelclient import client2
 
 
 def attach(file):
@@ -26,7 +21,6 @@ def attach(file):
                 with open(f'userUpload/{file}', 'r', encoding='utf-8') as f:
                     content = f.read()
         except:
-            print(f"文件{file}不存在")
             content = ""
     return content
 
@@ -36,8 +30,8 @@ def chunk(content,
               "\n#", "\n=", r"\section", r"\subsection", r"\subsubsection",
               r"\paragraph", r"\subparagraph"
           ]):
-    pattern = '|'.join(map(re.escape, separators))
-    return re.split(pattern, content)
+    pattern = '|'.join(map(regex.escape, separators))
+    return regex.split(pattern, content)
 
 
 def readPaper(file_Path):
@@ -66,7 +60,6 @@ def translation(string, extraPrompt):
                 "content": f"{extraPrompt}：\n{string}"
             }])
         translation = translation.choices[0].message.content
-        print(translation)
         return translation
     else:
         return string
@@ -146,7 +139,6 @@ def translatePapertoEnglish(file_Path):
             f.write('\n'.join(result_list))
     else:
         for i in range(length):
-            print(content[i])
             t = threading.Thread(target=process_part_of_list,
                                  args=(content, i, i + 1, result_list,
                                        "将论文译为英文，仅需翻译，不作说明"))
@@ -166,7 +158,7 @@ def polishPaper(file_Path):
                   'r',
                   encoding='utf-8') as f:
             content = f.read()
-        return ("将论文译为英文", content)
+        return ("润色论文", content)
     content = chunk(attach(file_Path))
     length = len(content)
     threads = []
