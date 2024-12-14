@@ -1,13 +1,10 @@
 import os
 import subprocess
-from openai import OpenAI
-
-client = OpenAI(api_key="114514",
-                base_url="https://114514/v1")
+from modelclient import client1 as client
 
 
 def codegeex_generate(prompt):
-    response = client.chat.completions.create(model="codegeex4",
+    response = client.chat.completions.create(model="codestral-latest",
                                               messages=[{
                                                   "role": "user",
                                                   "content": prompt
