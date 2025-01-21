@@ -2,14 +2,16 @@ import gradio as gr
 from gradio_multimodalchatbot import MultimodalChatbot
 from gradio.data_classes import FileData
 from chat import chatBot, promptcall
-import time
 import os
 import shutil
 from codeAnalysis import analyze_folder
 import datetime
 import regex as re
-from laoweiService import generate, parseEverything, downloadArxivPaper
+from laoweiService import generate
+from downloadpaper import downloadArxivPaper
+from doclingParse import parseEverything
 from gptmath import solve
+from collections.abc import Iterator
 
 
 def remove_newlines_from_formulas(text):
@@ -102,7 +104,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         '\\[', '$$').replace('\\]', '$$')
                     message = remove_newlines_from_formulas(message)
                     message = promptcall(message)
-                    if type(message) != tuple:
+                    if not isinstance(message, Iterator):
                         message = {
                             "text":
                             message,
@@ -112,40 +114,56 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         }
                         nowTime = datetime.datetime.now().strftime(
                             '%y%m%d%H%M%S')
-                        bot_message = chatBot(
-                            chat_history, multimodal.value).answer(
-                                message,
-                                len(''.join([
-                                    i[0].text + i[1].text for i in chat_history
-                                ])), nowTime,
-                                multimodal.value).replace('\\(', '$').replace(
-                                    '\\)',
-                                    '$').replace('\\[',
-                                                 '$$').replace('\\]', '$$')
-                        bot_message = remove_newlines_from_formulas(
-                            bot_message)
+                        bot_stream = chatBot(chat_history,
+                                             multimodal.value).answer(
+                                                 message,
+                                                 len(''.join([
+                                                     i[0].text + i[1].text
+                                                     for i in chat_history
+                                                 ])), nowTime,
+                                                 multimodal.value)
                         os.chdir(r'/home/laowei/ViennaAcademic')
-                        bot_message = {
-                            "text":
-                            bot_message,
-                            "files": ([{
-                                "file": FileData(path=nowTime + ".png")
-                            }] if os.path.exists(nowTime + ".png") else []) +
-                            ([{
-                                "file": FileData(path=nowTime + ".mp4")
-                            }] if os.path.exists(nowTime + ".mp4") else [])
-                        }
-                        chat_history.append([message, bot_message])
+                        chat_history.append([
+                            message, {
+                                "text":
+                                "",
+                                "files":
+                                ([{
+                                    "file": FileData(path=nowTime + ".png")
+                                }] if os.path.exists(nowTime + ".png") else [])
+                                + ([{
+                                    "file": FileData(path=nowTime + ".mp4")
+                                }] if os.path.exists(nowTime + ".mp4") else [])
+                            }
+                        ])
+                        for bot_chunk in bot_stream:
+                            bot_message = {
+                                "text":
+                                bot_chunk,
+                                "files":
+                                ([{
+                                    "file": FileData(path=nowTime + ".png")
+                                }] if os.path.exists(nowTime + ".png") else [])
+                                + ([{
+                                    "file": FileData(path=nowTime + ".mp4")
+                                }] if os.path.exists(nowTime + ".mp4") else [])
+                            }
+                            chat_history.pop()
+                            chat_history.append([message, bot_message])
+                            yield gr.MultimodalTextbox(
+                                value=None), chat_history
                     else:
-                        chat_history.append([{
-                            "text": message[0],
-                            "files": []
-                        }, {
-                            "text": message[1],
-                            "files": []
-                        }])
-                    time.sleep(2)
-                    return gr.MultimodalTextbox(value=None), chat_history
+                        for chunk in message:
+                            if chat_history:
+                                chat_history.pop()
+                            chat_history.append([{
+                                "text": chunk[0],
+                                "files": []
+                            }, {
+                                "text": chunk[1],
+                                "files": []
+                            }])
+                            yield gr.MultimodalTextbox(value=None), chat_history
 
                 msg.submit(respond, [msg, chatbot], [msg, chatbot])
             with gr.Column(min_width=350):
@@ -184,16 +202,6 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         uploadThesis = gr.UploadButton("上传论文/学术专著", scale=1)
                         uploadThesis.upload(upload_paper, uploadThesis)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
-                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762")
-                    downloadArxiv = gr.Button("arxiv论文下载", scale=0)
-
-                    def gradiodownloadArxivPaper(arxivNum, chat_history=chatbot):
-                        gr.Info("正在下载，请耐心等候")
-                        chat_history.append(downloadArxivPaper(arxivNum))
-                        gr.Info("下载完成，请刷新")
-                        return "", chat_history
-
-                    downloadArxiv.click(gradiodownloadArxivPaper, [arxivNum,chatbot], [arxivNum,chatbot])
 
                     @gr.render(triggers=[refresh.click])
                     def show_Files():
@@ -222,28 +230,50 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
 
                             fileBtn.click(appendToMsg, msg, msg)
 
-                with gr.Tab("临时文件"):
-                    with gr.Row():
-                        uploadFile = gr.UploadButton("上传文件", scale=0)
-                        uploadFile.upload(upload_file, uploadFile)
-                        refresh = gr.Button("刷新", scale=0, min_width=100)
+                with gr.Tab("已解析文件"):
+                    gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762")
+                    downloadArxiv = gr.Button("arxiv论文下载", scale=0)
+
+                    def gradiodownloadArxivPaper(arxivNum,
+                                                 chat_history=chatbot):
+                        gr.Info("正在下载，请耐心等候")
+                        chat_history.append([{
+                            "text": f"下载{arxivNum}并翻译标题与摘要",
+                            "files": []
+                        }, {
+                            "text":
+                            downloadArxivPaper(arxivNum),
+                            "files": []
+                        }])
+                        gr.Info("下载完成，请刷新")
+                        return "", chat_history
+
+                    downloadArxiv.click(gradiodownloadArxivPaper,
+                                        [arxivNum, chatbot],
+                                        [arxivNum, chatbot])
 
                     @gr.render(triggers=[refresh.click])
-                    def show_upload():
-                        for file in os.listdir(r'userUpload'):
+                    def show_knowledgeBase():
+                        for file in os.listdir(r'knowledgeBase'):
                             with gr.Row():
                                 fileBtn = gr.Button(file,
                                                     scale=0,
                                                     min_width=120)
+                                downloadFile = gr.DownloadButton(
+                                    f"下载",
+                                    f'knowledgeBase/{file}',
+                                    scale=0,
+                                    min_width=70)
                                 deleteFile = gr.Button("删除",
                                                        scale=0,
                                                        min_width=70)
 
                                 def delete_file(file=file):
-                                    os.remove(f"userUpload/{file}")
+                                    os.remove(f"knowledgeBase/{file}")
 
                                 deleteFile.click(delete_file, None, None)
-
                             def appendToMsg(msg, file=file):
                                 msg['text'] = msg['text'] + f"{file}" + "}"
                                 return msg
@@ -292,31 +322,6 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
 
                             folderBtn.click(output_analysis, chatbot, chatbot)
 
-                with gr.Tab("已解析文件"):
-                    gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
-
-                    @gr.render(triggers=[refresh.click])
-                    def show_knowledgeBase():
-                        for file in os.listdir(r'knowledgeBase'):
-                            with gr.Row():
-                                fileBtn = gr.Button(file,
-                                                    scale=0,
-                                                    min_width=120)
-                                downloadFile = gr.DownloadButton(
-                                    f"下载",
-                                    f'knowledgeBase/{file}',
-                                    scale=0,
-                                    min_width=70)
-                                deleteFile = gr.Button("删除",
-                                                       scale=0,
-                                                       min_width=70)
-
-                                def delete_file(file=file):
-                                    os.remove(f"knowledgeBase/{file}")
-
-                                deleteFile.click(delete_file, None, None)
-
     with gr.Tab("实验性功能"):
         with gr.Tab("全自动生成论文"):
             title = gr.Textbox(placeholder="输入主题，例如：中华民族共同体意识, Fluid Field")
@@ -354,16 +359,17 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                   thesisBox)
         with gr.Tab("解理科题目"):
 
-            def solveAndFormat(question):
+            def reason(question):
                 if question.strip() == "":
                     return "请输入题目"
                 else:
                     gr.Info("正在解题，不要关闭页面，大约需2min")
+                    print(question)
                     answer = solve(question)
-                    answer = answer.replace('\\(', '$').replace(
-                        '\\)', '$').replace('\\[', '$$').replace('\\]', '$$')
-                    answer = remove_newlines_from_formulas(answer)
-                    return answer
+                    # answer = answer.replace('\\(', '$').replace('\\)', '$').replace('\\[', '$$').replace('\\]', '$$')
+                    # answer = remove_newlines_from_formulas(answer)
+                    for chunk in answer:
+                        yield chunk
 
             problem = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题")
             solve_button = gr.Button("解题")
@@ -386,6 +392,6 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                         'display': True
                                     }],
                                     show_copy_button=True)
-            solve_button.click(solve, problem, answerBox)
+            solve_button.click(reason, problem, answerBox)
 
-demo.launch(auth=("laowei","1145141919810"))
+demo.launch(auth=("laowei", "1145141919810"))
