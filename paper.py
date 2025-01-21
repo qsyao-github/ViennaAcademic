@@ -112,7 +112,6 @@ def translatePapertoChinese(file_Path):
             content = f.read()
         return content
     content = chunk(attach(file_Path))
-    input(str(content))
     length = len(content)
     threads = []
     result_list = [""] * length
@@ -164,11 +163,6 @@ def translatePapertoEnglish(file_Path):
                                        result_list, "将论文译为英文，仅需翻译，不作说明"))
             threads.append(t)
             t.start()
-        for t in threads:
-            t.join()
-        with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Eng.md',
-                  mode='w') as f:
-            f.write('\n'.join(result_list))
     else:
         for i in range(length):
             t = threading.Thread(target=process_part_of_list,
@@ -176,12 +170,14 @@ def translatePapertoEnglish(file_Path):
                                        "将论文译为英文，仅需翻译，不作说明"))
             threads.append(t)
             t.start()
-        for t in threads:
-            t.join()
-        with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Eng.md',
-                  mode='w') as f:
-            f.write('\n'.join(result_list))
-    return ("将论文译为英文", '\n'.join(result_list))
+    while any(thread.is_alive() for thread in threads):
+        yield ("将论文译为英文", ''.join(result_list))
+    for t in threads:
+        t.join()
+    with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Eng.md',
+                mode='w') as f:
+        f.write(''.join(result_list))
+    return ("将论文译为英文", ''.join(result_list))
 
 
 def polishPaper(file_Path):
@@ -206,11 +202,6 @@ def polishPaper(file_Path):
                                        "对论文进行Nature级别润色，仅需润色，不作说明"))
             threads.append(t)
             t.start()
-        for t in threads:
-            t.join()
-        with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Pol.md',
-                  mode='w') as f:
-            f.write('\n'.join(result_list))
     else:
         for i in range(length):
             t = threading.Thread(target=process_part_of_list,
@@ -218,9 +209,11 @@ def polishPaper(file_Path):
                                        "对论文进行Nature级别润色，仅需润色，不作说明"))
             threads.append(t)
             t.start()
-        for t in threads:
-            t.join()
-        with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Pol.md',
-                  mode='w') as f:
-            f.write('\n'.join(result_list))
-    return ("润色论文", '\n'.join(result_list))
+    while any(thread.is_alive() for thread in threads):
+        yield ("润色论文", ''.join(result_list))
+    for t in threads:
+        t.join()
+    with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Pol.md',
+                mode='w') as f:
+        f.write('\n'.join(result_list))
+    return ("润色论文", ''.join(result_list))
