@@ -9,16 +9,10 @@ def attach(file):
     if filemd in os.listdir('knowledgeBase'):
         with open(f'knowledgeBase/{filemd}', 'r', encoding='utf-8') as f:
             content = f.read()
-    elif filemd in os.listdir('userUpload'):
-        with open(f'userUpload/{filemd}', 'r', encoding='utf-8') as f:
-            content = f.read()
     else:
         try:
             if file in os.listdir('paper'):
                 with open(f'paper/{file}', 'r', encoding='utf-8') as f:
-                    content = f.read()
-            else:
-                with open(f'userUpload/{file}', 'r', encoding='utf-8') as f:
                     content = f.read()
         except:
             content = ""
@@ -42,12 +36,15 @@ def readPaper(file_Path):
 4. 这篇论文的方法是怎样的？它如何突破了这个核心困难？
 5. 论文是如何设计实验验证的？有什么值得学习之处？
 6. 这篇论文有什么局限？'''
-    response = client2.chat.completions.create(model="glm-4-flash",
+    answer=""
+    stream = client2.chat.completions.create(model="glm-4-flash",
                                                messages=[{
                                                    "role": "user",
                                                    "content": prompt
-                                               }])
-    return (f"解读论文{file_Path}", response.choices[0].message.content)
+                                               }],stream=True)
+    for chunk in stream:
+        answer+=chunk.choices[0].delta.content or ""
+        yield (f"解读论文{file_Path}", answer)
 
 
 def translation(string, extraPrompt):
