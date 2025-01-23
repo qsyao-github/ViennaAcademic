@@ -3,19 +3,18 @@ from docling.datamodel.base_models import InputFormat
 from docling.document_converter import (DocumentConverter, PdfFormatOption,
                                         WordFormatOption, ImageFormatOption)
 from docling.pipeline.simple_pipeline import SimplePipeline
-from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions, TableFormerMode
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
 from docling.datamodel.document import ConversionResult
 from rapidocr_onnxruntime import RapidOCR
 
 engine = RapidOCR()
-# Docling Parse with Tesseract
-# ----------------------
-pipeline_options = PdfPipelineOptions()
+pipeline_options = PdfPipelineOptions(artifacts_path="/home/laowei/model/docling")
 pipeline_options.do_ocr = True
 pipeline_options.do_table_structure = True
 pipeline_options.table_structure_options.do_cell_matching = True
 pipeline_options.ocr_options = RapidOcrOptions()
+pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
 
 doc_converter = (
     DocumentConverter(  # all of the below is optional, has internal defaults.
@@ -40,6 +39,6 @@ doc_converter = (
 )
 
 
-def parse(file):
+def parseEverything(file):
     conv_result: ConversionResult = doc_converter.convert(file)
     return conv_result.document.export_to_markdown()
