@@ -44,7 +44,7 @@ def downloadArxivPaper(arxivID):
         os.chdir("..")
     os.chdir(f"arxivSource/{title}")
     # find main file
-    mainFile= subprocess.run(f'grep -l "\\documentclass" *.tex',shell=True,text=True,capture_output=True)
+    mainFile= subprocess.run(f'grep -l "^[^%]*\\documentclass" *.tex',shell=True,text=True,capture_output=True)
     mainFile=mainFile.stdout.strip(" \n")
     # find sty file
     styFiles = [file.strip(".sty") for file in os.listdir() if file.endswith(".sty")]
