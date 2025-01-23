@@ -1,137 +1,119 @@
-from modelclient import client1, client2
-import regex as re
-import subprocess
-import time
+from modelclient import client1, client3
+from latex2sympy2_extended import latex2sympy, normalize_latex, NormalizationConfig
+import regex
+import requests
+from sympy import *
+
+config = NormalizationConfig(basic_latex=True,
+                             units=True,
+                             malformed_operators=True,
+                             nits=True,
+                             equations=False,
+                             boxed=False)
 
 
-def remove_newlines_from_formulas(text):
-    # 用正则表达式匹配并替换
-    pattern = r'\$\$[\s\r\n]*(.*?)\s*[\s\r\n]*\$\$'
-    replacement = r'$$\1$$'
-    result = re.sub(pattern, replacement, text, flags=re.DOTALL)
-    return result
+def extract_formulas(text):
+    # 使用正则表达式匹配 $ 或 $$ 包围的内容
+    inline_formulas = regex.findall(r'\$(.*?)\$', text)
+    block_formulas = regex.findall(r'\$\$(.*?)\$\$', text, regex.DOTALL)
+    formulas = []
+    # 返回所有匹配的公式，包括行内公式和块级公式
+    for formula in (inline_formulas + block_formulas):
+        if formula:
+            if "=" not in formula:
+                try:
+                    formula = normalize_latex(formula, config)
+                    expr = latex2sympy(formula)
+                    try:
+                        newExpr = expr.doit()
+                    except:
+                        newExpr = expr
+                    newExpr = simplify(newExpr, rational=True, doit=True)
+                    if formula != latex(newExpr):
+                        latexExpr = latex(newExpr)
+                        formulas.append("$" + formula + " = " + latexExpr +
+                                        "$")
+                except:
+                    pass
+    return formulas
 
 
-def execute_code_math(code):
-    # 将code写入temp.py中，用subprocess运行，返回文本形式结果
-    with open('temp.py', 'w', encoding='utf-8') as f:
-        f.write(code)
+def check_formulas(text):
+    inline_formulas = regex.findall(r'\$(.*?)\$', text)
+    block_formulas = regex.findall(r'\$\$(.*?)\$\$', text, regex.DOTALL)
+    formulas = []
+    for formula in (inline_formulas + block_formulas):
+        components = formula.split("=")
+        try:
+            candidates = [
+                latex2sympy(f"{components[i]}-({components[i+1]})")
+                for i in range(len(components) - 1)
+            ]
+            checks = []
+            for candidate in candidates:
+                try:
+                    newExpr = candidate.doit()
+                    newExpr = simplify(newExpr, rational=True, doit=True)
+                except:
+                    newExpr = simplify(newExpr, rational=True, doit=True)
+                checks.append(newExpr)
+            for i in range(len(checks)):
+                if latex(candidates[i]) != latex(checks[i]) and latex(
+                        checks[i]) != '0':
+                    formulas.append(
+                        f"请用户检查以下等式：${components[i]} = {components[i+1]}$")
+        except:
+            pass
+    return formulas
 
-    process = subprocess.Popen(['python', 'temp.py'],
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               text=True)
-    start_time = time.time()
 
-    # 等待进程结束或超时
-    while True:
-        if process.poll() is not None:  # 进程已经结束
-            break
-        if time.time() - start_time > 10:  # 超过时间限制
-            process.terminate()  # 终止进程
-            return "Verification time out, return #submit directly"
-        time.sleep(0.1)  # 避免过于频繁的检查
-
-    stdout, stderr = process.communicate()
-    return stdout if stdout else '' + stderr if stderr else ''
+def attachHints(query, answer=""):
+    formulas = extract_formulas(query)
+    wrong_answer = check_formulas(answer) if answer else []
+    if formulas:
+        query += "\n提示：\n" + "\n".join(formulas)
+    if wrong_answer:
+        query += "\n" + "\n".join(wrong_answer)
+    return query
 
 
-def qwenmath(question):
-    stream = client1.chat.completions.create(
-        model="qwq-32b-preview",
-        messages=[{
-            "role":
-            "system",
-            "content":
-            "You are a helpful and harmless assistant. You are Qwen developed by Alibaba. You should think step-by-step."
-        }, {
-            "role": "user",
-            "content": question
-        }],
-        stream=True)
-    for chunk in stream:
+def translate(query):
+    translateMessage = [{
+        "role":
+        "system",
+        "content":
+        """你将看到一个理科题目，将其译为中文。如果其本来就是中文，不要改动。不要返回除了题目以外的其它信息"""
+    }, {
+        "role": "user",
+        "content": query
+    }]
+    response = client1.chat.completions.create(model="gpt-4o-mini",
+                                               messages=translateMessage)
+    return response.choices[0].message.content
+
+
+def deepseek(query):
+    message = [{"role": "user", "content": query}]
+    response = client3.chat.completions.create(model="deepseek-r1",
+                                               messages=message,
+                                               stream=True)
+    for chunk in response:
         yield chunk.choices[0].delta.content or ""
 
 
-def gptChat(message):
-    response = client1.chat.completions.create(model="gpt-4o-mini",
-                                               messages=message)
-    return response.choices[0].message.content
-
-
-def claudeChat(message):
-    response = client1.chat.completions.create(model="mistral-large-latest",
-                                               messages=message)
-    return response.choices[0].message.content
-
-
-def glmChat(message):
-    response = client2.chat.completions.create(model="glm-4-flash",messages=message)
-    return response.choices[0].message.content
-
-
-def pythonCall(answer):
-    # 去掉原本存在的```output块
-    answer = re.sub(r'```output\n(.*?)```', '', answer, flags=re.DOTALL)
-    # 执行结果替换
-    pattern = r'```python(.*?)```'
-
-    def repl(match):
-        code = match.group(1).strip()
-        result = '```python\n' + code + '```\n' + '```output\n' + execute_code_math(
-            code) + '```'  # 执行代码并获取结果
-        return result  # 用执行结果替换代码
-
-    # 执行替换
-    replaced_text = re.sub(pattern, repl, answer, flags=re.DOTALL)
-    return replaced_text
-
-
-def solve(question):
-    # translation
-    translateMessage = [{
-        "role":
-        "system",
-        "content":
-        """You'll be given problem. Translated into English. If its already in English, leave it unchanged. Return the translated or unchanged problem only."""
-    }, {
-        "role": "user",
-        "content": question
-    }]
-    question = gptChat(translateMessage)
-    # qwen inference
-    answer = ""
-    stream = qwenmath(question)
-    for chunk in stream:
-        answer += chunk
-        yield answer
-    # rewrite
-    rewriteMessage = [{
-        "role":
-        "system",
-        "content":
-        """You'll be given a question and a thought process. You're taking an exam. Rephrase the thought process given rigorously in markdown, only include necessary reasoning/calculation that contributes to the rigorousness of the thought process, wrap the final answer in \\boxed{}, and return nothing else."""
-    }, {
-        "role":
-        "user",
-        "content":
-        'Question:\n' + question + "\nAnswer:\n" + answer
-    }]
-    answer = claudeChat(rewriteMessage)
-    if answer.endswith('```') and answer.startswith('```markdown'):
-        answer = answer[13:-3]
-    answer = answer.replace(
-        '\\(', '$').replace('\\)', '$').replace('\\[',
-                                                '$$').replace('\\]', '$$')
-    answer = remove_newlines_from_formulas(answer)
-    translateMessage = [{
-        "role": "user",
-        "content": "我会提供一个问题的解题过程及答案，将其译为中文\n"+answer
-    }]
-    answerChi = glmChat(translateMessage)
-    answerChi = answerChi.replace(
-        '\\(', '$').replace('\\)', '$').replace('\\[',
-                                                '$$').replace('\\]', '$$')
-    answerChi = remove_newlines_from_formulas(answerChi)
-    finalAnswer = (answerChi + '\n\n' + answer)
-    yield finalAnswer
+def solve(query):
+    query = translate(query).strip(";")
+    query = attachHints(query, "")
+    yield query
+    response = deepseek(query)
+    content = ""
+    for chunk in response:
+        content += chunk
+        yield content
+    index = content.find("[思考结束]")
+    if index != -1:
+        content = content[content.find("[思考结束]") + 6:]
+        yield content
+    checks = check_formulas(content)
+    yield content + ("\n\n老卫提示：" + "\n\n" + "\n\n".join(
+        checks) if checks else "")
