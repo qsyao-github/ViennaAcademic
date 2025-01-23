@@ -10,8 +10,7 @@ import regex as re
 from laoweiService import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
-from gptmath import solve
-from collections.abc import Iterator
+from deepseek import solve
 
 
 def remove_newlines_from_formulas(text):
@@ -104,7 +103,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         '\\[', '$$').replace('\\]', '$$')
                     message = remove_newlines_from_formulas(message)
                     message = promptcall(message)
-                    if not isinstance(message, Iterator):
+                    if isinstance(message, str):
                         message = {
                             "text":
                             message,
@@ -152,6 +151,15 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                             chat_history.append([message, bot_message])
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
+                    elif isinstance(message, tuple):
+                        chat_history.append([{
+                                "text": message[0],
+                                "files": []
+                            }, {
+                                "text": message[1],
+                                "files": []
+                            }])
+                        yield gr.MultimodalTextbox(value=None), chat_history
                     else:
                         for chunk in message:
                             if chat_history:
@@ -181,21 +189,6 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                     with open(f"knowledgeBase/{simpfile}.md", "w") as f:
                         f.write(text)
                     gr.Info("上传成功，请刷新")
-
-                def upload_file(file):
-                    simpfile = file[file.rfind("/") + 1:file.rfind(".")]
-                    suffix = file[file.rfind("."):]
-                    if suffix not in [".md", ".txt"]:
-                        gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要1分钟，请耐心等候")
-                        if os.path.exists(f"userUpload/{simpfile}.md"):
-                            return
-                        shutil.copy(file, "userUpload")
-                        text = parseEverything(file)
-                        with open(f"userUpload/{simpfile}.md", "w") as f:
-                            f.write(text)
-                        gr.Info("上传成功，请刷新")
-                    else:
-                        shutil.copy(file, "userUpload")
 
                 with gr.Tab("论文/学术专著"):
                     with gr.Row():
