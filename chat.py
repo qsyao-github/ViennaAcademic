@@ -6,10 +6,19 @@ from imageUtils import get_total_pixels, encode_image
 from modelclient import client1, client2
 import os
 
+
 def python(code):
     return f"""\n```
 {execute_code(code)}
 ```\n"""
+
+
+def remove_newlines_from_formulas(text):
+    # 用正则表达式匹配并替换
+    pattern = r'\$\$[\s\r\n]*(.*?)\s*[\s\r\n]*\$\$'
+    replacement = r'$$\1$$'
+    result = regex.sub(pattern, replacement, text, flags=regex.DOTALL)
+    return result
 
 
 def toolcall(message, nowTime):
@@ -52,7 +61,35 @@ def promptcall(message):
                 message = message.replace(f"#{tag}{{{param}}}", replacement)
             else:
                 message = replacement
+    print('promptcall')
+    print(message)
     return message
+
+
+def modelInference(model, nowTime, query, chatbot, client):
+    stream = client.chat.completions.create(
+        model=model,
+        messages=chatbot.chatHistory + [{
+            'role':
+            'system',
+            'content':
+            """你可使用魔术指令，它们形如#function{param}，请务必将参数置于大括号内，紧跟函数名。若你需要上网搜索，请在回答中加入"#websearch{搜索内容}"；若你需要制作动画，请在回答中加入"#manim{你的代码}，文本请使用英文。若你需要运行Python代码，请在回答中加入"#python{代码}"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
+            + f"{nowTime}.png"
+        }] + [{
+            "role": "user",
+            "content": query[0]["content"]
+        }],
+        stream=True)
+    for chunk in stream:
+        yield chunk.choices[0].delta.content or ""
+
+
+def multimodelInference(model, query, chatbot):
+    stream = client1.chat.completions.create(model=model,
+                                             messages=chatbot.chatHistory +
+                                             query,stream=True)
+    for chunk in stream:
+        yield chunk.choices[0].delta.content or ""
 
 
 def historyParse(history, multimodal=False):
@@ -131,7 +168,7 @@ def queryParse(query, multimodal=False):
             if files:
                 file = files[0]["file"].path
                 if image_pattern.match(file):
-                    size = get_total_pixels(file)
+                    # size = get_total_pixels(file)
                     encodedString = encode_image(file)
                     with open(file[:file.rfind('.')] + '.txt', 'w') as f:
                         f.write(encodedString)
@@ -151,6 +188,7 @@ def queryParse(query, multimodal=False):
             else:
                 returnList = [{'role': 'user', 'content': query["text"]}]
                 size = 0
+        size=0
         return returnList, size
 
 
@@ -163,55 +201,48 @@ class chatBot:
         query, size = queryParse(query, multimodal)
         if not multimodal:
             if query is not None:
+                response = ""
                 totalLength = len(query[0]['content']) + token
                 if totalLength < 8000:
-                    response = client1.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=self.chatHistory + [{
-                            'role':
-                            'system',
-                            'content':
-                            """你可使用魔术指令，它们形如#function{param}，大括号需紧跟函数名。若你需要上网搜索，请在回答中加入"#websearch{搜索内容}"；若你需要制作动画，请在回答中加入"#manim{你的代码}，文本请使用英文。若你需要运行Python代码，请在回答中加入"#python{代码}"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
-                            + f"{nowTime}.png"
-                        }] + [{
-                            "role": "user",
-                            "content": query[0]["content"]
-                        }])
+                    for chunk in modelInference("gpt-4o-mini", nowTime, query,
+                                                self, client1):
+                        response += chunk
+                        yield response
                 else:
-                    response = client2.chat.completions.create(
-                        model="glm-4-flash",
-                        messages=self.chatHistory + [{
-                            'role':
-                            'system',
-                            'content':
-                            """你可使用魔术指令，它们形如#function{param}，大括号需紧跟函数名。若你需要上网搜索，请在回答中加入"#websearch{搜索内容}"；若你需要制作动画，请在回答中加入"#manim{你的代码}，，文本请使用英文。若你需要运行Python代码，请在回答中加入"#python{代码}"。你可以使用numpy, scipy, sympy等第三方包。请将绘制的图表保存至"""
-                            + f"{nowTime}.png"
-                        }] + [{
-                            "role": "user",
-                            "content": query[0]["content"]
-                        }])
-                response = toolcall(response.choices[0].message.content,
-                                    nowTime)
-                return response
+                    for chunk in modelInference("glm-4-flash", nowTime, query,
+                                                self, client2):
+                        response += chunk
+                        yield response
+                response = toolcall(response, nowTime).replace(
+                    '\\(',
+                    '$').replace('\\)',
+                                 '$').replace('\\[',
+                                              '$$').replace('\\]', '$$')
+                yield remove_newlines_from_formulas(response)
             return "请输入内容"
         else:
             if query is not None:
-                content = query[0]['content']
-                contentLength = len(content) if type(content) == str else len(
-                    content[0]['text'])
-                totalLength = contentLength + token
-                pixelLength = max(self.size, size)
-                try:
-                    response = client1.chat.completions.create(
-                        model="pixtral-large-latest",
-                        messages=self.chatHistory + query)
-                    response = response.choices[0].message.content
+                # content = query[0]['content']
+                # contentLength = len(content) if type(content) == str else len(
+                #    content[0]['text'])
+                # totalLength = contentLength + token
+                # pixelLength = max(self.size, size)
+                response = ""
+                for chunk in multimodelInference("pixtral-large-latest", query, self):
+                    response += chunk
+                    yield response
+                """try:
+                    response = ""
+                    for chunk in multimodelInference("pixtral-large-latest", query, self):
+                        response += chunk
+                        yield response
                 except:
-                    if totalLength < 8000 and pixelLength < 1806336:
-                        response = client1.chat.completions.create(
-                            model="minicpm-v",
-                            messages=self.chatHistory + query)
-                        response = response.choices[0].message.content
-                    else:
-                        response = "牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
-                return response
+                    response="牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
+                    # if totalLength < 8000 and pixelLength < 1806336:
+                    # else:"""
+                response=response.replace(
+                    '\\(',
+                    '$').replace('\\)',
+                                 '$').replace('\\[',
+                                              '$$').replace('\\]', '$$')
+                yield remove_newlines_from_formulas(response)
