@@ -11,6 +11,7 @@ from laoweiService import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
 from deepseek import solve
+from qanythingClient import update, qanything_fetch
 
 
 def remove_newlines_from_formulas(text):
@@ -69,6 +70,11 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                         info=
                         "若勾选，模型可直接理解图片，但速度与纯文本推理能力下降。确保图片方向正确，尽可能裁剪，用输入框左侧按钮上传"
                     )
+                    knowledgeBaseSwitch = gr.Checkbox(
+                        label="知识库",
+                        info=
+                        "若勾选，模型每次回复前，服务器都将查询已经上传的论文/学术专著，供模型整合作答。大量文本可能干扰模型的基础推理能力。"
+                    )
 
                 def checkDelete():
                     for file in os.listdir():
@@ -88,12 +94,28 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
 
                 findPaper.click(addToMsg("#findPaper{"), msg, msg)
                 multimodal = gr.State(False)
+                knowledgeBase = gr.State(False)
 
-                def switch_multimodal():
+                def switch_multimodal(multimodalSwitchValue):
                     global multimodal
-                    multimodal = gr.State(not multimodal.value)
+                    global knowledgeBase
+                    multimodal = gr.State(multimodalSwitchValue)
+                    if multimodal.value:
+                        knowledgeBase = gr.State(False)
+                        knowledgeBaseSwitch.value = False
+                    return knowledgeBase.value
 
-                multimodalSwitch.input(switch_multimodal)
+                def switch_knowledgeBase(knowledgeBaseSwitchValue):
+                    global knowledgeBase
+                    global multimodal
+                    knowledgeBase = gr.State(knowledgeBaseSwitchValue)
+                    if knowledgeBase.value:
+                        multimodal = gr.State(False)
+                        multimodalSwitch.value = False
+                    return multimodal.value
+                multimodalSwitch.input(switch_multimodal, [multimodalSwitch], [knowledgeBaseSwitch])
+                knowledgeBaseSwitch.input(switch_knowledgeBase,
+                                          [knowledgeBaseSwitch], [multimodalSwitch])
 
                 def respond(message, chat_history):
                     # integrating multimodal conversion here
@@ -104,6 +126,10 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                     message = remove_newlines_from_formulas(message)
                     message = promptcall(message)
                     if isinstance(message, str):
+                        if knowledgeBase.value:
+                            knowledgeBaseSearch = qanything_fetch(message)
+                            if knowledgeBaseSearch:
+                                message = knowledgeBaseSearch + '\n\n' + message
                         message = {
                             "text":
                             message,
@@ -153,12 +179,12 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                 value=None), chat_history
                     elif isinstance(message, tuple):
                         chat_history.append([{
-                                "text": message[0],
-                                "files": []
-                            }, {
-                                "text": message[1],
-                                "files": []
-                            }])
+                            "text": message[0],
+                            "files": []
+                        }, {
+                            "text": message[1],
+                            "files": []
+                        }])
                         yield gr.MultimodalTextbox(value=None), chat_history
                     else:
                         for chunk in message:
@@ -171,7 +197,8 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                 "text": chunk[1],
                                 "files": []
                             }])
-                            yield gr.MultimodalTextbox(value=None), chat_history
+                            yield gr.MultimodalTextbox(
+                                value=None), chat_history
 
                 msg.submit(respond, [msg, chatbot], [msg, chatbot])
             with gr.Column(min_width=350):
@@ -188,6 +215,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                     text = parseEverything(file)
                     with open(f"knowledgeBase/{simpfile}.md", "w") as f:
                         f.write(text)
+                    update()
                     gr.Info("上传成功，请刷新")
 
                 with gr.Tab("论文/学术专著"):
@@ -240,6 +268,7 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                             downloadArxivPaper(arxivNum),
                             "files": []
                         }])
+                        update()
                         gr.Info("下载完成，请刷新")
                         return "", chat_history
 
@@ -265,8 +294,10 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
 
                                 def delete_file(file=file):
                                     os.remove(f"knowledgeBase/{file}")
+                                    update()
 
                                 deleteFile.click(delete_file, None, None)
+
                             def appendToMsg(msg, file=file):
                                 msg['text'] = msg['text'] + f"{file}" + "}"
                                 return msg
@@ -387,4 +418,4 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                     show_copy_button=True)
             solve_button.click(reason, problem, answerBox)
 
-demo.launch(auth=("laowei", "1145141919810"))
+demo.launch(auth=("laowei", "1145141919810"), server_port = 7860)
