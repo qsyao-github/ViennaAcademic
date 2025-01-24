@@ -79,16 +79,10 @@ def merge_retrievers():
 def get_response(query):
     compression_retriever = merge_retrievers()
     response = compression_retriever.get_relevant_documents(query)
-    return response
+    text_response = []
+    for document in response:
+        content = document.page_content.strip(' \n')
+        if content and '#' not in content and '\n' not in content and document.metadata["relevance_score"]>=0.35:
+            text_response.append(content)
+    return '\n\n'.join(text_response)
 
-
-import time
-start = time.time()
-result = get_response("什么是注意力机制")
-with open('test.md', 'w') as f:
-    for i, document in enumerate(result):
-        print(f'No. {i+1}，相似度{document.metadata["relevance_score"]}')
-        print(document.page_content)
-        f.write(f'No. {i+1}，相似度{document.metadata["relevance_score"]}\n')
-        f.write(document.page_content+'\n')
-print(time.time()-start)
