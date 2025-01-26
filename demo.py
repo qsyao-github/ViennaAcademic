@@ -7,7 +7,7 @@ import shutil
 from codeAnalysis import analyze_folder
 import datetime
 import regex as re
-from laoweiService import generate
+from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
 from deepseek import solve
@@ -349,37 +349,23 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
     with gr.Tab("实验性功能"):
         with gr.Tab("全自动生成论文"):
             title = gr.Textbox(placeholder="输入主题，例如：中华民族共同体意识, Fluid Field")
-            with gr.Row():
-                max_conv_turn = gr.Number(label="Brain Storm轮数",
-                                          info="与文章丰富程度正相关。默认为3，可不填写",
-                                          precision=0)
-                perspective = gr.Number(label="切入角度数",
-                                        info="与文章丰富程度正相关，按需填写(或不填写)，默认为3",
-                                        precision=0)
-                top_k = gr.Number(label="搜索引擎返回结果数",
-                                  info="与文章丰富程度正相关。默认为3，可不填写",
-                                  precision=0)
             generate_button = gr.Button("生成论文")
             thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件在VA主页面“已解析文件”下，可下载")
 
-            def generateAndSave(title, max_conv_turn, perspective, top_k):
-                max_conv_turn = max_conv_turn if max_conv_turn > 3 else 3
-                max_perspective = perspective if perspective > 3 else 3
-                search_top_k = top_k if top_k > 3 else 3
+            def generateAndSave(title):
                 if title.strip() == "":
                     return "请输入主题"
                 else:
                     gr.Info(
-                        f"正在生成，大概需要{int(600/27*max_conv_turn*max_perspective*search_top_k)}s，请不要关闭界面。稍后可去已解析文件中获取md文件"
+                        f"正在生成，大概需要600s，请不要关闭界面。稍后可去已解析文件中获取md文件"
                     )
-                    thesis = generate(title, max_conv_turn, max_perspective,
-                                      search_top_k)
+                    thesis = generate(title)
                     with open(f'knowledgeBase/{title}.md', 'w') as f:
                         f.write(thesis)
                     return thesis
 
             generate_button.click(generateAndSave,
-                                  [title, max_conv_turn, perspective, top_k],
+                                  [title],
                                   thesisBox)
         with gr.Tab("解理科题目"):
 
@@ -418,4 +404,4 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
                                     show_copy_button=True)
             solve_button.click(reason, problem, answerBox)
 
-demo.launch(auth=("laowei", "1145141919810"), server_port = 7860)
+demo.launch(server_port = 7860)
