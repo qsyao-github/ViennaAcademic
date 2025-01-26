@@ -3,14 +3,17 @@ from docling.datamodel.base_models import InputFormat
 from docling.document_converter import (DocumentConverter, PdfFormatOption,
                                         WordFormatOption, ImageFormatOption)
 from docling.pipeline.simple_pipeline import SimplePipeline
-from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions, TableFormerMode
+from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions, TableFormerMode, AcceleratorDevice, AcceleratorOptions
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
 from docling.datamodel.document import ConversionResult
 from rapidocr_onnxruntime import RapidOCR
-
+from Drission import get_html
 engine = RapidOCR()
-pipeline_options = PdfPipelineOptions(artifacts_path="/home/laowei/model/docling")
+pipeline_options = PdfPipelineOptions(
+    artifacts_path="/home/laowei/model/docling")
 pipeline_options.do_ocr = True
+pipeline_options.accelerator_options = AcceleratorOptions(
+    num_threads=12, device=AcceleratorDevice.CPU)
 pipeline_options.do_table_structure = True
 pipeline_options.table_structure_options.do_cell_matching = True
 pipeline_options.ocr_options = RapidOcrOptions()
@@ -42,3 +45,9 @@ doc_converter = (
 def parseEverything(file):
     conv_result: ConversionResult = doc_converter.convert(file)
     return conv_result.document.export_to_markdown()
+
+# 实现DrissionPage
+def parseWebsite(url):
+    get_html(url)
+    return parseEverything('temp.html')
+
