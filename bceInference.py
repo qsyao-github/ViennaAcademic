@@ -33,26 +33,29 @@ def get_document(file):
 
 
 def get_retriever(file):
-    print(file)
     total_texts = get_document(file)
-    retriever = FAISS.from_documents(
-        total_texts,
-        embed_model,
-        distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
-    return retriever
+    if total_texts:
+        retriever = FAISS.from_documents(
+            total_texts,
+            embed_model,
+            distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
+        return retriever
     
 
 def update():
     knowledgeBase = set([os.path.splitext(file)[0] for file in os.listdir('knowledgeBase')])
     retrievers = set([os.path.splitext(file)[0] for file in os.listdir('retrievers')])
     for file in knowledgeBase-retrievers:
-        retriever = get_retriever(f'knowledgeBase/{file}.md')
-        retriever.save_local('retrievers', file)
-        print(f'{file} retriever saved')
+        try:
+            retriever = get_retriever(f'knowledgeBase/{file}.md')
+            if retriever is not None:
+                retriever.save_local('retrievers', file)
+        except:
+            pass
     for file in retrievers-knowledgeBase:
         try:
             os.remove(f'retrievers/{file}.pkl')
-            os.remove(f'retrievers/{file}.fiass')
+            os.remove(f'retrievers/{file}.faiss')
             print(f'{file} retriever removed')
         except:
             print('Admins please check for the file')
@@ -82,7 +85,13 @@ def get_response(query):
     text_response = []
     for document in response:
         content = document.page_content.strip(' \n')
-        if content and '#' not in content and '\n' not in content and document.metadata["relevance_score"]>=0.35:
-            text_response.append(content)
+        if content and '#' not in content and '\n' not in content and ('。' in content or '！' in content or '？' in content or '.' in content or '!' in content or '?' in content)and document.metadata["relevance_score"]>=0.35:
+            source = document.metadata["source"]
+            if source.startswith('knowledgeBase/'):
+                source = source[14:]
+            if source.startswith('STORMtemp'):
+                source = source[9:]
+            source = os.path.splitext(source)[0]
+            text_response.append(content+f' [Source: {source}]')
     return '\n\n'.join(text_response)
 
