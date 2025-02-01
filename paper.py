@@ -8,15 +8,14 @@ def attach(file):
     filemd = file[:file.rfind('.')] + '.md'
     if filemd in os.listdir('knowledgeBase'):
         with open(f'knowledgeBase/{filemd}', 'r', encoding='utf-8') as f:
-            content = f.read()
+            return f.read()
     else:
         try:
             if file in os.listdir('paper'):
                 with open(f'paper/{file}', 'r', encoding='utf-8') as f:
-                    content = f.read()
+                    return f.read()
         except:
-            content = ""
-    return content
+            return ""
 
 
 def chunk(content,
@@ -67,26 +66,26 @@ def readPaper(file_Path):
 def translation(string,
                 extraPrompt,
                 separators=[
-              "\n# ",
-              "\n## ",
-              "\n### ",
-              "\n#### ",
-              "\n##### ",
-              "\n###### ",
-              "\n= ",
-              "\n== ",
-              "\n=== ",
-              "\n==== ",
-              "\n===== ",
-              "\n====== ",
-              r"\section",
-              r"\subsection",
-              r"\subsubsection",
-              r"\paragraph",
-              r"\subparagraph",
-          ]):
+                    "\n# ",
+                    "\n## ",
+                    "\n### ",
+                    "\n#### ",
+                    "\n##### ",
+                    "\n###### ",
+                    "\n= ",
+                    "\n== ",
+                    "\n=== ",
+                    "\n==== ",
+                    "\n===== ",
+                    "\n====== ",
+                    r"\section",
+                    r"\subsection",
+                    r"\subsubsection",
+                    r"\paragraph",
+                    r"\subparagraph",
+                ]):
     judge = string.lstrip().rstrip()
-    if judge != '\n' and judge != '' and string not in separators:
+    if judge and judge != '\n' and string not in separators:
         translation = client2.chat.completions.create(
             model="glm-4-flash",
             messages=[{
@@ -104,116 +103,54 @@ def process_part_of_list(string_list, start, end, result_list, extraPrompt):
         result_list[i] = translation(string_list[i], extraPrompt)
 
 
-def translatePapertoChinese(file_Path):
-    if file_Path[:file_Path.rfind('.')] + 'Chi.md' in os.listdir('paper'):
-        with open(f'paper/{file_Path[:file_Path.rfind(".")]}Chi.md',
-                  'r',
-                  encoding='utf-8') as f:
+def baseConversion(file_path, suffix, prompt, userMessage):
+    base_name = file_path[:file_path.rfind('.')]
+    paper_file_path = f'paper/{base_name}{suffix}.md'
+    kb_file_path = f'knowledgeBase/{base_name}{suffix}.md'
+    if os.path.exists(paper_file_path):
+        with open(paper_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         return content
-    content = chunk(attach(file_Path))
+    content = chunk(attach(file_path))
     length = len(content)
     threads = []
     result_list = [""] * length
-    if length >= 64:
-        chunk_size = length // 64
-        for i in range(64):
-            start_index = length - (64 - i) * chunk_size if i else 0
-            end_index = length - (63 - i) * chunk_size
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, start_index, end_index,
-                                       result_list, "将论文译为中文，仅需翻译，不作说明"))
-            threads.append(t)
-            t.start()
-    else:
-        for i in range(length):
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, i, i + 1, result_list,
-                                       "将论文译为中文，仅需翻译，不作说明"))
-            threads.append(t)
-            t.start()
+    num_threads = min(length, 64)
+    chunk_size = length // num_threads
+    for i in range(num_threads):
+        start_index = length - (num_threads - i) * chunk_size if i else 0
+        end_index = length - (num_threads - 1 - i) * chunk_size
+        t = threading.Thread(target=process_part_of_list,
+                             args=(content, start_index, end_index,
+                                   result_list, prompt))
+        threads.append(t)
+        t.start()
     while any(thread.is_alive() for thread in threads):
-        yield ("将论文译为中文", ''.join(result_list))
+        yield (userMessage, ''.join(result_list))
     for t in threads:
         t.join()
-    with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Chi.md',
-              mode='w') as f:
-        f.write(''.join(result_list))
-    yield ("将论文译为中文", ''.join(result_list))
+    converted_content = ''.join(result_list)
+    with open(kb_file_path, mode='w') as f:
+        f.write(converted_content)
+    yield (userMessage, converted_content)
+
+
+def translatePapertoChinese(file_Path):
+    converter = baseConversion(file_Path, 'Chi', '将论文译为中文，仅需翻译，不作说明',
+                               '将论文译为中文')
+    for result in converter:
+        yield result
 
 
 def translatePapertoEnglish(file_Path):
-    if file_Path[:file_Path.rfind('.')] + 'Eng.md' in os.listdir('paper'):
-        with open(f'paper/{file_Path[:file_Path.rfind(".")]}Eng.md',
-                  'r',
-                  encoding='utf-8') as f:
-            content = f.read()
-        return ("将论文译为英文", content)
-    content = chunk(attach(file_Path))
-    length = len(content)
-    threads = []
-    result_list = [""] * length
-    if length >= 64:
-        chunk_size = length // 64
-        for i in range(64):
-            start_index = length - (64 - i) * chunk_size if i else 0
-            end_index = length - (63 - i) * chunk_size
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, start_index, end_index,
-                                       result_list, "将论文译为英文，仅需翻译，不作说明"))
-            threads.append(t)
-            t.start()
-    else:
-        for i in range(length):
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, i, i + 1, result_list,
-                                       "将论文译为英文，仅需翻译，不作说明"))
-            threads.append(t)
-            t.start()
-    while any(thread.is_alive() for thread in threads):
-        yield ("将论文译为英文", ''.join(result_list))
-    for t in threads:
-        t.join()
-    with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Eng.md',
-                mode='w') as f:
-        f.write(''.join(result_list))
-    return ("将论文译为英文", ''.join(result_list))
+    converter = baseConversion(file_Path, 'Eng', '将论文译为英文，仅需翻译，不作说明',
+                               '将论文译为英文')
+    for result in converter:
+        yield result
 
 
 def polishPaper(file_Path):
-    if file_Path[:file_Path.rfind('.')] + 'Pol.md' in os.listdir('paper'):
-        with open(f'paper/{file_Path[:file_Path.rfind(".")]}Pol.md',
-                  'r',
-                  encoding='utf-8') as f:
-            content = f.read()
-        return ("润色论文", content)
-    content = chunk(attach(file_Path))
-    length = len(content)
-    threads = []
-    result_list = [""] * length
-    if length >= 64:
-        chunk_size = length // 64
-        for i in range(64):
-            start_index = length - (64 - i) * chunk_size if i else 0
-            end_index = length - (63 - i) * chunk_size
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, start_index, end_index,
-                                       result_list,
-                                       "对论文进行Nature级别润色，仅需润色，不作说明"))
-            threads.append(t)
-            t.start()
-    else:
-        for i in range(length):
-            t = threading.Thread(target=process_part_of_list,
-                                 args=(content, i, i + 1, result_list,
-                                       "对论文进行Nature级别润色，仅需润色，不作说明"))
-            threads.append(t)
-            t.start()
-    while any(thread.is_alive() for thread in threads):
-        yield ("润色论文", ''.join(result_list))
-    for t in threads:
-        t.join()
-    with open(f'knowledgeBase/{file_Path[:file_Path.rfind(".")]}Pol.md',
-                mode='w') as f:
-        f.write('\n'.join(result_list))
-    return ("润色论文", ''.join(result_list))
+    converter = baseConversion(file_Path, 'Pol', '对论文进行Nature级别润色，仅需润色，不作说明',
+                               '对论文进行Nature级别润色')
+    for result in converter:
+        yield result
