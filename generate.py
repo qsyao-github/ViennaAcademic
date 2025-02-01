@@ -8,54 +8,44 @@ import os
 import time
 import shutil
 
-
+def write_to_file(content, filename):
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(content)
 def handle_reference(references):
     for i in range(len(references)):
         entry = references[i]
         index = str(i+1)
         pageContent, link = entry["pageContent"], entry["metadata"]["url"]
+        filePath=f'knowledgeBase/STORMtemp{index}.md'
         if 'http://arxiv.org/abs/' in link:
             arxivID = link.split('/')[-1]
             if 'v' in arxivID:
                 arxivID = arxivID.split('v')[0]
             if '.' in arxivID:
-                print(arxivID)
                 try:
-                    os.chdir('/home/laowei/ViennaAcademic')
-                    print(downloadArxivPaper(arxivID, True, index))
+                    downloadArxivPaper(arxivID, True, index)
+                    content = ''
                 except:
                     os.chdir('/home/laowei/ViennaAcademic')
-                    title, abstract, link = getInformation(arxivID)
-                    with open(f'knowledgeBase/STORMtemp{index}.md','w',encoding='utf-8') as f:
-                        f.write(pageContent + '\n###### \n' + abstract)
+                    _, abstract, link = getInformation(arxivID)
+                    content = pageContent + '\n###### \n' + abstract, filePath
             else:
-                os.chdir('/home/laowei/ViennaAcademic')
-                with open(f'knowledgeBase/STORMtemp{index}.md','w',encoding='utf-8') as f:
-                    f.write(pageContent)
+                content = pageContent
         else:
-            print(link)
             try:
-                os.chdir('/home/laowei/ViennaAcademic')
-                with open(f'knowledgeBase/STORMtemp{index}.md',
-                          'w',
-                          encoding='utf-8') as f:
-                    f.write(pageContent + '\n###### \n'+parseWebsite(link))
+                content = pageContent + '\n###### \n'+parseWebsite(link)
             except:
-                os.chdir('/home/laowei/ViennaAcademic')
-                with open(f'knowledgeBase/STORMtemp{index}.md',
-                          'w',
-                          encoding='utf-8') as f:
-                    f.write(pageContent)
+                content = pageContent
+        if content:
+            write_to_file(content, filePath)
     update()
 
 
 def delete_temp_files():
-    for file in os.listdir('knowledgeBase'):
-        if file.startswith('STORMtemp'):
-            os.remove(os.path.join('knowledgeBase', file))
-    for file in os.listdir('retrievers'):
-        if file.startswith('STORMtemp'):
-            os.remove(os.path.join('retrievers', file))
+    for folder in ['knowledgeBase', 'retrievers']:
+        for file in os.listdir(folder):
+            if file.startswith('STORMtemp'):
+                os.remove(os.path.join(folder, file))
     # 移除arxivSource下开头为STORMtemp的文件，递归移除开头为STORMtemp的文件夹
     for root, dirs, files in os.walk('arxivSource'):
         for file in files:
@@ -118,18 +108,10 @@ def generate_outline(summary, topic, chinese=True):
             f"You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts), and list some key words as a markdown unordered list under each heading, each key word will be expanded into a paragraph later.",
             summary)
     response = response[response.find('#'):]
-    if '关键词' in response:
-        response = response.split('关键词')[0].rstrip(' \n#*')
-    if 'keyword' in response:
-        response = response.split('keyword')[0].rstrip(' \n#*')
-    if 'Keyword' in response:
-        response = response.split('Keyword')[0].rstrip(' \n#*')
-    if 'Reference' in response:
-        response = response.split('Reference')[0].rstrip(' \n#*')
-    if 'reference' in response:
-        response = response.split('reference')[0].rstrip(' \n#*')
-    if '参考文献' in response:
-        response = response.split('参考文献')[0].rstrip(' \n#*')
+    for keyword in ['关键词', 'keyword', 'Keyword', 'Reference', 'reference', '参考文献']:
+        if keyword in response:
+            response = response.split(keyword)[0].rstrip(' \n#*')
+        
     return response.strip()
 
 
@@ -137,11 +119,11 @@ def write_paragraph(subtitle, subtopic, title, chinese=True):
     if chinese:
         response = gpt_chat(
             f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。请参考相关文献结合自身理解撰写，引用部分通过"【编号】"注明出处。',
-            qanything_fetch(title + "：" + subtopic))
+            qanything_fetch(f"{title}: {subtopic}"))
     else:
         response = gpt_chat(
             f'''You're about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}". Please integrate related literatures and your understanding, and cite the source as "[number]".''',
-            qanything_fetch(title + ": " + subtopic))
+            qanything_fetch(f"{title}: {subtopic}"))
     return response
 
 
@@ -149,17 +131,16 @@ def parse_outline(outline, title, chinese=True):
     outlines = re.split(r'\n+', outline)
     current_subtitle = ''
     current_subtopic = ''
-    for i in range(len(outlines)):
-        line = outlines[i]
+    for i, line in enumerate(outlines):
         if line and line.startswith('#'):
             current_subtitle = line.strip('#').strip()
         if line and line.startswith('-'):
             current_subtopic = line.strip('-').strip()
             draft = write_paragraph(current_subtitle, current_subtopic, title,
                                     chinese)
-            print(draft)
             outlines[i] = f"{draft}"
-    return '\n\n'.join(outlines)
+            yield '\n\n'.join(outlines)
+    yield '\n\n'.join(outlines)
 
 
 def isChinese(query):
@@ -167,10 +148,9 @@ def isChinese(query):
 
 
 def organize_outline(outline):
-    outlines = re.split(r'\n+', outline)
+    outlines = re.split(r'\n+', outline.strip())
     current_level = 0
-    for i in range(len(outlines)):
-        line = outlines[i]
+    for i, line in enumerate(outlines):
         if line and line.startswith('#'):
             current_level = line.count('#')
             line = re.sub(r'#+\s+', '    ' * (current_level - 1) + '- ', line)
@@ -184,15 +164,15 @@ def write_abstract(article, chinese=True):
     if chinese:
         abstract = glm_chat("你是一学术文章作者，为你写的文章撰写摘要", article)
         if '摘要' in abstract:
-            abstract = abstract.split('摘要：')[1].strip(' \n:：')
+            abstract = abstract.split('摘要')[1].strip(' \n:：')
     else:
         abstract = mistral_chat(
             "You are an academic article author. Please write an abstract for your article.",
             article)
-        if 'abstract' in abstract:
-            abstract = abstract.split('abstract:')[1].lstrip(' \n:*')
-        elif 'Abstract' in abstract:
-            abstract = abstract.split('Abstract:')[1].lstrip(' \n:*')
+        for keyword in ['abstract', 'Abstract']:
+            if keyword in abstract:
+                abstract = abstract.split(keyword, 1)[1].strip(' \n:*')
+                break
     return abstract
 
 
@@ -200,9 +180,14 @@ def generate(query):
     delete_temp_files()
     chinese = isChinese(query)
     summary, reference = stormSearch(query)
+    yield summary
     handle_reference(reference)
     outline = generate_outline(summary, query, chinese)
-    article = parse_outline(outline, query, chinese)
+    yield outline
+    articleGenerator = parse_outline(outline, query, chinese)
+    for tempArticle in articleGenerator:
+        article = tempArticle
+        yield article
     outline = organize_outline(outline)
     abstract = write_abstract(article, chinese)
     article = re.sub(r'\n',
@@ -210,8 +195,9 @@ def generate(query):
                      abstract + '\n',
                      article,
                      count=1)
-    referenceStr = [f"[{i+1}] [{reference[i]['metadata']["title"]}]({reference[i]["metadata"]["url"]})" for i in range(len(reference))]
+    yield article
+    referenceStr = [f"[{i+1}] [{ref['metadata']['title']}]({ref['metadata']['url']})" for i, ref in enumerate(references)]
     finalVersion = outline.lstrip() + '\n\n' + article + (
         '\n\n## 参考文献\n\n' if chinese else '\n\n## References\n\n') + '\n\n'.join(referenceStr)
     delete_temp_files()
-    return finalVersion
+    yield finalVersion
