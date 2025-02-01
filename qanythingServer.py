@@ -1,7 +1,7 @@
 from bceInference import update, get_response
 import gradio as gr
 
-with gr.Blocks(fill_height=True, fill_width=True) as demo:
+with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as demo:
     with gr.Tab("QAnything"):
         update_button=gr.Button("更新知识库")
         update_button.click(update)
@@ -11,4 +11,4 @@ with gr.Blocks(fill_height=True, fill_width=True) as demo:
         query_button.click(get_response, query_input, query_output)
 
 
-demo.launch()
+demo.launch(server_port = 7861)
