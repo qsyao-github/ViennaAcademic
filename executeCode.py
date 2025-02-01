@@ -15,27 +15,29 @@ def execute_code(code):
                                                   8:stdout.rfind('\nIn')]
         outputList = stdout.split('\n')
         outputList = [
-            line for line in outputList
-            if line[line.rfind(':') + 1:line.rfind('\n')] != ''
+            line for line in stdout.split('\n')
+            if line.strip().split(':')[-1].strip() != ''
         ]
         stdout = '\n'.join(outputList)
     return stdout if stdout else '' + stderr if stderr else ''
 
 
 def manim_render(code, nowTime):
-    if '```' in code:
-        code = code[code.find('```python') + 10:code.rfind('```')]
-    code = "from manim import *\n"+code
-    if os.path.exists('media'):
-        shutil.rmtree('media')
-    with open('temp.py', 'w') as f:
-        f.write(code)
-    os.system(f'manim temp.py -ql')
-    output = [
-        f for f in os.listdir(r'media/videos/temp/480p15/')
-        if f.endswith('.mp4')
-    ][0]
-    os.rename(r'media/videos/temp/480p15/' + output,
-              r'media/videos/temp/480p15/' + nowTime + '.mp4')
-    shutil.move(r'media/videos/temp/480p15/' + nowTime + '.mp4', os.getcwd())
-    return nowTime + '.mp4'
+    try:
+        if '```' in code:
+            code = code[code.find('```python') + 10:code.rfind('```')]
+        if os.path.exists('media'):
+            shutil.rmtree('media')
+        with open('temp.py', 'w') as f:
+            f.write("from manim import *\n" + code)
+        os.system(f'manim temp.py -ql')
+        outputFolder = r'media/videos/temp/480p15/'
+        output = [
+            f for f in os.listdir(outputFolder)
+            if f.endswith('.mp4')
+        ][0]
+        os.rename(outputFolder + output, outputFolder + nowTime + '.mp4')
+        shutil.move(outputFolder + nowTime + '.mp4', os.getcwd())
+        return nowTime + '.mp4'
+    except:
+        return 'gpt生成代码有误，请重试'
