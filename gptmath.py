@@ -1,7 +1,6 @@
 from modelclient import client1, client3
 from latex2sympy2_extended import latex2sympy, normalize_latex, NormalizationConfig
 import regex
-import requests
 from sympy import *
 
 config = NormalizationConfig(basic_latex=True,
@@ -94,7 +93,7 @@ def translate(query):
 
 def deepseek(query):
     message = [{"role": "user", "content": query}]
-    response = client3.chat.completions.create(model="deepseek-r1",
+    response = client1.chat.completions.create(model="deepseek-r1-32b",
                                                messages=message,
                                                stream=True)
     for chunk in response:
@@ -110,10 +109,13 @@ def solve(query):
     for chunk in response:
         content += chunk
         yield content
-    index = content.find("[思考结束]")
+    # index = content.find("[思考结束]")
+    index = content.find(r"</think>")
     if index != -1:
-        content = content[content.find("[思考结束]") + 6:]
+        # content = content[index + 6:]
+        content = content[index + 8:].replace(r"\[", "$$").replace(
+            r"\]", "$$").replace(r"\(", "$(").replace(r"\)", "$)")
         yield content
     checks = check_formulas(content)
-    yield content + ("\n\n老卫提示：" + "\n\n" + "\n\n".join(
-        checks) if checks else "")
+    yield content + ("\n\n老卫提示：" + "\n\n" +
+                     "\n\n".join(checks) if checks else "")
