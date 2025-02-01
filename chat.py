@@ -15,10 +15,13 @@ def python(code):
 
 def remove_newlines_from_formulas(text):
     # 用正则表达式匹配并替换
-    pattern = r'\$\$[\s\r\n]*(.*?)\s*[\s\r\n]*\$\$'
-    replacement = r'$$\1$$'
-    result = regex.sub(pattern, replacement, text, flags=regex.DOTALL)
-    return result
+    return regex.sub(r'\$\$[\s\r\n]*(.*?)\s*[\s\r\n]*\$\$',
+                     r'$$\1$$',
+                     text,
+                     flags=regex.DOTALL)
+
+
+FIND_MAGIC_COMMAND_SUFFIX = r"\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}"
 
 
 def toolcall(message, nowTime):
@@ -27,7 +30,7 @@ def toolcall(message, nowTime):
         '#python': python,
         '#manim': manim_render
     }
-    pattern = r'#(websearch|python|manim)\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}'
+    pattern = r'#(websearch|python|manim)' + FIND_MAGIC_COMMAND_SUFFIX
     matches = regex.findall(pattern, message)
     for tag, param in matches:
         if tag == 'manim':
@@ -49,20 +52,15 @@ def promptcall(message):
         '#findPaper': academicSearch,
         '#websearch': webSearch
     }
-    pattern = r'#(attach|readPaper|translatePapertoChinese|translatePapertoEnglish|polishPaper|findPaper|websearch)\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}'
+    pattern = r'#(attach|readPaper|translatePapertoChinese|translatePapertoEnglish|polishPaper|findPaper|websearch)' + FIND_MAGIC_COMMAND_SUFFIX
     matches = regex.findall(pattern, message)
     for tag, param in matches:
-        if tag == 'websearch':
-            message = (f'请搜索{param}', webSearch(param))
+        function_to_call = functions[f"#{tag}"]
+        replacement = function_to_call(param)
+        if isinstance(replacement, str):
+            message = message.replace(f"#{tag}{{{param}}}", replacement)
         else:
-            function_to_call = functions[f"#{tag}"]
-            replacement = function_to_call(param)
-            if type(replacement) == str:
-                message = message.replace(f"#{tag}{{{param}}}", replacement)
-            else:
-                message = replacement
-    print('promptcall')
-    print(message)
+            message = replacement
     return message
 
 
@@ -87,23 +85,47 @@ def modelInference(model, nowTime, query, chatbot, client):
 def multimodelInference(model, query, chatbot):
     stream = client1.chat.completions.create(model=model,
                                              messages=chatbot.chatHistory +
-                                             query,stream=True)
+                                             query,
+                                             stream=True)
     for chunk in stream:
         yield chunk.choices[0].delta.content or ""
 
 
+def insertHistory(text1, text2=None):
+    if text2 is None:
+        return {'role': 'user', 'content': text1}
+    else:
+        return {
+            'role': 'user',
+            'content': text1
+        }, {
+            'role': 'assistant',
+            'content': text2
+        }
+
+
+def insertMultimodalHistory(text, encodedString):
+    return {
+        'role':
+        'user',
+        'content': [{
+            "type": "text",
+            "text": text
+        }, {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{encodedString}"
+            }
+        }]
+    }
+
+
 def historyParse(history, multimodal=False):
     returnList = []
-    sizeList = [0]
+    sizeMax = 0
     if not multimodal:
         for ans in history:
-            returnList += [{
-                'role': 'user',
-                'content': ans[0].text
-            }, {
-                'role': 'assistant',
-                'content': ans[1].text
-            }]
+            returnList.append(insertHistory(ans[0].text, ans[1].text))
     else:
         image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
                                       regex.IGNORECASE)
@@ -114,52 +136,31 @@ def historyParse(history, multimodal=False):
                     file = files[0].file.path
                     if image_pattern.match(file):
                         size = get_total_pixels(file)
-                        sizeList[0] = max(sizeList[0], size)
-                        if file[:file.rfind('.')] + '.txt' in os.listdir():
-                            with open(file[:file.rfind('.')] + '.txt') as f:
+                        sizeMax = max(sizeMax, size)
+                        txtFilePath = os.path.splitext(file)[0] + '.txt'
+                        if os.path.exists(txtFilePath):
+                            with open(txtFilePath, 'r') as f:
                                 encodedString = f.read()
-                                returnList += [{
-                                    'role':
-                                    'user',
-                                    'content': [{
-                                        "type": "text",
-                                        "text": dialogue.text
-                                    }, {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url":
-                                            f"data:image/png;base64,{encodedString}"
-                                        }
-                                    }]
-                                }]
                         else:
                             encodedString = encode_image(file)
-                            with open(file[:file.rfind('.')] + '.txt',
-                                      'w') as f:
+                            with open(txtFilePath, 'w') as f:
                                 f.write(encodedString)
-                            returnList += [{
-                                'role':
-                                'user',
-                                'content': [{
-                                    "type": "text",
-                                    "text": dialogue.text
-                                }, {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url":
-                                        f"data:image/png;base64,{encodedString}"
-                                    }
-                                }]
-                            }]
+                        returnList.append(
+                            insertMultimodalHistory(dialogue.text,
+                                                    encodedString))
                 else:
-                    returnList += [{'role': 'user', 'content': dialogue.text}]
-    return returnList, sizeList[0]
+                    returnList.append({
+                        'role': 'user',
+                        'content': dialogue.text
+                    })
+    return returnList, sizeMax
 
 
 def queryParse(query, multimodal=False):
+    returnList = []
     if query:
         if not multimodal:
-            returnList = [{'role': 'user', 'content': query["text"]}]
+            returnList.append(insertHistory(query["text"]))
             size = 0
         else:
             image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
@@ -170,26 +171,22 @@ def queryParse(query, multimodal=False):
                 if image_pattern.match(file):
                     # size = get_total_pixels(file)
                     encodedString = encode_image(file)
-                    with open(file[:file.rfind('.')] + '.txt', 'w') as f:
+                    txtFilePath = os.path.splitext(file)[0] + '.txt'
+                    with open(txtFilePath, 'w') as f:
                         f.write(encodedString)
-                    returnList = [{
-                        'role':
-                        'user',
-                        'content': [{
-                            "type": "text",
-                            "text": query["text"]
-                        }, {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encodedString}"
-                            }
-                        }]
-                    }]
+                    returnList.append(
+                        insertMultimodalHistory(query["text"], encodedString))
             else:
-                returnList = [{'role': 'user', 'content': query["text"]}]
+                returnList.append(insertHistory(query["text"]))
                 size = 0
-        size=0
-        return returnList, size
+        return returnList, 0
+
+
+def formatFormula(string):
+    return string.replace('\\(',
+                          '$').replace('\\)',
+                                       '$').replace('\\[',
+                                                    '$$').replace('\\]', '$$')
 
 
 class chatBot:
@@ -204,20 +201,15 @@ class chatBot:
                 response = ""
                 totalLength = len(query[0]['content']) + token
                 if totalLength < 8000:
-                    for chunk in modelInference("gpt-4o-mini", nowTime, query,
-                                                self, client1):
-                        response += chunk
-                        yield response
+                    returnMessage = modelInference("gpt-4o-mini", nowTime,
+                                                   query, self, client1)
                 else:
-                    for chunk in modelInference("glm-4-flash", nowTime, query,
-                                                self, client2):
-                        response += chunk
-                        yield response
-                response = toolcall(response, nowTime).replace(
-                    '\\(',
-                    '$').replace('\\)',
-                                 '$').replace('\\[',
-                                              '$$').replace('\\]', '$$')
+                    returnMessage = modelInference("glm-4-flash", nowTime,
+                                                   query, self, client2)
+                for chunk in returnMessage:
+                    response += chunk
+                    yield response
+                response = formatFormula(toolcall(response, nowTime))
                 yield remove_newlines_from_formulas(response)
             return "请输入内容"
         else:
@@ -228,7 +220,8 @@ class chatBot:
                 # totalLength = contentLength + token
                 # pixelLength = max(self.size, size)
                 response = ""
-                for chunk in multimodelInference("pixtral-large-latest", query, self):
+                for chunk in multimodelInference("pixtral-large-latest", query,
+                                                 self):
                     response += chunk
                     yield response
                 """try:
@@ -240,9 +233,5 @@ class chatBot:
                     response="牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
                     # if totalLength < 8000 and pixelLength < 1806336:
                     # else:"""
-                response=response.replace(
-                    '\\(',
-                    '$').replace('\\)',
-                                 '$').replace('\\[',
-                                              '$$').replace('\\]', '$$')
+                response = formatFormula(response)
                 yield remove_newlines_from_formulas(response)
