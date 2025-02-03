@@ -11,6 +11,7 @@ from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
 from deepseek import solve
 from qanythingClient import update, qanything_fetch
+from fileConversion import convert_to_pptx, convert_to
 
 LATEX_DELIMITERS = [{
     'left': '$$',
@@ -61,7 +62,8 @@ def doubleMessage(msg1, msg2):
     return [{"text": msg1, "files": []}, {"text": msg2, "files": []}]
 
 
-with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as demo:
+with gr.Blocks(fill_height=True, fill_width=True,
+               delete_cache=(3600, 3600)) as demo:
     with gr.Tab("ViennaAcademic"):
         with gr.Row():
             with gr.Column(scale=0, min_width=150):
@@ -72,6 +74,8 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                 translateToChi = gr.Button("论文翻译->中", scale=0)
                 polishPaper = gr.Button("论文润色", scale=0)
                 findPaper = gr.Button("搜索论文", scale=0)
+                generateDocstring = gr.Button("生成注释", scale=0)
+                optimizeCode = gr.Button("优化代码", scale=0)
             with gr.Column(scale=8):
                 chatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
                                             show_copy_button=True)
@@ -114,6 +118,9 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                 polishPaper.click(addToMsg("#polishPaper{"), msg, msg)
 
                 findPaper.click(addToMsg("#findPaper{"), msg, msg)
+                generateDocstring.click(addToMsg("#generateDocstring{"), msg,
+                                        msg)
+                optimizeCode.click(addToMsg("#optimizeCode{"), msg, msg)
                 multimodal = gr.State(False)
                 knowledgeBase = gr.State(False)
 
@@ -181,9 +188,11 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                             doubleMessage(message[0], message[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                     else:
+                        chunk = next(message)
+                        chat_history.append(doubleMessage(chunk[0], chunk[1]))
+                        yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            if chat_history:
-                                chat_history.pop()
+                            chat_history.pop()
                             chat_history.append(
                                 doubleMessage(chunk[0], chunk[1]))
                             yield gr.MultimodalTextbox(
@@ -206,7 +215,31 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                         f.write(text)
                     update()
                     gr.Info("上传成功，请刷新")
+                def base_show_files(folder):
+                    for file in os.listdir(folder):
+                        with gr.Row():
+                            fileBtn = gr.Button(file,
+                                                scale=0,
+                                                min_width=120)
+                            downloadFile = gr.DownloadButton(
+                                f"下载",
+                                f'{folder}/{file}',
+                                scale=0,
+                                min_width=70)
+                            deleteFile = gr.Button("删除",
+                                                    scale=0,
+                                                    min_width=70)
 
+                            deleteFile.click(lambda file=file: (os.remove(
+                                f"{folder}/{file}", update())),
+                                                None,
+                                                None)
+
+                        def appendToMsg(msg, file=file):
+                            msg['text'] = msg['text'] + f"{file}" + "}"
+                            return msg
+
+                        fileBtn.click(appendToMsg, msg, msg)
                 with gr.Tab("论文/学术专著"):
                     with gr.Row():
                         uploadThesis = gr.UploadButton("上传论文/学术专著", scale=1)
@@ -214,33 +247,8 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[refresh.click])
-                    def show_Files():
-                        for file in os.listdir(r"paper"):
-                            with gr.Row():
-                                fileBtn = gr.Button(file,
-                                                    scale=0,
-                                                    min_width=120)
-                                downloadFile = gr.DownloadButton(
-                                    f"下载",
-                                    f'paper/{file}',
-                                    scale=0,
-                                    min_width=70)
-                                deleteFile = gr.Button("删除",
-                                                       scale=0,
-                                                       min_width=70)
-                                """def delete_file(file=file):
-                                    os.remove(f"paper/{file}")"""
-
-                                deleteFile.click(lambda file=file: os.remove(
-                                    f"paper/{file}"),
-                                                 None,
-                                                 None)
-
-                            def appendToMsg(msg, file=file):
-                                msg['text'] = msg['text'] + f"{file}" + "}"
-                                return msg
-
-                            fileBtn.click(appendToMsg, msg, msg)
+                    def show_paper():
+                        base_show_files("paper")
 
                 with gr.Tab("已解析文件"):
                     gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
@@ -264,35 +272,26 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
 
                     @gr.render(triggers=[refresh.click])
                     def show_knowledgeBase():
-                        for file in os.listdir(r'knowledgeBase'):
-                            with gr.Row():
-                                fileBtn = gr.Button(file,
-                                                    scale=0,
-                                                    min_width=120)
-                                downloadFile = gr.DownloadButton(
-                                    f"下载",
-                                    f'knowledgeBase/{file}',
-                                    scale=0,
-                                    min_width=70)
-                                deleteFile = gr.Button("删除",
-                                                       scale=0,
-                                                       min_width=70)
-                                """def delete_file(file=file):
-                                    os.remove(f"knowledgeBase/{file}")
-                                    update()"""
+                        base_show_files("knowledgeBase")
 
-                                deleteFile.click(lambda file=file: (os.remove(
-                                    f"knowledgeBase/{file}"), update()),
-                                                 None,
-                                                 None)
+                with gr.Tab("代码"):
 
-                            def appendToMsg(msg, file=file):
-                                msg['text'] = msg['text'] + f"{file}" + "}"
-                                return msg
+                    def upload_code(file):
+                        simpfile = os.path.splitext(os.path.basename(file))[0]
+                        upload_folder = "code"
+                        shutil.copy(file, upload_folder)
+                        gr.Info("上传成功，请刷新")
 
-                            fileBtn.click(appendToMsg, msg, msg)
+                    with gr.Row():
+                        uploadCode = gr.UploadButton("上传代码", scale=1)
+                        uploadCode.upload(upload_code, uploadCode)
+                        refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                with gr.Tab("代码仓库"):
+                    @gr.render(triggers=[refresh.click])
+                    def show_code():
+                        base_show_files("code")
+
+                with gr.Tab("Github仓库"):
                     refresh = gr.Button("刷新", scale=0, min_width=100)
                     githubUrl = gr.Textbox()
                     githubClone = gr.Button("克隆仓库", scale=0)
@@ -309,50 +308,229 @@ with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(3600, 3600)) as d
                     @gr.render(triggers=[refresh.click])
                     def showFolder():
                         for folder in os.listdir(r'repositry'):
-                            folderBtn = gr.Button("解析" + folder,
-                                                  scale=0,
-                                                  min_width=120)
-                            """def delete_folder(folder=folder):
-                                shutil.rmtree(f"repositry/{folder}")"""
+                            with gr.Row():
+                                folderBtn = gr.Button("解析" + folder,
+                                                      scale=0,
+                                                      min_width=120)
 
-                            deleteFolder = gr.Button("删除",
-                                                     scale=0,
-                                                     min_width=70)
-                            deleteFolder.click(lambda folder=folder: shutil.
-                                               rmtree(f"repositry/{folder}"),
-                                               None,
-                                               None)
+                                deleteFolder = gr.Button("删除",
+                                                         scale=0,
+                                                         min_width=70)
+                                deleteFolder.click(
+                                    lambda folder=folder: shutil.rmtree(
+                                        f"repositry/{folder}"),
+                                    None,
+                                    None)
 
-                            def output_analysis(chathistory, folder=folder):
-                                chathistory.append(
-                                    doubleMessage(
-                                        f"解析{folder}",
-                                        f"{analyze_folder(f'repositry/{folder}')}"
-                                    ))
-                                return chathistory
+                                def output_analysis(chathistory,
+                                                    folder=folder):
+                                    analysis_generator = analyze_folder(
+                                        f'repositry/{folder}')
+                                    analysis = next(analysis_generator)
+                                    chathistory.append(
+                                        doubleMessage(f"解析{folder}",
+                                                      f"{analysis}"))
+                                    yield chathistory
+                                    for chunk in analysis_generator:
+                                        chathistory.pop()
+                                        chathistory.append(
+                                            doubleMessage(
+                                                f"解析{folder}", f"{chunk}"))
+                                        yield chathistory
 
-                            folderBtn.click(output_analysis, chatbot, chatbot)
+                                folderBtn.click(output_analysis, chatbot,
+                                                chatbot)
 
-    with gr.Tab("实验性功能"):
+    with gr.Tab("markdown导出"):
+        convert_Button = gr.Button("转换")
+        with gr.Row():
+            with gr.Column(scale=4):
+                file_to_convert = gr.Textbox(
+                    placeholder="输入需要转换的文件名或点击下方的按钮填入")
+
+                def base_show_files(folder):
+                    for file in os.listdir(folder):
+                        with gr.Row():
+                            fileBtn = gr.Button(file, scale=1, min_width=120)
+                            downloadBtn = gr.DownloadButton("下载",
+                                                            f'{folder}/{file}',
+                                                            scale=0,
+                                                            min_width=70)
+                            deleteBtn = gr.Button("删除", scale=0, min_width=70)
+
+                        def appendToCandidate(file=file):
+                            if file.endswith(".md"):
+                                return f"{folder}/{file}"
+                            gr.Info("格式必须为.md")
+                            return ''
+
+                        fileBtn.click(appendToCandidate, None, file_to_convert)
+                        deleteBtn.click(
+                            lambda file=file: os.remove(f"{folder}/{file}"),
+                            None,
+                            None)
+
+                with gr.Tab("已解析文件"):
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_knowledgeBase():
+                        base_show_files("knowledgeBase")
+
+                with gr.Tab("论文/PPT生成产物"):
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_Tempest():
+                        base_show_files("tempest")
+
+            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],label="选择格式")
+
+            def convert_file(file_to_convert, convert_to_format):
+                if file_to_convert.strip() == "":
+                    return ""
+                else:
+                    convert_to(file_to_convert, convert_to_format)
+                    gr.Info("转换完成，请刷新")
+                return ""
+
+            convert_Button.click(convert_file,
+                                 [file_to_convert, convert_to_format],
+                                 file_to_convert)
+
+    with gr.Tab("文科"):
         with gr.Tab("全自动生成论文"):
-            title = gr.Textbox(placeholder="输入主题，例如：中华民族共同体意识, Fluid Field")
-            generate_button = gr.Button("生成论文")
-            thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件在VA主页面“已解析文件”下，可下载")
+            with gr.Row():
+                with gr.Column(scale=3, min_width=150):
+                    title = gr.Textbox(
+                        placeholder="输入主题，例如：中华民族共同体意识, Fluid Field")
+                    generate_button = gr.Button("生成论文")
+                    thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件可在右侧下载")
+                with gr.Column(scale=1, min_width=150):
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_Tempest():
+                        for file in os.listdir(r"tempest"):
+                            with gr.Row():
+                                fileBtn = gr.Button(file,
+                                                    scale=0,
+                                                    min_width=120)
+                                downloadFile = gr.DownloadButton(
+                                    f"下载",
+                                    f'tempest/{file}',
+                                    scale=0,
+                                    min_width=70)
+                                deleteFile = gr.Button("删除",
+                                                       scale=0,
+                                                       min_width=70)
+
+                                deleteFile.click(lambda file=file: os.remove(
+                                    f"tempest/{file}"),
+                                                 None,
+                                                 None)
 
             def generateAndSave(title):
                 if title.strip() == "":
                     return "请输入主题"
                 else:
-                    gr.Info(f"正在生成，大概需要600s，请不要关闭界面。稍后可去已解析文件中获取md文件")
+                    gr.Info(f"正在生成，大概需要600s，请不要关闭界面。稍后可获取md文件")
                     thesisGenerator = generate(title)
                     for tempThesis in thesisGenerator:
                         thesis = tempThesis
                         yield thesis
-                    with open(f'knowledgeBase/{title}.md', 'w') as f:
+                    with open(f'tempest/{title}.md', 'w') as f:
                         f.write(thesis)
                     yield thesis
 
             generate_button.click(generateAndSave, [title], thesisBox)
+        with gr.Tab("全自动生成PPT"):
+            with gr.Row():
+                with gr.Column(scale=3, min_width=150):
+                    title = gr.Textbox(
+                        placeholder=
+                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳")
+                    generate_button = gr.Button("生成PPT")
+                    pptBox = gr.Markdown(
+                        """生成的PPT文案将显示在此，markdown源文件和ppt可在右侧下载。后缀分别为ppt.md和.pdf。
+
+推荐与全自动论文生成搭配使用。
+
+注意：如果您想要自己撰写文案，请确保上传的文件后缀为.md，以下为部分重要语法：
+```markdown
+# 一级标题(即PPT第一页的主标题，必须存在，否则报错)
+## 二级标题(即单开一页居中的子标题，若有参考文献部分也应当为二级标题)
+像这样添加内容。每个段落都会被VA整理为无序列表，所以请确保每个段落都有较为充实的内容。
+
+参考文献部分的标题必须写作“参考文献”或"References"，否则会出现格式、内容问题。
+
+### 三级标题(即位于每一页左上方的子标题)
+其余等级的标题即对应内容将会以文本框形式嵌入PPT页面中。
+```
+""")
+
+                    def generate_ppt(title):
+                        if title.endswith(".md"):
+                            title = title[:-3]
+                        if title.endswith("ppt"):
+                            title = title[:-3]
+                        if title.strip() == "":
+                            return "请输入主题"
+                        do_parse = not os.path.exists(f"tempest/{title}ppt.md")
+                        for chunk in convert_to_pptx(f'tempest/{title}',
+                                                     do_parse):
+                            yield chunk
+                        gr.Info('已完成，请刷新')
+
+                    generate_button.click(generate_ppt, [title], pptBox)
+
+                with gr.Column(scale=1, min_width=150):
+
+                    def upload_paper(file):
+                        simpfile = os.path.splitext(os.path.basename(file))[0]
+                        if os.path.exists(
+                                f"tempest/{simpfile}.md") or os.path.exists(
+                                    f"tempest/{simpfile}.txt"):
+                            return
+                        upload_folder = "tempest"
+                        shutil.copy(file, upload_folder)
+                        gr.Info("上传成功，请刷新")
+
+                    uploadDraft = gr.UploadButton("上传markdown文案", scale=0)
+                    uploadDraft.upload(upload_paper, uploadDraft)
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_Tempest():
+                        for file in os.listdir(r"tempest"):
+                            with gr.Row():
+                                fileBtn = gr.Button(file,
+                                                    scale=0,
+                                                    min_width=120)
+                                downloadFile = gr.DownloadButton(
+                                    f"下载",
+                                    f'tempest/{file}',
+                                    scale=0,
+                                    min_width=70)
+                                deleteFile = gr.Button("删除",
+                                                       scale=0,
+                                                       min_width=70)
+
+                                def add_to_title(file=file):
+                                    if file.endswith("ppt.md"):
+                                        return file[:-6]
+                                    elif file.endswith(".md"):
+                                        return file[:-3]
+                                    gr.Info("格式不正确")
+                                    return ''
+
+                                fileBtn.click(add_to_title, None, title)
+                                deleteFile.click(lambda file=file: os.remove(
+                                    f"tempest/{file}"),
+                                                 None,
+                                                 None)
+
+    with gr.Tab("理科"):
         with gr.Tab("解理科题目"):
 
             def reason(question):
