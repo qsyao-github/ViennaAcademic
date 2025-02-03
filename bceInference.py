@@ -1,32 +1,28 @@
 import os
 from BCEmbedding.tools.langchain import BCERerank
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+from customEmbeddings import CustomEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
-from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores.utils import DistanceStrategy
-from langchain.retrievers import ContextualCompressionRetriever
+from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.retrievers import ContextualCompressionRetriever
 
-embedding_model_name = 'maidalun1020/bce-embedding-base_v1'
-embedding_encode_kwargs = {
-    'batch_size': 100,
-    'normalize_embeddings': True,
-    'show_progress_bar': False
-}
+embedding_model_name = 'netease-youdao/bce-embedding-base_v1'
 
-embed_model = HuggingFaceEmbeddings(model_name=embedding_model_name,
-                                    encode_kwargs=embedding_encode_kwargs)
+embed_model = CustomEmbeddings(model=embedding_model_name)
 reranker_args = {'model': 'maidalun1020/bce-reranker-base_v1', 'top_n': 10}
 reranker = BCERerank(**reranker_args)
 
 
 def get_document(file):
     documents = TextLoader(file).load()
-    text_splitter = RecursiveCharacterTextSplitter(
-        separators=[r"\n+#{1,6}\s+", r"\n{2,}"],
-        is_separator_regex=True,
-        chunk_overlap=20,
-        chunk_size=100)
+    text_splitter = RecursiveCharacterTextSplitter(separators=[
+        r"\n+#{1,6}\s+", r"\n{2,}", r"\n+", r"\s{2,}",
+        r"(?<=[.!?;])\s+|(?<=[。？！；])"
+    ],
+                                                   is_separator_regex=True,
+                                                   chunk_overlap=32,
+                                                   chunk_size=512)
     texts = text_splitter.split_documents(documents)
     return texts
 
