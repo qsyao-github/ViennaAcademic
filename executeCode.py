@@ -1,6 +1,7 @@
 import subprocess
 import os
 import shutil
+import re
 
 
 def execute_code(code):
@@ -11,13 +12,14 @@ def execute_code(code):
                                text=True)
     stdout, stderr = process.communicate(code)
     if stdout:
-        stdout = 'In[1]: ' + code + '\n' + stdout[stdout.find('In [1]: ') +
-                                                  8:stdout.rfind('\nIn')]
-        outputList = stdout.split('\n')
-        outputList = [
-            line for line in stdout.split('\n')
-            if line.strip().split(':')[-1].strip() != ''
-        ]
+        stdout = '```python\n' + code + '\n```\n```output\n' + stdout[
+            stdout.find('In [1]: ') + 8:stdout.rfind('\nIn')] + '\n```'
+        lines = stdout.split('\n')
+        outputList = []
+        for line in lines:
+            cleanedLine = re.sub(r'^In \[\d+\]:|^Out\[\d+\]:', '', line.strip()).strip()
+            if cleanedLine:
+                outputList.append(cleanedLine)
         stdout = '\n'.join(outputList)
     return stdout if stdout else '' + stderr if stderr else ''
 
@@ -32,12 +34,9 @@ def manim_render(code, nowTime):
             f.write("from manim import *\n" + code)
         os.system(f'manim temp.py -ql')
         outputFolder = r'media/videos/temp/480p15/'
-        output = [
-            f for f in os.listdir(outputFolder)
-            if f.endswith('.mp4')
-        ][0]
+        output = [f for f in os.listdir(outputFolder) if f.endswith('.mp4')][0]
         os.rename(outputFolder + output, outputFolder + nowTime + '.mp4')
         shutil.move(outputFolder + nowTime + '.mp4', os.getcwd())
-        return nowTime + '.mp4'
+        return f'```python\n{code}\n```'
     except:
         return 'gpt生成代码有误，请重试'
