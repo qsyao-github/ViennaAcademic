@@ -8,9 +8,9 @@ import os
 
 
 def python(code):
-    return f"""\n```
+    return f"""\n
 {execute_code(code)}
-```\n"""
+\n"""
 
 
 def remove_newlines_from_formulas(text):
@@ -25,20 +25,22 @@ FIND_MAGIC_COMMAND_SUFFIX = r"\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}"
 
 
 def toolcall(message, nowTime):
+    print(message)
     functions = {
-        '#websearch': webSearch,
-        '#python': python,
-        '#manim': manim_render
+        'websearch': webSearch,
+        'python': python,
+        'manim': manim_render
     }
-    pattern = r'#(websearch|python|manim)' + FIND_MAGIC_COMMAND_SUFFIX
-    matches = regex.findall(pattern, message)
+    pattern = r"<(\w+)>(.*?)</\1>"
+    matches = regex.findall(pattern, message, regex.DOTALL)
     for tag, param in matches:
         if tag == 'manim':
             message = manim_render(param, nowTime)
         elif param.strip() != '':
-            function_to_call = functions[f"#{tag}"]
-            replacement = function_to_call(param)
-            message = message.replace(f"#{tag}{{{param}}}", replacement)
+            function_to_call = functions.get(tag, None)
+            if function_to_call is not None:
+                replacement = function_to_call(param.strip())
+                message = message.replace(f"<{tag}>{param}</{tag}>", replacement)
     return message
 
 
@@ -71,7 +73,7 @@ def modelInference(model, nowTime, query, chatbot, client):
             'role':
             'system',
             'content':
-            """你可使用魔术指令，它们形如#function{param}，请务必将参数置于大括号内，紧跟函数名。若你需要上网搜索，请在回答中加入"#websearch{搜索内容}"；若你需要制作动画，请在回答中加入"#manim{你的代码}，文本请使用英文。若你需要运行Python代码，请在回答中加入"#python{代码}"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
+            """你是强大的LLM Agent，你可以通过魔术命令上网、制作动画、执行Python代码。命令形如<function_name>params</function_name>。若你需要上网搜索，请在回答中加入"<websearch>关键字</websearch>"；若你需要使用manim制作动画，请在回答中加入"<manim>代码</manim>"。若你需要运行Python代码，请在回答中加入"<python>代码</python>"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
             + f"{nowTime}.png"
         }] + [{
             "role": "user",
@@ -199,13 +201,9 @@ class chatBot:
         if not multimodal:
             if query is not None:
                 response = ""
-                totalLength = len(query[0]['content']) + token
-                if totalLength < 8000:
-                    returnMessage = modelInference("gpt-4o-mini", nowTime,
-                                                   query, self, client1)
-                else:
-                    returnMessage = modelInference("glm-4-flash", nowTime,
-                                                   query, self, client2)
+                # totalLength = len(query[0]['content']) + token
+                returnMessage = modelInference("deepseek-ai/DeepSeek-V3", nowTime,
+                                                query, self, client1)
                 for chunk in returnMessage:
                     response += chunk
                     yield response
