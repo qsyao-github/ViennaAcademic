@@ -1,7 +1,9 @@
 from modelclient import client1, client3
 from latex2sympy2_extended import latex2sympy, normalize_latex, NormalizationConfig
 import regex
+from chat import formatFormula
 from sympy import *
+from Drission import get_wolfram
 
 config = NormalizationConfig(basic_latex=True,
                              units=True,
@@ -12,12 +14,10 @@ config = NormalizationConfig(basic_latex=True,
 
 
 def extract_formulas(text):
-    # 使用正则表达式匹配 $ 或 $$ 包围的内容
-    inline_formulas = regex.findall(r'\$(.*?)\$', text)
-    block_formulas = regex.findall(r'\$\$(.*?)\$\$', text, regex.DOTALL)
+    all_formulas = regex.findall(r'\$(.*?)\$', text) + regex.findall(
+        r'\$\$(.*?)\$\$', text, regex.DOTALL)
     formulas = []
-    # 返回所有匹配的公式，包括行内公式和块级公式
-    for formula in (inline_formulas + block_formulas):
+    for formula in all_formulas:
         if formula:
             if "=" not in formula:
                 try:
@@ -28,37 +28,33 @@ def extract_formulas(text):
                     except:
                         newExpr = expr
                     newExpr = simplify(newExpr, rational=True, doit=True)
-                    if formula != latex(newExpr):
-                        latexExpr = latex(newExpr)
-                        formulas.append("$" + formula + " = " + latexExpr +
-                                        "$")
+                    latexExpr = latex(newExpr)
+                    if formula != latexExpr:
+                        formulas.append(f"${formula} = {latexExpr}$")
                 except:
                     pass
     return formulas
 
 
 def check_formulas(text):
-    inline_formulas = regex.findall(r'\$(.*?)\$', text)
-    block_formulas = regex.findall(r'\$\$(.*?)\$\$', text, regex.DOTALL)
+    all_formulas = regex.findall(r'\$(.*?)\$', text) + regex.findall(
+        r'\$\$(.*?)\$\$', text, regex.DOTALL)
     formulas = []
-    for formula in (inline_formulas + block_formulas):
+    for formula in all_formulas:
         components = formula.split("=")
         try:
             candidates = [
                 latex2sympy(f"{components[i]}-({components[i+1]})")
                 for i in range(len(components) - 1)
             ]
-            checks = []
-            for candidate in candidates:
+            for i, candidate in enumerate(candidates):
                 try:
                     newExpr = candidate.doit()
-                    newExpr = simplify(newExpr, rational=True, doit=True)
                 except:
-                    newExpr = simplify(newExpr, rational=True, doit=True)
-                checks.append(newExpr)
-            for i in range(len(checks)):
-                if latex(candidates[i]) != latex(checks[i]) and latex(
-                        checks[i]) != '0':
+                    pass
+                newExpr = simplify(newExpr, rational=True, doit=True)
+                latex_check = latex(newExpr)
+                if latex(candidate) != latex_check and latex_check != '0':
                     formulas.append(
                         f"请用户检查以下等式：${components[i]} = {components[i+1]}$")
         except:
@@ -66,13 +62,10 @@ def check_formulas(text):
     return formulas
 
 
-def attachHints(query, answer=""):
-    formulas = extract_formulas(query)
-    wrong_answer = check_formulas(answer) if answer else []
-    if formulas:
-        query += "\n提示：\n" + "\n".join(formulas)
-    if wrong_answer:
-        query += "\n" + "\n".join(wrong_answer)
+def attachHints(query):
+    hints = get_wolfram(query).strip()
+    if hints:
+        query = "提示：\n```\n" + hints + "\n```\n" + query
     return query
 
 
@@ -91,19 +84,17 @@ def translate(query):
     return response.choices[0].message.content
 
 
-def deepseek(query):
-    message = [{"role": "user", "content": query}]
-    response = client1.chat.completions.create(model="deepseek-r1-32b",
-                                               messages=message,
-                                               stream=True)
+def deepseek(query, messages = None):
+    if messages is None:
+        messages = [{"role": "user", "content": query}]
+    messages = [{k: message[k] for k in ["role", "content"]} for message in messages]
+    response = client1.chat.completions.create(
+        model="deepseek-r1-distill-llama-70b", messages=messages, stream=True)
     for chunk in response:
         yield chunk.choices[0].delta.content or ""
 
 
 def solve(query):
-    query = translate(query).strip(";")
-    query = attachHints(query, "")
-    yield query
     response = deepseek(query)
     content = ""
     for chunk in response:
@@ -113,9 +104,7 @@ def solve(query):
     index = content.find(r"</think>")
     if index != -1:
         # content = content[index + 6:]
-        content = content[index + 8:].replace(r"\[", "$$").replace(
-            r"\]", "$$").replace(r"\(", "$(").replace(r"\)", "$)")
+        content = formatFormula(content[index + 8:])
         yield content
-    checks = check_formulas(content)
-    yield content + ("\n\n老卫提示：" + "\n\n" +
-                     "\n\n".join(checks) if checks else "")
+    yield content
+
