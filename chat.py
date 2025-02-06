@@ -3,6 +3,7 @@ from executeCode import execute_code, manim_render
 from perplexica import webSearch, academicSearch
 from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper, attach
 from imageUtils import get_total_pixels, encode_image
+from codeAnalysis import generate_docstring, optimize_code
 from modelclient import client1, client2
 import os
 
@@ -25,7 +26,6 @@ FIND_MAGIC_COMMAND_SUFFIX = r"\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}"
 
 
 def toolcall(message, nowTime):
-    print(message)
     functions = {
         'websearch': webSearch,
         'python': python,
@@ -52,9 +52,11 @@ def promptcall(message):
         '#translatePapertoEnglish': translatePapertoEnglish,
         '#polishPaper': polishPaper,
         '#findPaper': academicSearch,
-        '#websearch': webSearch
+        '#websearch': webSearch,
+        '#generateDocstring': generate_docstring,
+        '#optimizeCode': optimize_code
     }
-    pattern = r'#(attach|readPaper|translatePapertoChinese|translatePapertoEnglish|polishPaper|findPaper|websearch)' + FIND_MAGIC_COMMAND_SUFFIX
+    pattern = r'#(attach|readPaper|translatePapertoChinese|translatePapertoEnglish|polishPaper|findPaper|websearch|generateDocstring|optimizeCode)' + FIND_MAGIC_COMMAND_SUFFIX
     matches = regex.findall(pattern, message)
     for tag, param in matches:
         function_to_call = functions[f"#{tag}"]
