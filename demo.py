@@ -9,7 +9,7 @@ import datetime
 from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
-from deepseek import solve
+from deepseek import solve, deepseek, attachHints
 from qanythingClient import update, qanything_fetch
 from fileConversion import convert_to_pptx, convert_to
 
@@ -179,8 +179,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         for bot_chunk in bot_stream:
                             bot_message = constructMultimodalMessage(
                                 bot_chunk, botFileConstructor(nowTime))
-                            chat_history.pop()
-                            chat_history.append([message, bot_message])
+                            chat_history[-1] = [message, bot_message]
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
                     elif isinstance(message, tuple):
@@ -192,9 +191,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            chat_history.pop()
-                            chat_history.append(
-                                doubleMessage(chunk[0], chunk[1]))
+                            chat_history[-1]=doubleMessage(chunk[0], chunk[1])
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
@@ -215,31 +212,30 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         f.write(text)
                     update()
                     gr.Info("上传成功，请刷新")
-                def base_show_files(folder):
+
+                def base_show_regular_files(folder):
                     for file in os.listdir(folder):
                         with gr.Row():
-                            fileBtn = gr.Button(file,
-                                                scale=0,
-                                                min_width=120)
+                            fileBtn = gr.Button(file, scale=0, min_width=120)
                             downloadFile = gr.DownloadButton(
                                 f"下载",
                                 f'{folder}/{file}',
                                 scale=0,
                                 min_width=70)
-                            deleteFile = gr.Button("删除",
-                                                    scale=0,
-                                                    min_width=70)
+                            deleteFile = gr.Button("删除", scale=0, min_width=70)
 
-                            deleteFile.click(lambda file=file: (os.remove(
-                                f"{folder}/{file}", update())),
-                                                None,
-                                                None)
+                            deleteFile.click(
+                                lambda file=file:
+                                (os.remove(f"{folder}/{file}", update())),
+                                None,
+                                None)
 
                         def appendToMsg(msg, file=file):
                             msg['text'] = msg['text'] + f"{file}" + "}"
                             return msg
 
                         fileBtn.click(appendToMsg, msg, msg)
+
                 with gr.Tab("论文/学术专著"):
                     with gr.Row():
                         uploadThesis = gr.UploadButton("上传论文/学术专著", scale=1)
@@ -248,7 +244,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                     @gr.render(triggers=[refresh.click])
                     def show_paper():
-                        base_show_files("paper")
+                        base_show_regular_files("paper")
 
                 with gr.Tab("已解析文件"):
                     gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
@@ -272,7 +268,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                     @gr.render(triggers=[refresh.click])
                     def show_knowledgeBase():
-                        base_show_files("knowledgeBase")
+                        base_show_regular_files("knowledgeBase")
 
                 with gr.Tab("代码"):
 
@@ -289,7 +285,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                     @gr.render(triggers=[refresh.click])
                     def show_code():
-                        base_show_files("code")
+                        base_show_regular_files("code")
 
                 with gr.Tab("Github仓库"):
                     refresh = gr.Button("刷新", scale=0, min_width=100)
@@ -384,7 +380,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     def show_Tempest():
                         base_show_files("tempest")
 
-            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],label="选择格式")
+            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
+                                            label="选择格式")
 
             def convert_file(file_to_convert, convert_to_format):
                 if file_to_convert.strip() == "":
@@ -535,18 +532,52 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
             def reason(question):
                 if question.strip() == "":
-                    return "请输入题目"
+                    yield "请输入题目"
                 else:
                     gr.Info("正在解题，不要关闭页面，大约需2min")
                     answer = solve(question)
                     for chunk in answer:
                         yield chunk
 
-            problem = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题")
-            solve_button = gr.Button("解题")
-            answerBox = gr.Markdown("答案将显示在此，若存在明显错误或报错，可多次尝试。每次的回答未必相同",
-                                    latex_delimiters=LATEX_DELIMITERS,
-                                    show_copy_button=True)
-            solve_button.click(reason, problem, answerBox)
+            def normal_reply(message, chat_history):
+                tempAnswer = deepseek(message, chat_history)
+                finalAnswer = ""
+                for chunk in tempAnswer:
+                    finalAnswer += chunk
+                    yield finalAnswer
+                index = finalAnswer.find(r"</think>")
+                if index != -1:
+                    finalAnswer = formatFormula(finalAnswer[index + 8:])
+                yield finalAnswer
+
+            def respond(message, chat_history):
+                message = message.strip()
+                if message == "":
+                    return "", chat_history
+                if chat_history:
+                    chat_history.append({"role": 'user', "content": message})
+                    answer = normal_reply(message, chat_history)
+                else:
+                    message = attachHints(message)
+                    chat_history.append({"role": 'user', "content": message})
+                    answer = reason(message)
+                tempResponse = next(answer)
+                chat_history.append({
+                    "role": 'assistant',
+                    "content": tempResponse
+                })
+                yield "", chat_history
+                for chunk in answer:
+                    chat_history[-1] = {"role": 'assistant', "content": chunk}
+                    yield "", chat_history
+
+            chatbot = gr.Chatbot(type="messages",
+                                 latex_delimiters=LATEX_DELIMITERS,
+                                 show_copy_button=True,
+                                 show_copy_all_button=True)
+            solve_msg = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题",
+                             interactive=True)
+            clear = gr.ClearButton([solve_msg, chatbot])
+            solve_msg.submit(respond, [solve_msg, chatbot], [solve_msg, chatbot])
 
 demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
