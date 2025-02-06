@@ -84,7 +84,7 @@ def translation(string,
                     r"\paragraph",
                     r"\subparagraph",
                 ]):
-    judge = string.lstrip().rstrip()
+    judge = string.strip()
     if judge and judge != '\n' and string not in separators:
         translation = client2.chat.completions.create(
             model="glm-4-flash",
