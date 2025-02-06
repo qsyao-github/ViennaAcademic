@@ -121,34 +121,24 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 generateDocstring.click(addToMsg("#generateDocstring{"), msg,
                                         msg)
                 optimizeCode.click(addToMsg("#optimizeCode{"), msg, msg)
-                multimodal = gr.State(False)
-                knowledgeBase = gr.State(False)
 
-                def switch_multimodal(multimodalSwitchValue):
-                    global multimodal
-                    global knowledgeBase
-                    multimodal = gr.State(multimodalSwitchValue)
-                    if multimodal.value:
-                        knowledgeBase = gr.State(False)
-                        knowledgeBaseSwitch.value = False
-                    return knowledgeBase.value
+                def switch_multimodal(multimodalSwitch, knowledgeBaseSwitch):
+                    if multimodalSwitch:
+                        knowledgeBaseSwitch = False
+                    return knowledgeBaseSwitch
 
-                def switch_knowledgeBase(knowledgeBaseSwitchValue):
-                    global knowledgeBase
-                    global multimodal
-                    knowledgeBase = gr.State(knowledgeBaseSwitchValue)
-                    if knowledgeBase.value:
-                        multimodal = gr.State(False)
-                        multimodalSwitch.value = False
-                    return multimodal.value
+                def switch_knowledgeBase(knowledgeBaseSwitch, multimodalSwitch):
+                    if knowledgeBaseSwitch:
+                        multimodalSwitch = False
+                    return multimodalSwitch
 
-                multimodalSwitch.input(switch_multimodal, [multimodalSwitch],
+                multimodalSwitch.input(switch_multimodal, [multimodalSwitch, knowledgeBaseSwitch],
                                        [knowledgeBaseSwitch])
                 knowledgeBaseSwitch.input(switch_knowledgeBase,
-                                          [knowledgeBaseSwitch],
+                                          [knowledgeBaseSwitch, multimodalSwitch],
                                           [multimodalSwitch])
 
-                def respond(message, chat_history):
+                def respond(message, chat_history, multimodal, knowledgeBase):
                     # integrating multimodal conversion here
                     if type(message) != str:
                         message, files = message["text"], message["files"]
@@ -156,7 +146,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     message = remove_newlines_from_formulas(message)
                     message = promptcall(message)
                     if isinstance(message, str):
-                        if knowledgeBase.value:
+                        if knowledgeBase:
                             knowledgeBaseSearch = qanything_fetch(message)
                             if knowledgeBaseSearch:
                                 message = knowledgeBaseSearch + '\n\n' + message
@@ -164,12 +154,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             message, userFileConstructor(files))
                         nowTime = datetime.datetime.now().strftime(
                             '%y%m%d%H%M%S')
-                        bot = chatBot(chat_history, multimodal.value)
+                        bot = chatBot(chat_history, multimodal)
                         bot_stream = bot.answer(
                             message,
                             len(''.join([
                                 i[0].text + i[1].text for i in chat_history
-                            ])), nowTime, multimodal.value)
+                            ])), nowTime, multimodal)
                         os.chdir(r'/home/laowei/ViennaAcademic')
                         chat_history.append([
                             message,
@@ -195,7 +185,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
-                msg.submit(respond, [msg, chatbot], [msg, chatbot])
+                msg.submit(respond, [msg, chatbot, multimodalSwitch, knowledgeBaseSwitch], [msg, chatbot])
             with gr.Column(min_width=350):
 
                 def upload_paper(file):
@@ -226,7 +216,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                             deleteFile.click(
                                 lambda file=file:
-                                (os.remove(f"{folder}/{file}", update())),
+                                (os.remove(f"{folder}/{file}"), update()),
                                 None,
                                 None)
 
