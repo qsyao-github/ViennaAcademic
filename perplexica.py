@@ -23,7 +23,7 @@ def constructQuery(query, focusMode):
 
 
 def getResult(jsonquery):
-    response = requests.post('http://127.0.0.1:3001/api/parse',
+    response = requests.post('http://127.0.0.1:3001/api/search',
                              json=jsonquery,
                              proxies=proxies)
     message = response.json()['message']
@@ -36,17 +36,23 @@ def getResult(jsonquery):
 
 
 def webSearch(query):
-    jsonquery = constructQuery(query, "webSearch")
-    message, referenceList, _ = getResult(jsonquery)
-    return (f"请搜索{query}",
-            message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
+    try:
+        jsonquery = constructQuery(query, "webSearch")
+        message, referenceList, _ = getResult(jsonquery)
+        return (f"请搜索{query}",
+                message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
+    except:
+        return (f"请搜索{query}", "老卫可能在深圳")
 
 
 def academicSearch(query):
-    jsonquery = constructQuery(query, "academicSearch")
-    message, referenceList, _ = getResult(jsonquery)
-    return ("查找" + query + "有关论文",
-            message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
+    try:
+        jsonquery = constructQuery(query, "academicSearch")
+        message, referenceList, _ = getResult(jsonquery)
+        return ("查找" + query + "有关论文",
+                message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
+    except:
+        return ("查找" + query + "有关论文", "老卫可能在深圳")
 
 
 def stormSearch(query):
