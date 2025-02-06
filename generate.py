@@ -125,6 +125,7 @@ def generate_outline(summary, topic, chinese=True):
         response = deepseek_chat(
             f"You're an expert in text outline generation, capable of creating a coherent and extensible outline based on user-provided information. You have a strong topic analysis capability, and can accurately extract key information and core points. You have a wealth of writing knowledge, and are familiar with the methods of building academic paper outlines. You can generate a paper outline with specificity, logic, and coherence, and ensure that the outline structure is logical and coherent. You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts), and list some key words as a markdown unordered list under each heading(be specific, no more than 3).",
             summary)
+    response = response.strip('`')
     response = response[response.find('#'):]
     for keyword in ['关键词', 'keyword', 'Keyword', 'Reference', 'reference', '参考文献']:
         if keyword in response:
@@ -134,7 +135,7 @@ def generate_outline(summary, topic, chinese=True):
 
 
 def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread_num=0):
-    reference = qanything_fetch(f"{title}: {subtopic}")
+    reference = qanything_fetch(f"{title}: {subtopic}").strip()
     if reference:
         if chinese:
             response = mixed_chat(
@@ -150,13 +151,11 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
         else:
             response = mixed_chat(f'You are about to write a paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Please show your own understanding.', thread_num)
     outlines[i] = response
-    print(thread_num, i, response)
 
 
 def write_paragraphs(list_of_tasks, thread_num):
     for task in list_of_tasks:
         write_paragraph(*task, thread_num)
-    print(f'{thread_num} finished')
     return
 
 def parse_outline(outline, title, chinese=True):
@@ -223,11 +222,9 @@ def generate(query):
     chinese = isChinese(query)
     summary, reference = stormSearch(query)
     yield summary
-    print(summary)
     handle_reference(reference)
     outline = generate_outline(summary, query, chinese)
     yield outline
-    print(outline)
     articleGenerator = parse_outline(outline, query, chinese)
     for tempArticle in articleGenerator:
         article = tempArticle
@@ -246,7 +243,6 @@ def generate(query):
         referenceStr = [f'[{i+1}] 《{ref['metadata']['title']}》. [在线]. 载于: {ref['metadata']['url']}' for i, ref in enumerate(reference)]
     finalVersion = outline.lstrip() + '\n\n' + article + (
         '\n\n## 参考文献\n\n' if chinese else '\n\n## References\n\n') + '\n\n'.join(referenceStr)
-    print(finalVersion)
     delete_temp_files()
     yield finalVersion
 # ppt
@@ -254,7 +250,6 @@ def _extract_content(contentList, prompt, tasks, thread_num):
     for task in tasks:
         bullets = mixed_chat(prompt, task[1], thread_num)
         contentList[task[0]] = task[2] + bullets
-        print(thread_num, task[0], task[2]+bullets)
     return
 
 
