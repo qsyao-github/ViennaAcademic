@@ -132,18 +132,24 @@ def generate_outline(summary, topic, chinese=True):
         
     return response.strip()
 
-lock = threading.Lock()
+
 def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread_num=0):
-    if chinese:
-        response = mixed_chat(
-            f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。请参考相关文献结合自身理解撰写，引用部分通过"【编号】"注明出处。',
-            qanything_fetch(f"{title}: {subtopic}"), thread_num)
+    reference = qanything_fetch(f"{title}: {subtopic}")
+    if reference:
+        if chinese:
+            response = mixed_chat(
+                f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。请参考相关文献结合自身理解撰写，引用部分通过"【编号】"注明出处。',
+                reference, thread_num)
+        else:
+            response = mixed_chat(
+                f'''You're about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}". Please integrate related literatures and your understanding, and cite the source as "[number]".''',
+                reference, thread_num)
     else:
-        response = mixed_chat(
-            f'''You're about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}". Please integrate related literatures and your understanding, and cite the source as "[number]".''',
-            qanything_fetch(f"{title}: {subtopic}"), thread_num)
-    with lock:
-        outlines[i] = response
+        if chinese:
+            response = mixed_chat(f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。', '请结合自身理解撰写', thread_num)
+        else:
+            response = mixed_chat(f'You are about to write a paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Please show your own understanding.', thread_num)
+    outlines[i] = response
     print(thread_num, i, response)
 
 
@@ -172,8 +178,8 @@ def parse_outline(outline, title, chinese=True):
     t1.start()
     t2.start()
     while t1.is_alive() or t2.is_alive():
-        with lock:
-            yield '\n\n'.join(outlines)
+        yield '\n\n'.join(outlines)
+        time.sleep(1)
     t1.join()
     t2.join()
     yield '\n\n'.join(outlines)
@@ -247,9 +253,8 @@ def generate(query):
 def _extract_content(contentList, prompt, tasks, thread_num):
     for task in tasks:
         bullets = mixed_chat(prompt, task[1], thread_num)
-        with lock:
-            contentList[task[0]] = task[2] + bullets
-            print(thread_num, task[0], task[2]+bullets)
+        contentList[task[0]] = task[2] + bullets
+        print(thread_num, task[0], task[2]+bullets)
     return
 
 
@@ -279,7 +284,7 @@ def extract_content(content, subheadings=None, chinese=True):
                 tasks.append((i+1, line, "---\n\n"))
         else:
             contentList[i+1] = ""
-    midpoint = len(tasks)-1
+    midpoint = int(len(tasks)/4*3) + 1
     first_thread_task = tasks[:midpoint]
     second_thread_task = tasks[midpoint:]
     t1 = threading.Thread(target=_extract_content, args=(contentList, prompt, first_thread_task, 0))
@@ -287,8 +292,8 @@ def extract_content(content, subheadings=None, chinese=True):
     t1.start()
     t2.start()
     while t1.is_alive() or t2.is_alive():
-        with lock:
-            yield '\n\n'.join(contentList)
+        yield '\n\n'.join(contentList)
+        time.sleep(1)
     t1.join()
     t2.join()
     yield '\n\n'.join(contentList)
