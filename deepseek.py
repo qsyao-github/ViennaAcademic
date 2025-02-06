@@ -107,4 +107,3 @@ def solve(query):
         content = formatFormula(content[index + 8:])
         yield content
     yield content
-
