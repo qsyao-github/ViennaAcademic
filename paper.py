@@ -1,6 +1,7 @@
 import os
 import regex
 import threading
+import time
 from modelclient import client2
 
 
@@ -127,6 +128,7 @@ def baseConversion(file_path, suffix, prompt, userMessage):
         t.start()
     while any(thread.is_alive() for thread in threads):
         yield (userMessage, ''.join(result_list))
+        time.sleep(1)
     for t in threads:
         t.join()
     converted_content = ''.join(result_list)
