@@ -65,7 +65,7 @@ def check_formulas(text):
 def attachHints(query):
     hints = get_wolfram(query).strip()
     if hints:
-        query = "提示：\n```\n" + hints + "\n```\n" + query
+        query = "Wolframalpha提示:\n```\n" + hints + "\n```\n" + query
     return query
 
 
@@ -107,3 +107,4 @@ def solve(query):
         content = formatFormula(content[index + 8:])
         yield content
     yield content
+
