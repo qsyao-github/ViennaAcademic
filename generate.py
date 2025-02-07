@@ -19,14 +19,12 @@ def handle_reference(references):
         index = str(i+1)
         pageContent, link = entry["pageContent"], entry["metadata"]["url"]
         filePath=f'knowledgeBase/STORMtemp{index}.md'
-        print(link)
         if 'http://arxiv.org/abs/' in link:
             arxivID = link.split('/')[-1]
             if 'v' in arxivID:
                 arxivID = arxivID.split('v')[0]
             if '.' in arxivID:
                 result = downloadArxivPaper(arxivID, True, index)
-                print(result)
                 if result == "ID可能错误":
                     content = pageContent
                 else:
@@ -122,7 +120,7 @@ def mistral_chat(system, query):
 def generate_outline(summary, topic, chinese=True):
     if chinese:
         response = silicon_chat(
-            f"你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
+            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
             summary)
     else:
         response = gpt_chat(
@@ -149,7 +147,6 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
                 f'''You're about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}". Please integrate related literatures and your understanding, and cite the source as "[number]".''',
                 reference, thread_num)
     else:
-        print('no reference')
         if chinese:
             response = mixed_chat(f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。', '请结合自身理解撰写该段落，不要编造。使用中文', thread_num)
         else:
@@ -157,7 +154,6 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
     response_check = re.split('\n+',response.strip())
     response = max(response_check, key=len)
     outlines[i] = response
-    print(thread_num, i, response)
 
 
 def write_paragraphs(list_of_tasks, thread_num):
@@ -239,11 +235,9 @@ def generate(query):
     chinese = isChinese(query)
     summary, reference = stormSearch(query)
     yield summary
-    print(summary)
     handle_reference(reference)
     outline = generate_outline(summary, query, chinese)
     yield outline
-    print(outline)
     articleGenerator = parse_outline(outline, query, chinese)
     for tempArticle in articleGenerator:
         article = tempArticle
@@ -269,7 +263,6 @@ def _extract_content(contentList, prompt, tasks, thread_num):
     for task in tasks:
         bullets = mixed_chat(prompt, task[1], thread_num)
         contentList[task[0]] = task[2] + bullets
-        print(thread_num, task[0], task[2]+bullets)
     return
 
 
