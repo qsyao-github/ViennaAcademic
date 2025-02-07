@@ -8,6 +8,8 @@ from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBacke
 from docling.datamodel.document import ConversionResult
 from rapidocr_onnxruntime import RapidOCR
 from Drission import get_html
+import re
+
 engine = RapidOCR()
 pipeline_options = PdfPipelineOptions(
     artifacts_path="/home/laowei/model/docling")
@@ -46,8 +48,21 @@ def parseEverything(file):
     conv_result: ConversionResult = doc_converter.convert(file)
     return conv_result.document.export_to_markdown()
 
-# 实现DrissionPage
-def parseWebsite(url):
-    get_html(url)
-    return parseEverything('temp.html')
 
+def parseWebsite(url):
+    success = get_html(url)
+    if success:
+        return parseEverything('temp.html')
+    else:
+        return None
+
+
+def parseArxiv(url):
+    success = get_html(url)
+    if success:
+        text = parseEverything('temp.html')
+        pattern = r'\n#\s+(.*?)##### Report Github Issue'
+        match = re.search(pattern, text, re.DOTALL)
+        if match is not None:
+            return '# ' + match.group(1).strip()
+    return None
