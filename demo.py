@@ -103,9 +103,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             os.remove(file)
                     if os.path.exists('media'):
                         shutil.rmtree('media')
-                    if os.path.exists('arxivSource'):
-                        shutil.rmtree('arxivSource')
-                        os.mkdir('arxivSource')
 
                 clear.click(checkDelete, None, None)
                 websearchBtn.click(addToMsg("#websearch{"), msg, msg)
@@ -190,7 +187,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 def upload_paper(file):
                     simpfile = os.path.splitext(os.path.basename(file))[0]
-                    gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要2分钟，请耐心等候")
+                    gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要40s，请耐心等候")
                     if os.path.exists(
                             f"knowledgeBase/{simpfile}.md") or os.path.exists(
                                 f"knowledgeBase/{simpfile}.txt"):
@@ -421,13 +418,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 if title.strip() == "":
                     return "请输入主题"
                 else:
-                    gr.Info(f"正在生成，大概需要600s，请不要关闭界面。稍后可获取md文件")
+                    gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
                     thesisGenerator = generate(title)
                     for tempThesis in thesisGenerator:
                         thesis = tempThesis
                         yield thesis
                     with open(f'tempest/{title}.md', 'w') as f:
                         f.write(thesis)
+                    gr.Info(f"已完成，请刷新")
                     yield thesis
 
             generate_button.click(generateAndSave, [title], thesisBox)
