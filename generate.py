@@ -1,8 +1,8 @@
 from doclingParse import parseWebsite
 from perplexica import stormSearch
 from qanythingClient import update, qanything_fetch
-from downloadpaper import downloadArxivPaper, getInformation
-from modelclient import client1, client2
+from downloadpaper import downloadArxivPaper
+from modelclient import client1, client2, siliconClient
 from collections import deque
 import re
 import os
@@ -19,18 +19,18 @@ def handle_reference(references):
         index = str(i+1)
         pageContent, link = entry["pageContent"], entry["metadata"]["url"]
         filePath=f'knowledgeBase/STORMtemp{index}.md'
+        print(link)
         if 'http://arxiv.org/abs/' in link:
             arxivID = link.split('/')[-1]
             if 'v' in arxivID:
                 arxivID = arxivID.split('v')[0]
             if '.' in arxivID:
-                try:
-                    downloadArxivPaper(arxivID, True, index)
+                result = downloadArxivPaper(arxivID, True, index)
+                print(result)
+                if result == "ID可能错误":
+                    content = pageContent
+                else:
                     content = ''
-                except:
-                    os.chdir('/home/laowei/ViennaAcademic')
-                    _, abstract, link = getInformation(arxivID)
-                    content = pageContent + '\n###### \n' + abstract, filePath
             else:
                 content = pageContent
         else:
@@ -83,12 +83,15 @@ def deepseek_chat(system, query):
                                                    "content": query
                                                }])
     return response.choices[0].message.content
-
+def silicon_chat(system, query):
+    messages=[{"role": "system","content": system}, {"role": "user","content": query}]
+    response = siliconClient(messages, temperature=0.7)
+    return response
 def mixed_chat(system, query, thread_num):
-    if thread_num == 0:
+    if thread_num == 1:
         return gpt_chat(system, query)
     else:
-        return deepseek_chat(system, query)
+        return silicon_chat(system, query)
 
 def glm_chat(system, query):
     response = client2.chat.completions.create(model="glm-4-flash",
@@ -118,19 +121,19 @@ def mistral_chat(system, query):
 """你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。"""
 def generate_outline(summary, topic, chinese=True):
     if chinese:
-        response = deepseek_chat(
-            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论，不超过5部分)，并在每个标题下用markdown无序列表列出关键词(表述具体，不超过3个)",
+        response = silicon_chat(
+            f"你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
             summary)
     else:
-        response = deepseek_chat(
-            f"You're an expert in text outline generation, capable of creating a coherent and extensible outline based on user-provided information. You have a strong topic analysis capability, and can accurately extract key information and core points. You have a wealth of writing knowledge, and are familiar with the methods of building academic paper outlines. You can generate a paper outline with specificity, logic, and coherence, and ensure that the outline structure is logical and coherent. You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts), and list some key words as a markdown unordered list under each heading(be specific, no more than 3).",
+        response = gpt_chat(
+            f"You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts), and list no more than 3 keywords as a markdown unordered list under each heading.",
             summary)
     response = response.strip('`')
     response = response[response.find('#'):]
     for keyword in ['关键词', 'keyword', 'Keyword', 'Reference', 'reference', '参考文献']:
         if keyword in response:
             response = response.split(keyword)[0].rstrip(' \n#*')
-        
+    response = re.sub(r'\d+\.\s+|\d+\.\d+\s+', '', response)
     return response.strip()
 
 
@@ -139,18 +142,22 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
     if reference:
         if chinese:
             response = mixed_chat(
-                f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。请参考相关文献结合自身理解撰写，引用部分通过"【编号】"注明出处。',
+                f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。请参考相关文献结合自身理解撰写，引用部分以"【编号】"形式注明出处。使用中文。',
                 reference, thread_num)
         else:
             response = mixed_chat(
                 f'''You're about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}". Please integrate related literatures and your understanding, and cite the source as "[number]".''',
                 reference, thread_num)
     else:
+        print('no reference')
         if chinese:
-            response = mixed_chat(f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。', '请结合自身理解撰写', thread_num)
+            response = mixed_chat(f'你将撰写一个段落，主题为{subtopic}，该段落属于一题目为“{title}”的学术文章的“{subtitle}”部分。', '请结合自身理解撰写该段落，不要编造。使用中文', thread_num)
         else:
-            response = mixed_chat(f'You are about to write a paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Please show your own understanding.', thread_num)
+            response = mixed_chat(f'You are about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Integrate your own understanding in the paragraph. Do not hallucinate.', thread_num)
+    response_check = re.split('\n+',response.strip())
+    response = max(response_check, key=len)
     outlines[i] = response
+    print(thread_num, i, response)
 
 
 def write_paragraphs(list_of_tasks, thread_num):
@@ -169,18 +176,28 @@ def parse_outline(outline, title, chinese=True):
         if line and line.startswith('-'):
             current_subtopic = line.strip('-').strip()
             tasks.append((outlines, i, current_subtitle, current_subtopic, title, chinese))
-    midpoint = int(len(tasks)/4*3) + 1
-    first_thread_task = tasks[:midpoint]
-    second_thread_task = tasks[midpoint:]
-    t1 = threading.Thread(target=write_paragraphs, args=(first_thread_task, 0))
-    t2 = threading.Thread(target=write_paragraphs, args=(second_thread_task, 1))
-    t1.start()
-    t2.start()
-    while t1.is_alive() or t2.is_alive():
+    length = len(tasks)
+    num_threads = min(length, 4)
+    threads = []
+    for i in range(4):
+        if i == 0:
+            start_index = int(i * length / 5)
+            end_index = int((i+1) * length / 5)
+        elif i == 1:
+            start_index = int(i * length / 5)
+            end_index = int((i+2) * length / 5)
+        else:
+            start_index = int((i+1) * length / 5)
+            end_index = int((i+2) * length / 5)
+        subtasks = tasks[start_index:end_index]
+        t = threading.Thread(target=write_paragraphs, args=(subtasks, i%4))
+        threads.append(t)
+        t.start()
+    while any(thread.is_alive() for thread in threads):
         yield '\n\n'.join(outlines)
         time.sleep(1)
-    t1.join()
-    t2.join()
+    for t in threads:
+        t.join()
     yield '\n\n'.join(outlines)
 
 
@@ -222,9 +239,11 @@ def generate(query):
     chinese = isChinese(query)
     summary, reference = stormSearch(query)
     yield summary
+    print(summary)
     handle_reference(reference)
     outline = generate_outline(summary, query, chinese)
     yield outline
+    print(outline)
     articleGenerator = parse_outline(outline, query, chinese)
     for tempArticle in articleGenerator:
         article = tempArticle
@@ -250,6 +269,7 @@ def _extract_content(contentList, prompt, tasks, thread_num):
     for task in tasks:
         bullets = mixed_chat(prompt, task[1], thread_num)
         contentList[task[0]] = task[2] + bullets
+        print(thread_num, task[0], task[2]+bullets)
     return
 
 
@@ -261,7 +281,7 @@ def extract_content(content, subheadings=None, chinese=True):
     contentList = re.split(r'\n+', content.strip())
     level = 1
     title = contentList[0].strip('#').strip()
-    contentList[0] = f'---\ntitle:\n- {title}\n---\n\n'
+    contentList[0] = f'---\ntitle:\n- "{title}"\n---\n\n'
     tasks = []
     for i, line in enumerate(contentList[1:]):
         line = line.strip()
@@ -279,16 +299,26 @@ def extract_content(content, subheadings=None, chinese=True):
                 tasks.append((i+1, line, "---\n\n"))
         else:
             contentList[i+1] = ""
-    midpoint = int(len(tasks)/4*3) + 1
-    first_thread_task = tasks[:midpoint]
-    second_thread_task = tasks[midpoint:]
-    t1 = threading.Thread(target=_extract_content, args=(contentList, prompt, first_thread_task, 0))
-    t2 = threading.Thread(target=_extract_content, args=(contentList, prompt, second_thread_task, 1))
-    t1.start()
-    t2.start()
-    while t1.is_alive() or t2.is_alive():
+    length = len(tasks)
+    num_threads = min(length, 4)
+    threads = []
+    for i in range(4):
+        if i == 0:
+            start_index = int(i * length / 5)
+            end_index = int((i+1) * length / 5)
+        elif i == 1:
+            start_index = int(i * length / 5)
+            end_index = int((i+2) * length / 5)
+        else:
+            start_index = int((i+1) * length / 5)
+            end_index = int((i+2) * length / 5)
+        subtasks = tasks[start_index:end_index]
+        t = threading.Thread(target=_extract_content, args=(contentList, prompt, subtasks, i%4))
+        threads.append(t)
+        t.start()
+    while any(thread.is_alive() for thread in threads):
         yield '\n\n'.join(contentList)
         time.sleep(1)
-    t1.join()
-    t2.join()
+    for t in threads:
+        t.join()
     yield '\n\n'.join(contentList)
