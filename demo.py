@@ -186,8 +186,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
             with gr.Column(min_width=350):
 
                 def upload_paper(file):
-                    simpfile = os.path.splitext(os.path.basename(file))[0]
                     gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要40s，请耐心等候")
+                    simpfile = os.path.splitext(os.path.basename(file))[0]
                     if os.path.exists(
                             f"knowledgeBase/{simpfile}.md") or os.path.exists(
                                 f"knowledgeBase/{simpfile}.txt"):
