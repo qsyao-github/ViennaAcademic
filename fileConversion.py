@@ -66,5 +66,5 @@ def convert_to_pptx(input_file, do_parse=True):
         'pandoc', input_file + 'ppt.md', '-t', 'beamer',
         '--pdf-engine=xelatex', '-V', 'theme:Madrid', '-V',
         'CJKmainfont=AR PL SungtiL GB', '--slide-level', '2', '-o',
-        input_file + '.pdf'
+        input_file + 'ppt.pdf'
     ])
