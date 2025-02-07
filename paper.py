@@ -117,10 +117,9 @@ def baseConversion(file_path, suffix, prompt, userMessage):
     threads = []
     result_list = [""] * length
     num_threads = min(length, 64)
-    chunk_size = length // num_threads
     for i in range(num_threads):
-        start_index = length - (num_threads - i) * chunk_size if i else 0
-        end_index = length - (num_threads - 1 - i) * chunk_size
+        start_index = int(i * length / num_threads)
+        end_index = int((i+1) * length / num_threads)
         t = threading.Thread(target=process_part_of_list,
                              args=(content, start_index, end_index,
                                    result_list, prompt))
