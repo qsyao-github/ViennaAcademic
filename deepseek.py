@@ -1,4 +1,4 @@
-from modelclient import client1, client3
+from modelclient import client1, client4
 from latex2sympy2_extended import latex2sympy, normalize_latex, NormalizationConfig
 import regex
 from chat import formatFormula
@@ -84,17 +84,21 @@ def translate(query):
     return response.choices[0].message.content
 
 
-def deepseek(query, messages = None):
-    if messages is None:
-        messages = [{"role": "user", "content": query}]
+def deepseek(messages):
     messages = [{k: message[k] for k in ["role", "content"]} for message in messages]
     response = client1.chat.completions.create(
         model="deepseek-r1-distill-llama-70b", messages=messages, stream=True)
+    content = ""
     for chunk in response:
-        yield chunk.choices[0].delta.content or ""
+        content += chunk.choices[0].delta.content or ""
+        yield content
+    index = content.find(r"</think>")
+    if index != -1:
+        content = content[index + 8:]
+    yield content
 
 
-def solve(query):
+"""def solve(query):
     response = deepseek(query)
     content = ""
     for chunk in response:
@@ -107,4 +111,4 @@ def solve(query):
         content = formatFormula(content[index + 8:])
         yield content
     yield content
-
+"""
