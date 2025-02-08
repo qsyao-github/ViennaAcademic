@@ -46,7 +46,8 @@ doc_converter = (
 
 def parseEverything(file):
     conv_result: ConversionResult = doc_converter.convert(file)
-    return conv_result.document.export_to_markdown()
+    result = conv_result.document.export_to_markdown()
+    return re.sub('<!-- image -->', '', result).strip()
 
 
 def parseWebsite(url):
