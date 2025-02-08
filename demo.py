@@ -518,37 +518,23 @@ with gr.Blocks(fill_height=True, fill_width=True,
     with gr.Tab("理科"):
         with gr.Tab("解理科题目"):
 
-            def reason(question):
-                if question.strip() == "":
-                    yield "请输入题目"
-                else:
-                    gr.Info("正在解题，不要关闭页面，大约需2min")
-                    answer = solve(question)
-                    for chunk in answer:
-                        yield chunk
-
-            def normal_reply(message, chat_history):
-                tempAnswer = deepseek(message, chat_history)
+            def normal_reply(chat_history):
+                tempAnswer = deepseek(chat_history)
                 finalAnswer = ""
                 for chunk in tempAnswer:
-                    finalAnswer += chunk
+                    finalAnswer = chunk
                     yield finalAnswer
-                index = finalAnswer.find(r"</think>")
-                if index != -1:
-                    finalAnswer = formatFormula(finalAnswer[index + 8:])
+                finalAnswer = remove_newlines_from_formulas(formatFormula(finalAnswer))
                 yield finalAnswer
 
             def respond(message, chat_history):
                 message = message.strip()
                 if message == "":
                     return "", chat_history
-                if chat_history:
-                    chat_history.append({"role": 'user', "content": message})
-                    answer = normal_reply(message, chat_history)
-                else:
+                if chat_history == []:
                     message = attachHints(message)
-                    chat_history.append({"role": 'user', "content": message})
-                    answer = reason(message)
+                chat_history.append({"role": 'user', "content": message})
+                answer = normal_reply(chat_history)
                 tempResponse = next(answer)
                 chat_history.append({
                     "role": 'assistant',
