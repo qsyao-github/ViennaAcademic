@@ -2,7 +2,7 @@ import os
 import regex
 import threading
 import time
-from modelclient import client2
+from modelclient import client2, client5
 
 
 def attach(file):
