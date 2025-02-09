@@ -41,8 +41,8 @@ def parse_markdown(input_file):
         last_sharp = content.rfind('## Reference')
     toc, content, reference = content[:first_sharp].strip(
     ), content[first_sharp:last_sharp].strip(), content[last_sharp:].strip()
-    subheadings = extract_from_toc(toc) if toc else deque()
-    newContents = extract_content(content, subheadings, isChinese(toc))
+    # subheadings = extract_from_toc(toc) if toc else deque()
+    newContents = extract_content(content, isChinese(toc))
     referenceSplit = reference.split('\n', 1)
     newReference = f"{referenceSplit[0]} {{.allowframebreaks}}{referenceSplit[1]}"
     for newContent in newContents:
