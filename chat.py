@@ -4,7 +4,7 @@ from perplexica import webSearch, academicSearch
 from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper, attach
 from imageUtils import get_total_pixels, encode_image
 from codeAnalysis import generate_docstring, optimize_code
-from modelclient import client1, client2
+from modelclient import client1, client5, qvqClient
 import os
 
 
@@ -40,7 +40,8 @@ def toolcall(message, nowTime):
             function_to_call = functions.get(tag, None)
             if function_to_call is not None:
                 replacement = function_to_call(param.strip())
-                message = message.replace(f"<{tag}>{param}</{tag}>", replacement)
+                message = message.replace(f"<{tag}>{param}</{tag}>",
+                                          replacement)
     return message
 
 
@@ -99,13 +100,13 @@ def insertHistory(text1, text2=None):
     if text2 is None:
         return {'role': 'user', 'content': text1}
     else:
-        return {
+        return [{
             'role': 'user',
             'content': text1
         }, {
             'role': 'assistant',
             'content': text2
-        }
+        }]
 
 
 def insertMultimodalHistory(text, encodedString):
@@ -129,7 +130,7 @@ def historyParse(history, multimodal=False):
     sizeMax = 0
     if not multimodal:
         for ans in history:
-            returnList.append(insertHistory(ans[0].text, ans[1].text))
+            returnList.extend(insertHistory(ans[0].text, ans[1].text))
     else:
         image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
                                       regex.IGNORECASE)
@@ -198,40 +199,50 @@ class chatBot:
     def __init__(self, history, multimodal=False):
         self.chatHistory, self.size = historyParse(history, multimodal)
 
-    def answer(self, query, token, nowTime, multimodal=False):
-        query, size = queryParse(query, multimodal)
+    def answer(self, query, nowTime, multimodal=False):
+        query, _ = queryParse(query, multimodal)
         if not multimodal:
             if query is not None:
                 response = ""
-                # totalLength = len(query[0]['content']) + token
-                returnMessage = modelInference("deepseek-ai/DeepSeek-V3", nowTime,
-                                                query, self, client1)
+                returnMessage = modelInference("gpt-4o-mini", nowTime, query,
+                                               self, client1)
                 for chunk in returnMessage:
                     response += chunk
                     yield response
                 response = formatFormula(toolcall(response, nowTime))
                 yield remove_newlines_from_formulas(response)
-            return "请输入内容"
         else:
             if query is not None:
-                # content = query[0]['content']
-                # contentLength = len(content) if type(content) == str else len(
-                #    content[0]['text'])
-                # totalLength = contentLength + token
-                # pixelLength = max(self.size, size)
                 response = ""
                 for chunk in multimodelInference("pixtral-large-latest", query,
                                                  self):
                     response += chunk
                     yield response
-                """try:
-                    response = ""
-                    for chunk in multimodelInference("pixtral-large-latest", query, self):
-                        response += chunk
-                        yield response
-                except:
-                    response="牢卫：图片过大或聊天过长，请清空历史记录后重试，尽量裁剪图片"
-                    # if totalLength < 8000 and pixelLength < 1806336:
-                    # else:"""
                 response = formatFormula(response)
                 yield remove_newlines_from_formulas(response)
+
+
+class QvQchatBot(chatBot):
+
+    def __init__(self, history):
+        super().__init__(history, True)
+
+    def answer(self, query):
+        query, _ = queryParse(query, True)
+        if query is not None:
+            response = ""
+            for chunk in qvqClient([{
+                    "role":
+                    "system",
+                    "content":
+                [{
+                    "type":
+                    "text",
+                    "text":
+                    "You are a helpful and harmless assistant. You are Qwen developed by Alibaba. You should think step-by-step."
+                }],
+            }] + self.chatHistory + query):
+                response += chunk
+                yield response
+            response = formatFormula(response)
+            yield remove_newlines_from_formulas(response)
