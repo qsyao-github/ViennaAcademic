@@ -1,7 +1,7 @@
 import gradio as gr
 from gradio_multimodalchatbot import MultimodalChatbot
 from gradio.data_classes import FileData
-from chat import chatBot, promptcall, remove_newlines_from_formulas, formatFormula
+from chat import chatBot, promptcall, remove_newlines_from_formulas, formatFormula, insertMultimodalHistory, QvQchatBot
 import os
 import shutil
 from codeAnalysis import analyze_folder
@@ -9,9 +9,11 @@ import datetime
 from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
-from deepseek import solve, deepseek, attachHints
+from deepseek import deepseek, attachHints
 from qanythingClient import update, qanything_fetch
 from fileConversion import convert_to_pptx, convert_to
+from imageUtils import encode_image
+from modelclient import client1
 
 LATEX_DELIMITERS = [{
     'left': '$$',
@@ -124,16 +126,19 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         knowledgeBaseSwitch = False
                     return knowledgeBaseSwitch
 
-                def switch_knowledgeBase(knowledgeBaseSwitch, multimodalSwitch):
+                def switch_knowledgeBase(knowledgeBaseSwitch,
+                                         multimodalSwitch):
                     if knowledgeBaseSwitch:
                         multimodalSwitch = False
                     return multimodalSwitch
 
-                multimodalSwitch.input(switch_multimodal, [multimodalSwitch, knowledgeBaseSwitch],
+                multimodalSwitch.input(switch_multimodal,
+                                       [multimodalSwitch, knowledgeBaseSwitch],
                                        [knowledgeBaseSwitch])
-                knowledgeBaseSwitch.input(switch_knowledgeBase,
-                                          [knowledgeBaseSwitch, multimodalSwitch],
-                                          [multimodalSwitch])
+                knowledgeBaseSwitch.input(
+                    switch_knowledgeBase,
+                    [knowledgeBaseSwitch, multimodalSwitch],
+                    [multimodalSwitch])
 
                 def respond(message, chat_history, multimodal, knowledgeBase):
                     # integrating multimodal conversion here
@@ -152,11 +157,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         nowTime = datetime.datetime.now().strftime(
                             '%y%m%d%H%M%S')
                         bot = chatBot(chat_history, multimodal)
-                        bot_stream = bot.answer(
-                            message,
-                            len(''.join([
-                                i[0].text + i[1].text for i in chat_history
-                            ])), nowTime, multimodal)
+                        bot_stream = bot.answer(message, nowTime, multimodal)
                         os.chdir(r'/home/laowei/ViennaAcademic')
                         chat_history.append([
                             message,
@@ -178,11 +179,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            chat_history[-1]=doubleMessage(chunk[0], chunk[1])
+                            chat_history[-1] = doubleMessage(
+                                chunk[0], chunk[1])
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
-                msg.submit(respond, [msg, chatbot, multimodalSwitch, knowledgeBaseSwitch], [msg, chatbot])
+                msg.submit(
+                    respond,
+                    [msg, chatbot, multimodalSwitch, knowledgeBaseSwitch],
+                    [msg, chatbot])
             with gr.Column(min_width=350):
 
                 def upload_paper(file):
@@ -516,7 +521,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                                  None)
 
     with gr.Tab("理科"):
-        with gr.Tab("解理科题目"):
+        with gr.Tab("理科解题"):
 
             def normal_reply(chat_history):
                 tempAnswer = deepseek(chat_history)
@@ -524,7 +529,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 for chunk in tempAnswer:
                     finalAnswer = chunk
                     yield finalAnswer
-                finalAnswer = remove_newlines_from_formulas(formatFormula(finalAnswer))
+                finalAnswer = remove_newlines_from_formulas(
+                    formatFormula(finalAnswer))
                 yield finalAnswer
 
             def respond(message, chat_history):
@@ -545,13 +551,53 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     chat_history[-1] = {"role": 'assistant', "content": chunk}
                     yield "", chat_history
 
+            def ocr(file):
+                encoded_image = encode_image(file)
+                ocr_message = [
+                    insertMultimodalHistory('请准确返回题目的文字与公式，不要返回其它内容',
+                                            encoded_image)
+                ]
+                response = client1.chat.completions.create(
+                    model='pixtral-large-latest', messages=ocr_message)
+                return remove_newlines_from_formulas(
+                    formatFormula(response.choices[0].message.content))
+
             chatbot = gr.Chatbot(type="messages",
                                  latex_delimiters=LATEX_DELIMITERS,
                                  show_copy_button=True,
                                  show_copy_all_button=True)
             solve_msg = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题",
-                             interactive=True)
-            clear = gr.ClearButton([solve_msg, chatbot])
-            solve_msg.submit(respond, [solve_msg, chatbot], [solve_msg, chatbot])
+                                   interactive=True)
+            with gr.Row():
+                clear = gr.ClearButton([solve_msg, chatbot])
+                ocr_button = gr.UploadButton("识别题目(可手动纠错)")
+            ocr_button.upload(ocr, ocr_button, solve_msg)
+            solve_msg.submit(respond, [solve_msg, chatbot],
+                             [solve_msg, chatbot])
+        with gr.Tab("理科解题(需要上传图片)"):
+            qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
+                                           show_copy_button=True)
+            solve_box = gr.MultimodalTextbox(
+                placeholder="请上传一个图片(严格=1)，可以输入文字。如果模型回答意外终止，请回复“继续”")
+            clearBtn = gr.ClearButton([solve_box, qvqchatbot])
+
+            def solve_multimodal(message, chat_history):
+                if type(message) != str:
+                    message, files = message["text"], message["files"]
+                message = formatFormula(message)
+                message = remove_newlines_from_formulas(message)
+                message = constructMultimodalMessage(
+                    message, userFileConstructor(files))
+                bot = QvQchatBot(chat_history)
+                bot_stream = bot.answer(message)
+                chat_history.append(
+                    [message, constructMultimodalMessage("", [])])
+                for bot_chunk in bot_stream:
+                    bot_message = constructMultimodalMessage(bot_chunk, [])
+                    chat_history[-1] = [message, bot_message]
+                    yield gr.MultimodalTextbox(value=None), chat_history
+
+            solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
+                             [solve_box, qvqchatbot])
 
 demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
