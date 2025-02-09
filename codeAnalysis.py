@@ -79,6 +79,7 @@ def analyze_folder(folder_path):
 
 # individual code module
 def generate_docstring(file):
+    file = f'code/{file}'
     if is_program_file(file):
         with open(file, 'r', encoding='utf-8') as f:
             code = f.read()
@@ -89,6 +90,7 @@ def generate_docstring(file):
         yield (f"为{file}写注释", "请检查文件类型是否正确")
 
 def optimize_code(file):
+    file = f'code/{file}'
     if is_program_file(file):
         with open(file, 'r', encoding='utf-8') as f:
             code = f.read()
