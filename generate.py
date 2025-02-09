@@ -120,11 +120,11 @@ def mistral_chat(system, query):
 def generate_outline(summary, topic, chinese=True):
     if chinese:
         response = silicon_chat(
-            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
+            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分，无三级标题)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
             summary)
     else:
         response = gpt_chat(
-            f"You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts), and list no more than 3 keywords as a markdown unordered list under each heading.",
+            f"You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts, no level 3 subheadings), and list no more than 3 keywords as a markdown unordered list under each heading.",
             summary)
     response = response.strip('`')
     response = response[response.find('#'):]
@@ -152,7 +152,7 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
         else:
             response = mixed_chat(f'You are about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Integrate your own understanding in the paragraph. Do not hallucinate.', thread_num)
     response_check = re.split('\n+',response.strip())
-    response = max(response_check, key=len)
+    response = f'### {subtopic}\n\n'+max(response_check, key=len)
     outlines[i] = response
 
 
@@ -266,32 +266,19 @@ def _extract_content(contentList, prompt, tasks, thread_num):
     return
 
 
-def extract_content(content, subheadings=None, chinese=True):
-    if subheadings is None:
-        subheadings = deque()
+def extract_content(content, chinese=True):
     prompt = ("你是经验丰富的ppt制作人，根据演讲稿制作PPT，用语精炼，返回markdown无序列表，一级条目总数不超过3。不要返回其他内容。" if chinese else
                               "You are an experienced PPT creator. Based on the presentation script, create a PPT with concise language, and return a markdown unordered list. The number of top-level items should not exceed 3. Do not return any other content.")
     contentList = re.split(r'\n+', content.strip())
-    level = 1
     title = contentList[0].strip('#').strip()
     contentList[0] = f'---\ntitle:\n- "{title}"\n---\n\n'
     tasks = []
     for i, line in enumerate(contentList[1:]):
         line = line.strip()
         if line.startswith('#'):
-            current_level = len(line) - len(line.lstrip('#'))
-            if current_level < 3:
-                contentList[i+1] = line[1:] + ' {.allowframebreaks}'
-            else:
-                contentList[i+1] = ""
-            level = current_level
-        elif level < 3:
-            if subheadings:
-                tasks.append((i+1, line, subheadings.popleft() + ' {.allowframebreaks}\n\n'))
-            else:
-                tasks.append((i+1, line, "---\n\n"))
+            contentList[i+1] = line[1:] + ' {.allowframebreaks}'
         else:
-            contentList[i+1] = ""
+            tasks.append((i+1, line+"---\n\n", ""))
     length = len(tasks)
     num_threads = min(length, 4)
     threads = []
