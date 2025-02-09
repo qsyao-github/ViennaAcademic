@@ -433,7 +433,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     gr.Info(f"已完成，请刷新")
                     yield thesis
 
-            generate_button.click(generateAndSave, [title], thesisBox)
+            generate_button.click(generateAndSave, [title], thesisBox, concurrency_limit = 1)
         with gr.Tab("全自动生成PPT"):
             with gr.Row():
                 with gr.Column(scale=3, min_width=150):
