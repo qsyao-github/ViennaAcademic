@@ -203,23 +203,15 @@ class chatBot:
         query, _ = queryParse(query, multimodal)
         if not multimodal:
             if query is not None:
-                response = ""
                 returnMessage = modelInference("gpt-4o-mini", nowTime, query,
                                                self, client1)
                 for chunk in returnMessage:
-                    response += chunk
-                    yield response
-                response = formatFormula(toolcall(response, nowTime))
-                yield remove_newlines_from_formulas(response)
+                    yield chunk
         else:
             if query is not None:
-                response = ""
                 for chunk in multimodelInference("pixtral-large-latest", query,
                                                  self):
-                    response += chunk
-                    yield response
-                response = formatFormula(response)
-                yield remove_newlines_from_formulas(response)
+                    yield chunk
 
 
 class QvQchatBot(chatBot):
@@ -230,19 +222,5 @@ class QvQchatBot(chatBot):
     def answer(self, query):
         query, _ = queryParse(query, True)
         if query is not None:
-            response = ""
-            for chunk in qvqClient([{
-                    "role":
-                    "system",
-                    "content":
-                [{
-                    "type":
-                    "text",
-                    "text":
-                    "You are a helpful and harmless assistant. You are Qwen developed by Alibaba. You should think step-by-step."
-                }],
-            }] + self.chatHistory + query):
-                response += chunk
-                yield response
-            response = formatFormula(response)
-            yield remove_newlines_from_formulas(response)
+            for chunk in qvqClient(self.chatHistory + query):
+                yield chunk
