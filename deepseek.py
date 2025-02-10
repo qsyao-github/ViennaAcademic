@@ -87,15 +87,11 @@ def translate(query):
 def deepseek(messages):
     messages = [{k: message[k] for k in ["role", "content"]} for message in messages]
     response = client1.chat.completions.create(
-        model="deepseek-r1-distill-llama-70b", messages=messages, stream=True)
-    content = ""
+        model="deepseek-r1-distill-llama-70b", messages=messages, temperature=0.6, stream=True)
+    final_response = ''
     for chunk in response:
-        content += chunk.choices[0].delta.content or ""
-        yield content
-    index = content.find(r"</think>")
-    if index != -1:
-        content = content[index + 8:]
-    yield content
+        final_response += chunk.choices[0].delta.content or ""
+        yield final_response
 
 
 """def solve(query):
