@@ -1,7 +1,7 @@
 import gradio as gr
 from gradio_multimodalchatbot import MultimodalChatbot
 from gradio.data_classes import FileData
-from chat import chatBot, promptcall, remove_newlines_from_formulas, formatFormula, insertMultimodalHistory, QvQchatBot
+from chat import chatBot, toolcall, promptcall, remove_newlines_from_formulas, formatFormula, insertMultimodalHistory, QvQchatBot
 import os
 import shutil
 from codeAnalysis import analyze_folder
@@ -162,14 +162,17 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append([
                             message,
                             constructMultimodalMessage(
-                                "", botFileConstructor(nowTime))
+                                "", [])
                         ])
                         for bot_chunk in bot_stream:
-                            bot_message = constructMultimodalMessage(
-                                bot_chunk, botFileConstructor(nowTime))
-                            chat_history[-1] = [message, bot_message]
+                            chat_history[-1][-1]['text'] += bot_chunk
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
+                        print('reached')
+                        full_bot_message = chat_history[-1][-1]['text']
+                        full_bot_message = remove_newlines_from_formulas(formatFormula(toolcall(full_bot_message, nowTime)))
+                        chat_history[-1][-1] = constructMultimodalMessage(full_bot_message, botFileConstructor(nowTime))
+                        yield gr.MultimodalTextbox(value=None), chat_history
                     elif isinstance(message, tuple):
                         chat_history.append(
                             doubleMessage(message[0], message[1]))
@@ -179,8 +182,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            chat_history[-1] = doubleMessage(
-                                chunk[0], chunk[1])
+                            chat_history[-1][-1] = {"text": chunk[1], "files": []}
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
@@ -433,7 +435,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     gr.Info(f"已完成，请刷新")
                     yield thesis
 
-            generate_button.click(generateAndSave, [title], thesisBox, concurrency_limit = 1)
+            generate_button.click(generateAndSave, [title],
+                                  thesisBox,
+                                  concurrency_limit=1)
         with gr.Tab("全自动生成PPT"):
             with gr.Row():
                 with gr.Column(scale=3, min_width=150):
@@ -523,16 +527,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
     with gr.Tab("理科"):
         with gr.Tab("理科解题"):
 
-            def normal_reply(chat_history):
-                tempAnswer = deepseek(chat_history)
-                finalAnswer = ""
-                for chunk in tempAnswer:
-                    finalAnswer = chunk
-                    yield finalAnswer
-                finalAnswer = remove_newlines_from_formulas(
-                    formatFormula(finalAnswer))
-                yield finalAnswer
-
             def respond(message, chat_history):
                 message = message.strip()
                 if message == "":
@@ -540,16 +534,22 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 if chat_history == []:
                     message = attachHints(message)
                 chat_history.append({"role": 'user', "content": message})
-                answer = normal_reply(chat_history)
-                tempResponse = next(answer)
+                answer = deepseek(chat_history)
                 chat_history.append({
                     "role": 'assistant',
-                    "content": tempResponse
+                    "content": ''
                 })
                 yield "", chat_history
                 for chunk in answer:
-                    chat_history[-1] = {"role": 'assistant', "content": chunk}
+                    chat_history[-1]['content'] = chunk
                     yield "", chat_history
+                final_answer = chat_history[-1]['content']
+                index = final_answer.rfind(r'</think>')
+                if index != -1:
+                    final_answer = final_answer[index+8:]
+                final_answer = remove_newlines_from_formulas(formatFormula(final_answer))
+                chat_history[-1]['content'] = final_answer
+                yield "", chat_history
 
             def ocr(file):
                 encoded_image = encode_image(file)
@@ -593,9 +593,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 chat_history.append(
                     [message, constructMultimodalMessage("", [])])
                 for bot_chunk in bot_stream:
-                    bot_message = constructMultimodalMessage(bot_chunk, [])
-                    chat_history[-1] = [message, bot_message]
+                    chat_history[-1][-1]['text'] += bot_chunk
                     yield gr.MultimodalTextbox(value=None), chat_history
+                full_bot_message = chat_history[-1][-1]['text']
+                chat_history[-1][-1]['text'] = remove_newlines_from_formulas(formatFormula(full_bot_message))
+                yield gr.MultimodalTextbox(value=None), chat_history
+
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
                              [solve_box, qvqchatbot])
