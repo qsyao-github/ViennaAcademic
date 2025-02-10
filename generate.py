@@ -3,10 +3,10 @@ from perplexica import stormSearch
 from qanythingClient import update, qanything_fetch
 from downloadpaper import downloadArxivPaper
 from modelclient import client1, client2, siliconClient
-from collections import deque
 import re
 import os
 import time
+from datetime import datetime
 import shutil
 import threading
 
@@ -250,10 +250,12 @@ def generate(query):
                      article,
                      count=1)
     yield article
+    current_date = datetime.now()
+    formatted_date = current_date.strftime('%Y-%m-%d')
     if not chinese:
-        referenceStr = [f'[{i+1}] "{ref['metadata']['title']}." [Online]. Available: {ref['metadata']['url']}' for i, ref in enumerate(reference)]
+        referenceStr = [f'[{i+1}] "{ref['metadata']['title']}." Accessed: {formatted_date}. [Online]. Available: {ref['metadata']['url']}' for i, ref in enumerate(reference)]
     else:
-        referenceStr = [f'[{i+1}] 《{ref['metadata']['title']}》. [在线]. 载于: {ref['metadata']['url']}' for i, ref in enumerate(reference)]
+        referenceStr = [f'[{i+1}] {ref['metadata']['title']}[EB/OL].[{formatted_date}]. {ref['metadata']['url']}' for i, ref in enumerate(reference)]
     finalVersion = outline.lstrip() + '\n\n' + article + (
         '\n\n## 参考文献\n\n' if chinese else '\n\n## References\n\n') + '\n\n'.join(referenceStr)
     delete_temp_files()
