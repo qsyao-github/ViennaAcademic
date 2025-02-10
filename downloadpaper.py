@@ -48,4 +48,5 @@ def downloadArxivPaper(arxivID, storm=False, index=None):
             f.write(result)
         else:
             f.write(abstract)
+            return f"下载失败，请自行下载PDF并导入。\n\n标题：{translated_title}\n\n摘要：\n{translated_abstract}"
     return f"标题：{translated_title}\n\n摘要：\n{translated_abstract}"
