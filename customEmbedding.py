@@ -1,12 +1,10 @@
 from typing import List
-import tiktoken
 from langchain_core.embeddings import Embeddings
 from openai import OpenAI
 
 client1API_KEY = "sk-IuSViVGW5Iwmdoip9594C084049342E3Bb40Af4899CdB08b"
 client1BASE_URL = "https://api.kenxu.top:5/v1"
 client1 = OpenAI(api_key=client1API_KEY, base_url=client1BASE_URL)
-encoding = tiktoken.get_encoding("cl100k_base")
 
 def groupLists(lst: List[str]):
     # 将lst中每32个元素分为1组，最后一组可能不足32个元素
