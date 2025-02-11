@@ -2,8 +2,8 @@ from typing import List
 from langchain_core.embeddings import Embeddings
 from openai import OpenAI
 
-client1API_KEY = "sk-IuSViVGW5Iwmdoip9594C084049342E3Bb40Af4899CdB08b"
-client1BASE_URL = "https://api.kenxu.top:5/v1"
+client1API_KEY = ""
+client1BASE_URL = ""
 client1 = OpenAI(api_key=client1API_KEY, base_url=client1BASE_URL)
 
 def groupLists(lst: List[str]):
