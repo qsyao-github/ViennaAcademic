@@ -120,11 +120,11 @@ def mistral_chat(system, query):
 def generate_outline(summary, topic, chinese=True):
     if chinese:
         response = silicon_chat(
-            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息，用markdown标题写出提纲(包括引言、结论在内，不超过5部分，无三级标题)，并在每个标题下用markdown无序列表列出不超过3个关键词(表述具体)",
+            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息写出提纲(包括引言、结论在内，不超过5部分)，各级标题使用markdown语法。用markdown无序列表列出标题下对应段落的小标题。每个item对应一段。",
             summary)
     else:
-        response = gpt_chat(
-            f"You're about to write an article, with a title of: {topic}. Based on the information provided, write an outline with markdown headers(include Introduction and Conclusion, no more than 5 parts, no level 3 subheadings), and list no more than 3 keywords as a markdown unordered list under each heading.",
+        response = silicon_chat(
+            f"You are a text outline generation expert, skilled at creating a structured and easily expandable outline for a complete article based on the information provided by the user. You possess strong thematic analysis abilities, allowing you to accurately extract key information and core points. With a rich knowledge base in copywriting and familiarity with academic paper outline construction methods, you can generate targeted, logical, and coherent outlines while ensuring that the structure is reasonable and the logic flows smoothly. You will write an academic article titled: {topic}. Based on the information provided by the user, create an outline (including introduction and conclusion, no more than 5 sections). Use markdown syntax for headings. List corresponding paragraphs' subheadings for each section using markdown unordered lists. Each item corresponds to a paragraph.",
             summary)
     response = response.strip('`')
     response = response[response.find('#'):]
@@ -135,7 +135,7 @@ def generate_outline(summary, topic, chinese=True):
     return response.strip()
 
 
-def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread_num=0):
+def write_paragraph(outlines, i, subtitle, subtopic, title, level, chinese=True, thread_num=0):
     reference = qanything_fetch(f"{title}: {subtopic}").strip()
     if reference:
         if chinese:
@@ -152,7 +152,7 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, chinese=True, thread
         else:
             response = mixed_chat(f'You are about to write ONE paragraph about {subtopic}, which belongs to the "{subtitle}" part of an academic article named "{title}".', 'Integrate your own understanding in the paragraph. Do not hallucinate.', thread_num)
     response_check = re.split('\n+',response.strip())
-    response = f'### {subtopic}\n\n'+max(response_check, key=len)
+    response = '#'*level + f'# {subtopic}\n\n'+max(response_check, key=len)
     outlines[i] = response
 
 
@@ -166,12 +166,14 @@ def parse_outline(outline, title, chinese=True):
     current_subtitle = ''
     current_subtopic = ''
     tasks = []
+    level = 1
     for i, line in enumerate(outlines):
         if line and line.startswith('#'):
             current_subtitle = line.strip('#').strip()
+            level = len(line) - len(line.strip('#'))
         if line and line.startswith('-'):
             current_subtopic = line.strip('-').strip()
-            tasks.append((outlines, i, current_subtitle, current_subtopic, title, chinese))
+            tasks.append((outlines, i, current_subtitle, current_subtopic, title, level, chinese))
     length = len(tasks)
     num_threads = min(length, 4)
     threads = []
@@ -245,7 +247,7 @@ def generate(query):
     outline = organize_outline(outline)
     abstract = write_abstract(article, chinese)
     article = re.sub(r'\n',
-                     ('\n\n### 摘要\n\n' if chinese else '\n\n### Abstract\n\n') +
+                     ('\n\n##### 摘要\n\n' if chinese else '\n\n### Abstract\n\n') +
                      abstract + '\n',
                      article,
                      count=1)
@@ -278,7 +280,11 @@ def extract_content(content, chinese=True):
     for i, line in enumerate(contentList[1:]):
         line = line.strip()
         if line.startswith('#'):
-            contentList[i+1] = line[1:] + ' {.allowframebreaks}'
+            if not line.startswith('##### 摘要') and not line.startswith('##### Abstract'):
+                contentList[i+1] = line[1:] + ' {.allowframebreaks}'
+            else:
+                contentList[i+1] = ''
+                contentList[i+2] = ''
         else:
             tasks.append((i+1, line+"---\n\n", ""))
     length = len(tasks)
