@@ -39,7 +39,7 @@ def chunk(content,
               r"\paragraph",
               r"\subparagraph",
           ]):
-    pattern = '|'.join([f"({sep})" for sep in separators])
+    pattern = '|'.join([f"(?={sep})" for sep in separators])
     temp_list = regex.split(pattern, content)
     return [i for i in temp_list if i is not None]
 
@@ -61,7 +61,7 @@ def readPaper(file_Path):
                                              stream=True)
     for chunk in stream:
         answer += chunk.choices[0].delta.content or ""
-        yield (f"解读论文{file_Path}", answer)
+        yield answer
 
 
 def translation(string,
@@ -126,14 +126,14 @@ def baseConversion(file_path, suffix, prompt, userMessage):
         threads.append(t)
         t.start()
     while any(thread.is_alive() for thread in threads):
-        yield (userMessage, ''.join(result_list))
+        yield '\n'.join(result_list)
         time.sleep(1)
     for t in threads:
         t.join()
-    converted_content = ''.join(result_list)
+    converted_content = '\n'.join(result_list)
     with open(kb_file_path, mode='w') as f:
         f.write(converted_content)
-    yield (userMessage, converted_content)
+    yield converted_content
 
 
 def translatePapertoChinese(file_Path):
