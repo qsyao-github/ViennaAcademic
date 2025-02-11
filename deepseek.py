@@ -92,19 +92,3 @@ def deepseek(messages):
     for chunk in response:
         final_response += chunk.choices[0].delta.content or ""
         yield final_response
-
-
-"""def solve(query):
-    response = deepseek(query)
-    content = ""
-    for chunk in response:
-        content += chunk
-        yield content
-    # index = content.find("[思考结束]")
-    index = content.find(r"</think>")
-    if index != -1:
-        # content = content[index + 6:]
-        content = formatFormula(content[index + 8:])
-        yield content
-    yield content
-"""
