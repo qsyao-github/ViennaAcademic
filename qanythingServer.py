@@ -1,4 +1,4 @@
-from bceTest import update, get_response
+from bceInference import update, get_response
 import gradio as gr
 
 with gr.Blocks(fill_height=True, fill_width=True,delete_cache=(600, 3600)) as demo:
