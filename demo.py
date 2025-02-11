@@ -171,10 +171,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            chat_history[-1][-1] = {
-                                "text": chunk[1],
-                                "files": []
-                            }
+                            chat_history[-1][-1]["text"] = chunk[1]
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
@@ -311,13 +308,10 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                     analysis = next(analysis_generator)
                                     chathistory.append(
                                         doubleMessage(f"解析{folder}",
-                                                      f"{analysis}"))
+                                                      analysis))
                                     yield chathistory
                                     for chunk in analysis_generator:
-                                        chathistory.pop()
-                                        chathistory.append(
-                                            doubleMessage(
-                                                f"解析{folder}", f"{chunk}"))
+                                        chathistory[-1][-1]["text"] = chunk
                                         yield chathistory
 
                                 folderBtn.click(output_analysis, chatbot,
@@ -337,6 +331,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 def generate_paper_answer(selected_function, selected_paper):
                     if selected_paper in os.listdir('knowledgeBase'):
+                        gr.Info('正在生成答案，请耐心等候')
                         if selected_function == '论文润色':
                             answer = polishPaper(selected_paper)
                         elif selected_function == '论文翻译->英':
@@ -347,6 +342,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             answer = readPaper(selected_paper)
                         for chunk in answer:
                             yield chunk
+                        gr.Info('已完成，请刷新')
                     else:
                         yield '文件不存在'
 
@@ -567,7 +563,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 return remove_newlines_from_formulas(
                     formatFormula(response.choices[0].message.content))
 
-            chatbot = gr.Chatbot(type="messages",
+            solve_chatbot = gr.Chatbot(type="messages",
                                  latex_delimiters=LATEX_DELIMITERS,
                                  show_copy_button=True,
                                  show_copy_all_button=True)
