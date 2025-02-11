@@ -324,16 +324,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
     with gr.Tab("论文"):
         with gr.Row():
             with gr.Column(scale=0, min_width=150):
-                websearchBtn = gr.Button("网页搜索", scale=0)
-                findPaper = gr.Button("搜索论文", scale=0)
-                generateDocstring = gr.Button("生成注释", scale=0)
-                optimizeCode = gr.Button("优化代码", scale=0)
-            with gr.Column(scale=8):
                 readPaperBtn = gr.Button("论文解读", scale=0)
                 translateToEng = gr.Button("论文翻译->英(如果要使用该功能，请上传txt, md文件)",
                                            scale=0)
                 translateToChi = gr.Button("论文翻译->中", scale=0)
                 polishPaper = gr.Button("论文润色", scale=0)
+            with gr.Column(scale=8):
     with gr.Tab("写作"):
         with gr.Tab("全自动生成论文"):
             with gr.Row():
