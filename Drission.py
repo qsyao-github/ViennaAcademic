@@ -18,8 +18,8 @@ def get_html(url):
 
 def get_wolfram(query):
     finalAnswer = []
-    tab.get(f'https://www.wolframalpha.com/input?i={query}&lang=zh')
     try:
+        tab.get(f'https://www.wolframalpha.com/input?i={query}&lang=zh')
         answer_head = tab.ele('xpath:/html/body/div/div/main/main/div[2]/div/div[2]/section',timeout=10)
         answers = answer_head.eles("@|tag()=h2@|tag()=img")
         for answer in answers:
