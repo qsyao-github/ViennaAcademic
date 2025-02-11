@@ -14,6 +14,7 @@ from qanythingClient import update, qanything_fetch
 from fileConversion import convert_to_pptx, convert_to
 from imageUtils import encode_image
 from modelclient import client1
+from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper
 
 LATEX_DELIMITERS = [{
     'left': '$$',
@@ -321,15 +322,80 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                                 folderBtn.click(output_analysis, chatbot,
                                                 chatbot)
+
     with gr.Tab("论文"):
         with gr.Row():
-            with gr.Column(scale=0, min_width=150):
-                readPaperBtn = gr.Button("论文解读", scale=0)
-                translateToEng = gr.Button("论文翻译->英(如果要使用该功能，请上传txt, md文件)",
-                                           scale=0)
-                translateToChi = gr.Button("论文翻译->中", scale=0)
-                polishPaper = gr.Button("论文润色", scale=0)
             with gr.Column(scale=8):
+                with gr.Row():
+                    selected_function = gr.Dropdown(
+                        ['论文解读', '论文翻译->英', '论文翻译->中', '论文润色'],
+                        scale=0,
+                        min_width=192)
+                    selected_paper = gr.Textbox(placeholder='点击右侧文件名输入',
+                                                scale=1)
+                paper_answer = gr.Markdown(show_copy_button=True)
+
+                def generate_paper_answer(selected_function, selected_paper):
+                    if selected_paper in os.listdir('knowledgeBase'):
+                        if selected_function == '论文润色':
+                            answer = polishPaper(selected_paper)
+                        elif selected_function == '论文翻译->英':
+                            answer = translatePapertoEnglish(selected_paper)
+                        elif selected_function == '论文翻译->中':
+                            answer = translatePapertoChinese(selected_paper)
+                        else:
+                            answer = readPaper(selected_paper)
+                        for chunk in answer:
+                            yield chunk
+                    else:
+                        yield '文件不存在'
+
+                selected_paper.submit(generate_paper_answer,
+                                      [selected_function, selected_paper],
+                                      paper_answer,
+                                      concurrency_limit=3)
+
+            with gr.Column(scale=1, min_width=350):
+                paper_refresh = gr.Button('刷新')
+                paper_arxivNum = gr.Textbox(
+                    placeholder="输入arxiv号，例如：1706.03762")
+                downloadArxiv = gr.Button("arxiv论文下载", scale=0)
+
+                def gradiodownloadArxivPaper(paper_arxivNum):
+                    gr.Info("正在下载，请耐心等候")
+                    answer = downloadArxivPaper(paper_arxivNum)
+                    update()
+                    gr.Info("下载完成，请刷新")
+                    return "", answer
+
+                downloadArxiv.click(gradiodownloadArxivPaper, [paper_arxivNum],
+                                    [paper_arxivNum, paper_answer])
+
+                @gr.render(triggers=[paper_refresh.click])
+                def base_show_paper():
+                    for file in os.listdir('knowledgeBase'):
+                        with gr.Row():
+                            fileBtn = gr.Button(file, scale=0, min_width=120)
+                            downloadFile = gr.DownloadButton(
+                                f"下载",
+                                f'knowledgeBase/{file}',
+                                scale=0,
+                                min_width=70)
+                            deleteFile = gr.Button("删除", scale=0, min_width=70)
+
+                            deleteFile.click(
+                                lambda file=file:
+                                (os.remove(f"knowledgeBase/{file}"), update()),
+                                None,
+                                None)
+
+                        def appendToMsg(selected_paper, file=file):
+                            selected_paper = file
+                            return selected_paper
+
+                        fileBtn.click(appendToMsg, selected_paper,
+                                      selected_paper)
+
     with gr.Tab("写作"):
         with gr.Tab("全自动生成论文"):
             with gr.Row():
