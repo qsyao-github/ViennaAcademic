@@ -66,15 +66,10 @@ def doubleMessage(msg1, msg2):
 
 with gr.Blocks(fill_height=True, fill_width=True,
                delete_cache=(3600, 3600)) as demo:
-    with gr.Tab("ViennaAcademic"):
+    with gr.Tab("聊天"):
         with gr.Row():
             with gr.Column(scale=0, min_width=150):
                 websearchBtn = gr.Button("网页搜索", scale=0)
-                readPaperBtn = gr.Button("论文解读", scale=0)
-                translateToEng = gr.Button("论文翻译->英(如果要使用该功能，请上传txt, md文件)",
-                                           scale=0)
-                translateToChi = gr.Button("论文翻译->中", scale=0)
-                polishPaper = gr.Button("论文润色", scale=0)
                 findPaper = gr.Button("搜索论文", scale=0)
                 generateDocstring = gr.Button("生成注释", scale=0)
                 optimizeCode = gr.Button("优化代码", scale=0)
@@ -109,13 +104,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 clear.click(checkDelete, None, None)
                 websearchBtn.click(addToMsg("#websearch{"), msg, msg)
                 attachBtn.click(addToMsg("#attach{"), msg, msg)
-                readPaperBtn.click(addToMsg("#readPaper{"), msg, msg)
-                translateToEng.click(addToMsg("#translatePapertoEnglish{"),
-                                     msg, msg)
-                translateToChi.click(addToMsg("#translatePapertoChinese{"),
-                                     msg, msg)
-                polishPaper.click(addToMsg("#polishPaper{"), msg, msg)
-
                 findPaper.click(addToMsg("#findPaper{"), msg, msg)
                 generateDocstring.click(addToMsg("#generateDocstring{"), msg,
                                         msg)
@@ -159,19 +147,19 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         bot = chatBot(chat_history, multimodal)
                         bot_stream = bot.answer(message, nowTime, multimodal)
                         os.chdir(r'/home/laowei/ViennaAcademic')
-                        chat_history.append([
-                            message,
-                            constructMultimodalMessage(
-                                "", [])
-                        ])
+                        chat_history.append(
+                            [message,
+                             constructMultimodalMessage("", [])])
                         for bot_chunk in bot_stream:
                             chat_history[-1][-1]['text'] += bot_chunk
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
                         print('reached')
                         full_bot_message = chat_history[-1][-1]['text']
-                        full_bot_message = remove_newlines_from_formulas(formatFormula(toolcall(full_bot_message, nowTime)))
-                        chat_history[-1][-1] = constructMultimodalMessage(full_bot_message, botFileConstructor(nowTime))
+                        full_bot_message = remove_newlines_from_formulas(
+                            formatFormula(toolcall(full_bot_message, nowTime)))
+                        chat_history[-1][-1] = constructMultimodalMessage(
+                            full_bot_message, botFileConstructor(nowTime))
                         yield gr.MultimodalTextbox(value=None), chat_history
                     elif isinstance(message, tuple):
                         chat_history.append(
@@ -182,7 +170,10 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
                         yield gr.MultimodalTextbox(value=None), chat_history
                         for chunk in message:
-                            chat_history[-1][-1] = {"text": chunk[1], "files": []}
+                            chat_history[-1][-1] = {
+                                "text": chunk[1],
+                                "files": []
+                            }
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
 
@@ -230,9 +221,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                         fileBtn.click(appendToMsg, msg, msg)
 
-                with gr.Tab("论文/学术专著"):
+                with gr.Tab("论文"):
                     with gr.Row():
-                        uploadThesis = gr.UploadButton("上传论文/学术专著", scale=1)
+                        uploadThesis = gr.UploadButton("上传论文", scale=1)
                         uploadThesis.upload(upload_paper, uploadThesis)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
@@ -330,66 +321,20 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                                 folderBtn.click(output_analysis, chatbot,
                                                 chatbot)
-
-    with gr.Tab("markdown导出"):
-        convert_Button = gr.Button("转换")
+    with gr.Tab("论文"):
         with gr.Row():
-            with gr.Column(scale=4):
-                file_to_convert = gr.Textbox(
-                    placeholder="输入需要转换的文件名或点击下方的按钮填入")
-
-                def base_show_files(folder):
-                    for file in os.listdir(folder):
-                        with gr.Row():
-                            fileBtn = gr.Button(file, scale=1, min_width=120)
-                            downloadBtn = gr.DownloadButton("下载",
-                                                            f'{folder}/{file}',
-                                                            scale=0,
-                                                            min_width=70)
-                            deleteBtn = gr.Button("删除", scale=0, min_width=70)
-
-                        def appendToCandidate(file=file):
-                            if file.endswith(".md"):
-                                return f"{folder}/{file}"
-                            gr.Info("格式必须为.md")
-                            return ''
-
-                        fileBtn.click(appendToCandidate, None, file_to_convert)
-                        deleteBtn.click(
-                            lambda file=file: os.remove(f"{folder}/{file}"),
-                            None,
-                            None)
-
-                with gr.Tab("已解析文件"):
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
-
-                    @gr.render(triggers=[refresh.click])
-                    def show_knowledgeBase():
-                        base_show_files("knowledgeBase")
-
-                with gr.Tab("论文/PPT生成产物"):
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
-
-                    @gr.render(triggers=[refresh.click])
-                    def show_Tempest():
-                        base_show_files("tempest")
-
-            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
-                                            label="选择格式")
-
-            def convert_file(file_to_convert, convert_to_format):
-                if file_to_convert.strip() == "":
-                    return ""
-                else:
-                    convert_to(file_to_convert, convert_to_format)
-                    gr.Info("转换完成，请刷新")
-                return ""
-
-            convert_Button.click(convert_file,
-                                 [file_to_convert, convert_to_format],
-                                 file_to_convert)
-
-    with gr.Tab("文科"):
+            with gr.Column(scale=0, min_width=150):
+                websearchBtn = gr.Button("网页搜索", scale=0)
+                findPaper = gr.Button("搜索论文", scale=0)
+                generateDocstring = gr.Button("生成注释", scale=0)
+                optimizeCode = gr.Button("优化代码", scale=0)
+            with gr.Column(scale=8):
+                readPaperBtn = gr.Button("论文解读", scale=0)
+                translateToEng = gr.Button("论文翻译->英(如果要使用该功能，请上传txt, md文件)",
+                                           scale=0)
+                translateToChi = gr.Button("论文翻译->中", scale=0)
+                polishPaper = gr.Button("论文润色", scale=0)
+    with gr.Tab("写作"):
         with gr.Tab("全自动生成论文"):
             with gr.Row():
                 with gr.Column(scale=3, min_width=150):
@@ -524,8 +469,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                                  None,
                                                  None)
 
-    with gr.Tab("理科"):
-        with gr.Tab("理科解题"):
+    with gr.Tab("理科解题"):
+        with gr.Tab("常规解题"):
 
             def respond(message, chat_history):
                 message = message.strip()
@@ -535,10 +480,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     message = attachHints(message)
                 chat_history.append({"role": 'user', "content": message})
                 answer = deepseek(chat_history)
-                chat_history.append({
-                    "role": 'assistant',
-                    "content": ''
-                })
+                chat_history.append({"role": 'assistant', "content": ''})
                 yield "", chat_history
                 for chunk in answer:
                     chat_history[-1]['content'] = chunk
@@ -546,8 +488,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 final_answer = chat_history[-1]['content']
                 index = final_answer.rfind(r'</think>')
                 if index != -1:
-                    final_answer = final_answer[index+8:]
-                final_answer = remove_newlines_from_formulas(formatFormula(final_answer))
+                    final_answer = final_answer[index + 8:]
+                final_answer = remove_newlines_from_formulas(
+                    formatFormula(final_answer))
                 chat_history[-1]['content'] = final_answer
                 yield "", chat_history
 
@@ -574,11 +517,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
             ocr_button.upload(ocr, ocr_button, solve_msg)
             solve_msg.submit(respond, [solve_msg, chatbot],
                              [solve_msg, chatbot])
-        with gr.Tab("理科解题(需要上传图片)"):
+        with gr.Tab("多模态解题(需要上传图片)"):
             qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
                                            show_copy_button=True)
             solve_box = gr.MultimodalTextbox(
-                placeholder="请上传一个图片(严格=1)，可以输入文字。如果模型回答意外终止，请回复“继续”")
+                placeholder=
+                "请上传一个图片(严格=1)，可以输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，其余题目请移步常规解题。如果模型回答意外终止，请回复“继续”"
+            )
             clearBtn = gr.ClearButton([solve_box, qvqchatbot])
 
             def solve_multimodal(message, chat_history):
@@ -596,11 +541,69 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     chat_history[-1][-1]['text'] += bot_chunk
                     yield gr.MultimodalTextbox(value=None), chat_history
                 full_bot_message = chat_history[-1][-1]['text']
-                chat_history[-1][-1]['text'] = remove_newlines_from_formulas(formatFormula(full_bot_message))
+                chat_history[-1][-1]['text'] = remove_newlines_from_formulas(
+                    formatFormula(full_bot_message))
                 yield gr.MultimodalTextbox(value=None), chat_history
-
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
                              [solve_box, qvqchatbot])
+    with gr.Tab("markdown导出"):
+        convert_Button = gr.Button("转换")
+        with gr.Row():
+            with gr.Column(scale=4):
+                file_to_convert = gr.Textbox(
+                    placeholder="输入需要转换的文件名或点击下方的按钮填入")
+
+                def base_show_files(folder):
+                    for file in os.listdir(folder):
+                        with gr.Row():
+                            fileBtn = gr.Button(file, scale=1, min_width=120)
+                            downloadBtn = gr.DownloadButton("下载",
+                                                            f'{folder}/{file}',
+                                                            scale=0,
+                                                            min_width=70)
+                            deleteBtn = gr.Button("删除", scale=0, min_width=70)
+
+                        def appendToCandidate(file=file):
+                            if file.endswith(".md"):
+                                return f"{folder}/{file}"
+                            gr.Info("格式必须为.md")
+                            return ''
+
+                        fileBtn.click(appendToCandidate, None, file_to_convert)
+                        deleteBtn.click(
+                            lambda file=file: os.remove(f"{folder}/{file}"),
+                            None,
+                            None)
+
+                with gr.Tab("已解析文件"):
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_knowledgeBase():
+                        base_show_files("knowledgeBase")
+
+                with gr.Tab("论文/PPT生成产物"):
+                    refresh = gr.Button("刷新", scale=0, min_width=120)
+
+                    @gr.render(triggers=[refresh.click])
+                    def show_Tempest():
+                        base_show_files("tempest")
+
+            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
+                                            label="选择格式")
+
+            def convert_file(file_to_convert, convert_to_format):
+                if file_to_convert.strip() == "":
+                    return ""
+                else:
+                    convert_to(file_to_convert, convert_to_format)
+                    gr.Info("转换完成，请刷新")
+                return ""
+
+            convert_Button.click(convert_file,
+                                 [file_to_convert, convert_to_format],
+                                 file_to_convert,
+                                 concurrency_limit=12)
 
 demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
