@@ -4,7 +4,7 @@ from perplexica import webSearch, academicSearch
 from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper, attach
 from imageUtils import get_total_pixels, encode_image
 from codeAnalysis import generate_docstring, optimize_code
-from modelclient import client1, client5, qvqClient
+from modelclient import client1, client2, qvqClient
 import os
 
 
@@ -48,16 +48,12 @@ def toolcall(message, nowTime):
 def promptcall(message):
     functions = {
         '#attach': attach,
-        '#readPaper': readPaper,
-        '#translatePapertoChinese': translatePapertoChinese,
-        '#translatePapertoEnglish': translatePapertoEnglish,
-        '#polishPaper': polishPaper,
         '#findPaper': academicSearch,
         '#websearch': webSearch,
         '#generateDocstring': generate_docstring,
         '#optimizeCode': optimize_code
     }
-    pattern = r'#(attach|readPaper|translatePapertoChinese|translatePapertoEnglish|polishPaper|findPaper|websearch|generateDocstring|optimizeCode)' + FIND_MAGIC_COMMAND_SUFFIX
+    pattern = r'#(attach|findPaper|websearch|generateDocstring|optimizeCode)' + FIND_MAGIC_COMMAND_SUFFIX
     matches = regex.findall(pattern, message)
     for tag, param in matches:
         function_to_call = functions[f"#{tag}"]
@@ -203,10 +199,16 @@ class chatBot:
         query, _ = queryParse(query, multimodal)
         if not multimodal:
             if query is not None:
-                returnMessage = modelInference("gpt-4o-mini", nowTime, query,
-                                               self, client1)
-                for chunk in returnMessage:
-                    yield chunk
+                try:
+                    returnMessage = modelInference("gpt-4o-mini", nowTime, query,
+                                                self, client1)
+                
+                    for chunk in returnMessage:
+                        yield chunk
+                except:
+                    returnMessage = modelInference("glm-4-flash", nowTime, query, self, client2)
+                    for chunk in returnMessage:
+                        yield chunk
         else:
             if query is not None:
                 for chunk in multimodelInference("pixtral-large-latest", query,
