@@ -601,7 +601,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
             ocr_button.upload(ocr, ocr_button, solve_msg)
             solve_msg.submit(respond, [solve_msg, solve_chatbot],
                              [solve_msg, solve_chatbot],
-                             concurrency_limit=3)
+                             concurrency_limit=2)
         with gr.Tab("多模态解题(需要上传图片)"):
             qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
                                            show_copy_button=True)
@@ -631,7 +631,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 yield gr.MultimodalTextbox(value=None), chat_history
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
-                             [solve_box, qvqchatbot])
+                             [solve_box, qvqchatbot], cocurrency_limit=12)
     with gr.Tab("markdown导出"):
         convert_Button = gr.Button("转换")
         with gr.Row():
