@@ -631,7 +631,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 yield gr.MultimodalTextbox(value=None), chat_history
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
-                             [solve_box, qvqchatbot], cocurrency_limit=12)
+                             [solve_box, qvqchatbot], concurrency_limit=12)
     with gr.Tab("markdown导出"):
         convert_Button = gr.Button("转换")
         with gr.Row():
