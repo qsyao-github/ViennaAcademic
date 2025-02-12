@@ -102,13 +102,27 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     if os.path.exists('media'):
                         shutil.rmtree('media')
 
-                clear.click(checkDelete, None, None)
-                websearchBtn.click(addToMsg("#websearch{"), msg, msg)
-                attachBtn.click(addToMsg("#attach{"), msg, msg)
-                findPaper.click(addToMsg("#findPaper{"), msg, msg)
-                generateDocstring.click(addToMsg("#generateDocstring{"), msg,
-                                        msg)
-                optimizeCode.click(addToMsg("#optimizeCode{"), msg, msg)
+                clear.click(checkDelete, None, None, concurrency_limit=12)
+                websearchBtn.click(addToMsg("#websearch{"),
+                                   msg,
+                                   msg,
+                                   concurrency_limit=12)
+                attachBtn.click(addToMsg("#attach{"),
+                                msg,
+                                msg,
+                                concurrency_limit=12)
+                findPaper.click(addToMsg("#findPaper{"),
+                                msg,
+                                msg,
+                                concurrency_limit=12)
+                generateDocstring.click(addToMsg("#generateDocstring{"),
+                                        msg,
+                                        msg,
+                                        concurrency_limit=12)
+                optimizeCode.click(addToMsg("#optimizeCode{"),
+                                   msg,
+                                   msg,
+                                   concurrency_limit=12)
 
                 def switch_multimodal(multimodalSwitch, knowledgeBaseSwitch):
                     if multimodalSwitch:
@@ -123,11 +137,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 multimodalSwitch.input(switch_multimodal,
                                        [multimodalSwitch, knowledgeBaseSwitch],
-                                       [knowledgeBaseSwitch])
+                                       [knowledgeBaseSwitch],
+                                       concurrency_limit=12)
                 knowledgeBaseSwitch.input(
                     switch_knowledgeBase,
                     [knowledgeBaseSwitch, multimodalSwitch],
-                    [multimodalSwitch])
+                    [multimodalSwitch],
+                    concurrency_limit=12)
 
                 def respond(message, chat_history, multimodal, knowledgeBase):
                     # integrating multimodal conversion here
@@ -211,13 +227,17 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 lambda file=file:
                                 (os.remove(f"{folder}/{file}"), update()),
                                 None,
-                                None)
+                                None,
+                                concurrency_limit=12)
 
                         def appendToMsg(msg, file=file):
                             msg['text'] = msg['text'] + f"{file}" + "}"
                             return msg
 
-                        fileBtn.click(appendToMsg, msg, msg)
+                        fileBtn.click(appendToMsg,
+                                      msg,
+                                      msg,
+                                      concurrency_limit=12)
 
                 with gr.Tab("论文"):
                     with gr.Row():
@@ -256,7 +276,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Tab("代码"):
 
                     def upload_code(file):
-                        simpfile = os.path.splitext(os.path.basename(file))[0]
                         upload_folder = "code"
                         shutil.copy(file, upload_folder)
                         gr.Info("上传成功，请刷新")
@@ -299,7 +318,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                     lambda folder=folder: shutil.rmtree(
                                         f"repositry/{folder}"),
                                     None,
-                                    None)
+                                    None,
+                                    concurrency_limit=12)
 
                                 def output_analysis(chathistory,
                                                     folder=folder):
@@ -307,8 +327,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                         f'repositry/{folder}')
                                     analysis = next(analysis_generator)
                                     chathistory.append(
-                                        doubleMessage(f"解析{folder}",
-                                                      analysis))
+                                        doubleMessage(f"解析{folder}", analysis))
                                     yield chathistory
                                     for chunk in analysis_generator:
                                         chathistory[-1][-1]["text"] = chunk
@@ -383,14 +402,17 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 lambda file=file:
                                 (os.remove(f"knowledgeBase/{file}"), update()),
                                 None,
-                                None)
+                                None,
+                                concurrency_limit=12)
 
                         def appendToMsg(selected_paper, file=file):
                             selected_paper = file
                             return selected_paper
 
-                        fileBtn.click(appendToMsg, selected_paper,
-                                      selected_paper)
+                        fileBtn.click(appendToMsg,
+                                      selected_paper,
+                                      selected_paper,
+                                      concurrency_limit=12)
 
     with gr.Tab("写作"):
         with gr.Tab("全自动生成论文"):
@@ -521,11 +543,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                     gr.Info("格式不正确")
                                     return ''
 
-                                fileBtn.click(add_to_title, None, title)
+                                fileBtn.click(add_to_title,
+                                              None,
+                                              title,
+                                              concurrency_limit=12)
                                 deleteFile.click(lambda file=file: os.remove(
                                     f"tempest/{file}"),
                                                  None,
-                                                 None)
+                                                 None,
+                                                 concurrency_limit=12)
 
     with gr.Tab("理科解题"):
         with gr.Tab("常规解题"):
@@ -564,17 +590,18 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     formatFormula(response.choices[0].message.content))
 
             solve_chatbot = gr.Chatbot(type="messages",
-                                 latex_delimiters=LATEX_DELIMITERS,
-                                 show_copy_button=True,
-                                 show_copy_all_button=True)
+                                       latex_delimiters=LATEX_DELIMITERS,
+                                       show_copy_button=True,
+                                       show_copy_all_button=True)
             solve_msg = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题",
                                    interactive=True)
             with gr.Row():
-                clear = gr.ClearButton([solve_msg, chatbot])
+                clear = gr.ClearButton([solve_msg, solve_chatbot])
                 ocr_button = gr.UploadButton("识别题目(可手动纠错)")
             ocr_button.upload(ocr, ocr_button, solve_msg)
-            solve_msg.submit(respond, [solve_msg, chatbot],
-                             [solve_msg, chatbot])
+            solve_msg.submit(respond, [solve_msg, solve_chatbot],
+                             [solve_msg, solve_chatbot],
+                             concurrency_limit=3)
         with gr.Tab("多模态解题(需要上传图片)"):
             qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
                                            show_copy_button=True)
