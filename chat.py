@@ -1,7 +1,7 @@
 import regex
 from executeCode import execute_code, manim_render
 from perplexica import webSearch, academicSearch
-from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper, attach
+from paper import attach
 from imageUtils import get_total_pixels, encode_image
 from codeAnalysis import generate_docstring, optimize_code
 from modelclient import client1, client2, qvqClient
@@ -40,8 +40,12 @@ def toolcall(message, nowTime):
             function_to_call = functions.get(tag, None)
             if function_to_call is not None:
                 replacement = function_to_call(param.strip())
-                message = message.replace(f"<{tag}>{param}</{tag}>",
-                                          replacement)
+                if isinstance(replacement, str):
+                    message = message.replace(f"<{tag}>{param}</{tag}>",
+                                            replacement)
+                else:
+                    message = message.replace(f"<{tag}>{param}</{tag}>",
+                                            replacement[1])
     return message
 
 
