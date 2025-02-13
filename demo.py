@@ -90,9 +90,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     # 如果文件修改时间在3天之前，删除文件
                     if file_mod_time < three_days_ago:
                         os.remove(file_path)
-    @gr.render(triggers=[demo.load])
-    def _clean_old_files():
-        clean_old_files()
     
     with gr.Tab("聊天"):
         with gr.Row():
