@@ -6,6 +6,7 @@ import os
 import shutil
 from codeAnalysis import analyze_folder
 import datetime
+import time
 from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
@@ -67,6 +68,28 @@ def doubleMessage(msg1, msg2):
 
 with gr.Blocks(fill_height=True, fill_width=True,
                delete_cache=(3600, 3600)) as demo:
+    code_file_list = gr.State(os.listdir("code"))
+    knowledgeBase_file_list = gr.State(os.listdir("knowledgeBase"))
+    paper_file_list = gr.State(os.listdir("paper"))
+    repositry_folder_list = gr.State(os.listdir("repositry"))
+    tempest_file_list = gr.State(os.listdir("tempest"))
+    def clean_old_files():
+        # 获取当前时间
+        now = time.time()
+        # 计算3天前的时间戳
+        three_days_ago = now - (3 * 24 * 60 * 60)
+
+        # 遍历文件夹中的文件
+        for folder_path in ['code', 'knowledgeBase', 'paper', 'repositry', 'tempest']:
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                # 检查是否是文件
+                if os.path.isfile(file_path):
+                    # 获取文件的最后修改时间
+                    file_mod_time = os.path.getmtime(file_path)
+                    # 如果文件修改时间在3天之前，删除文件
+                    if file_mod_time < three_days_ago:
+                        os.remove(file_path)
     with gr.Tab("聊天"):
         with gr.Row():
             with gr.Column(scale=0, min_width=150):
@@ -101,8 +124,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             os.remove(file)
                     if os.path.exists('media'):
                         shutil.rmtree('media')
+                    clean_old_files()
+                    update()
+                    return os.listdir('code'), os.listdir('knowledgeBase'), os.listdir('paper'), os.listdir('repositry'), os.listdir('tempest')
 
-                clear.click(checkDelete, None, None, concurrency_limit=12)
+                clear.click(checkDelete, None, [code_file_list, knowledgeBase_file_list, paper_file_list, repositry_folder_list, tempest_file_list], concurrency_limit=12)
                 websearchBtn.click(addToMsg("#websearch{"),
                                    msg,
                                    msg,
@@ -212,7 +238,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     update()
                     gr.Info("上传成功，请刷新")
 
-                def base_show_regular_files(folder):
+                def base_show_regular_files(folder, listener):
                     for file in os.listdir(folder):
                         with gr.Row():
                             fileBtn = gr.Button(file, scale=0, min_width=120)
@@ -223,12 +249,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 min_width=70)
                             deleteFile = gr.Button("删除", scale=0, min_width=70)
 
-                            deleteFile.click(
-                                lambda file=file:
-                                (os.remove(f"{folder}/{file}"), update()),
-                                None,
-                                None,
-                                concurrency_limit=12)
+                            def delete_file(file=file):
+                                os.remove(f"{folder}/{file}")
+                                update()
+                                return os.listdir(folder)
+
+                            deleteFile.click(delete_file,
+                                             None,
+                                             listener,
+                                             concurrency_limit=12)
 
                         def appendToMsg(msg, file=file):
                             msg['text'] = msg['text'] + f"{file}" + "}"
@@ -245,9 +274,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         uploadThesis.upload(upload_paper, uploadThesis)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, paper_file_list.change
+                    ])
                     def show_paper():
-                        base_show_regular_files("paper")
+                        base_show_regular_files("paper", paper_file_list)
 
                 with gr.Tab("已解析文件"):
                     gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
@@ -262,32 +293,37 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             doubleMessage(f"正在下载{arxivNum}并翻译标题与摘要",
                                           downloadArxivPaper(arxivNum)))
                         update()
-                        gr.Info("下载完成，请刷新")
-                        return "", chat_history
+                        return "", chat_history, os.listdir('knowledgeBase')
 
-                    downloadArxiv.click(gradiodownloadArxivPaper,
-                                        [arxivNum, chatbot],
-                                        [arxivNum, chatbot])
+                    downloadArxiv.click(
+                        gradiodownloadArxivPaper, [arxivNum, chatbot],
+                        [arxivNum, chatbot, knowledgeBase_file_list])
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load,
+                        knowledgeBase_file_list.change
+                    ])
                     def show_knowledgeBase():
-                        base_show_regular_files("knowledgeBase")
+                        base_show_regular_files("knowledgeBase",
+                                                knowledgeBase_file_list)
 
                 with gr.Tab("代码"):
 
                     def upload_code(file):
                         upload_folder = "code"
                         shutil.copy(file, upload_folder)
-                        gr.Info("上传成功，请刷新")
+                        return os.listdir('code')
 
                     with gr.Row():
                         uploadCode = gr.UploadButton("上传代码", scale=1)
-                        uploadCode.upload(upload_code, uploadCode)
+                        uploadCode.upload(upload_code, uploadCode, code_file_list)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, code_file_list.change
+                    ])
                     def show_code():
-                        base_show_regular_files("code")
+                        base_show_regular_files("code", code_file_list)
 
                 with gr.Tab("Github仓库"):
                     refresh = gr.Button("刷新", scale=0, min_width=100)
@@ -303,7 +339,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                     githubClone.click(clone_repo, githubUrl, githubUrl)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, repositry_folder_list.change
+                    ])
                     def showFolder():
                         for folder in os.listdir(r'repositry'):
                             with gr.Row():
@@ -314,12 +352,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 deleteFolder = gr.Button("删除",
                                                          scale=0,
                                                          min_width=70)
-                                deleteFolder.click(
-                                    lambda folder=folder: shutil.rmtree(
-                                        f"repositry/{folder}"),
-                                    None,
-                                    None,
-                                    concurrency_limit=12)
+
+                                def delete_folder(folder=folder):
+                                    shutil.rmtree(f'repositry/{folder}')
+                                    return os.listdir('repositry')
+
+                                deleteFolder.click(delete_folder,
+                                                   None,
+                                                   repositry_folder_list,
+                                                   concurrency_limit=12)
 
                                 def output_analysis(chathistory,
                                                     folder=folder):
@@ -350,6 +391,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 def generate_paper_answer(selected_function, selected_paper):
                     if selected_paper in os.listdir('knowledgeBase'):
+                        temp_knowledgeBase_file_list = os.listdir(
+                            'knowledgeBase')
                         gr.Info('正在生成答案，请耐心等候')
                         if selected_function == '论文润色':
                             answer = polishPaper(selected_paper)
@@ -360,14 +403,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         else:
                             answer = readPaper(selected_paper)
                         for chunk in answer:
-                            yield chunk
-                        gr.Info('已完成，请刷新')
+                            yield chunk, temp_knowledgeBase_file_list
+                        yield chunk, os.listdir('knowledgeBase')
                     else:
-                        yield '文件不存在'
+                        yield '文件不存在', os.listdir('knowledgeBase')
 
                 selected_paper.submit(generate_paper_answer,
                                       [selected_function, selected_paper],
-                                      paper_answer,
+                                      [paper_answer, knowledgeBase_file_list],
                                       concurrency_limit=3)
 
             with gr.Column(scale=1, min_width=350):
@@ -380,14 +423,18 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     gr.Info("正在下载，请耐心等候")
                     answer = downloadArxivPaper(paper_arxivNum)
                     update()
-                    gr.Info("下载完成，请刷新")
-                    return "", answer
+                    return "", answer, os.listdir('knowledgeBase')
 
-                downloadArxiv.click(gradiodownloadArxivPaper, [paper_arxivNum],
-                                    [paper_arxivNum, paper_answer])
+                downloadArxiv.click(
+                    gradiodownloadArxivPaper, [paper_arxivNum],
+                    [paper_arxivNum, paper_answer, knowledgeBase_file_list])
 
-                @gr.render(triggers=[paper_refresh.click])
+                @gr.render(triggers=[
+                    paper_refresh.click, demo.load,
+                    knowledgeBase_file_list.change
+                ])
                 def base_show_paper():
+                    time.sleep(0.125)
                     for file in os.listdir('knowledgeBase'):
                         with gr.Row():
                             fileBtn = gr.Button(file, scale=0, min_width=120)
@@ -398,12 +445,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 min_width=70)
                             deleteFile = gr.Button("删除", scale=0, min_width=70)
 
-                            deleteFile.click(
-                                lambda file=file:
-                                (os.remove(f"knowledgeBase/{file}"), update()),
-                                None,
-                                None,
-                                concurrency_limit=12)
+                            def delete_paper(file=file):
+                                os.remove(f"knowledgeBase/{file}")
+                                update()
+                                return os.listdir('knowledgeBase')
+
+                            deleteFile.click(delete_paper,
+                                             None,
+                                             knowledgeBase_file_list,
+                                             concurrency_limit=12)
 
                         def appendToMsg(selected_paper, file=file):
                             selected_paper = file
@@ -425,7 +475,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Column(scale=1, min_width=150):
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, tempest_file_list.change
+                    ])
                     def show_Tempest():
                         for file in os.listdir(r"tempest"):
                             with gr.Row():
@@ -441,10 +493,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                                        scale=0,
                                                        min_width=70)
 
-                                deleteFile.click(lambda file=file: os.remove(
-                                    f"tempest/{file}"),
-                                                 None,
-                                                 None)
+                                def delete_tempest_file(file=file):
+                                    os.remove(f"tempest/{file}")
+                                    return os.listdir("tempest")
+
+                                deleteFile.click(delete_tempest_file, None,
+                                                 tempest_file_list)
 
             def generateAndSave(title):
                 if title.strip() == "":
@@ -519,8 +573,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     uploadDraft.upload(upload_paper, uploadDraft)
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, tempest_file_list.change
+                    ])
                     def show_Tempest():
+                        time.sleep(0.125)
                         for file in os.listdir(r"tempest"):
                             with gr.Row():
                                 fileBtn = gr.Button(file,
@@ -547,10 +604,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                               None,
                                               title,
                                               concurrency_limit=12)
-                                deleteFile.click(lambda file=file: os.remove(
-                                    f"tempest/{file}"),
+
+                                def delete_tempest_file(file=file):
+                                    os.remove(f"tempest/{file}")
+                                    return os.listdir('tempest')
+
+                                deleteFile.click(delete_tempest_file,
                                                  None,
-                                                 None,
+                                                 tempest_file_list,
                                                  concurrency_limit=12)
 
     with gr.Tab("理科解题"):
@@ -631,7 +692,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 yield gr.MultimodalTextbox(value=None), chat_history
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
-                             [solve_box, qvqchatbot], concurrency_limit=12)
+                             [solve_box, qvqchatbot],
+                             concurrency_limit=12)
     with gr.Tab("markdown导出"):
         convert_Button = gr.Button("转换")
         with gr.Row():
@@ -639,7 +701,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 file_to_convert = gr.Textbox(
                     placeholder="输入需要转换的文件名或点击下方的按钮填入")
 
-                def base_show_files(folder):
+                def base_show_files(folder, listener):
                     for file in os.listdir(folder):
                         with gr.Row():
                             fileBtn = gr.Button(file, scale=1, min_width=120)
@@ -656,24 +718,37 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             return ''
 
                         fileBtn.click(appendToCandidate, None, file_to_convert)
+
+                        def delete_file(file=file):
+                            os.remove(f"{folder}/{file}")
+                            return os.listdir(folder)
+
                         deleteBtn.click(
-                            lambda file=file: os.remove(f"{folder}/{file}"),
+                            delete_file,
                             None,
-                            None)
+                            listener)
 
                 with gr.Tab("已解析文件"):
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load,
+                        knowledgeBase_file_list.change
+                    ])
                     def show_knowledgeBase():
-                        base_show_files("knowledgeBase")
+                        time.sleep(0.25)
+                        base_show_files("knowledgeBase",
+                                        knowledgeBase_file_list)
 
                 with gr.Tab("论文/PPT生成产物"):
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
-                    @gr.render(triggers=[refresh.click])
+                    @gr.render(triggers=[
+                        refresh.click, demo.load, tempest_file_list.change
+                    ])
                     def show_Tempest():
-                        base_show_files("tempest")
+                        time.sleep(0.25)
+                        base_show_files("tempest", tempest_file_list)
 
             convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
                                             label="选择格式")
