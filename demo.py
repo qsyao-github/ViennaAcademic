@@ -504,14 +504,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 if title.strip() == "":
                     return "请输入主题", os.listdir('tempest')
                 else:
-                    temp_tempest_file_list = os.listdir('tempest')
                     gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
                     thesisGenerator = generate(title)
                     for tempThesis in thesisGenerator:
                         thesis = tempThesis
-                        yield thesis, temp_tempest_file_list
-                    with open(f'tempest/{title}.md', 'w') as f:
+                        yield thesis, []
+                    with open(f'tempest/{title}.md', 'w', encoding='utf-8') as f:
                         f.write(thesis)
+                    gr.Info('已完成，请刷新')
                     yield thesis, os.listdir('tempest')
 
             generate_button.click(generateAndSave, [title],
@@ -548,14 +548,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         if title.endswith("ppt"):
                             title = title[:-3]
                         if title.strip() == "":
-                            return "请输入主题"
-                        temp_tempest_file_list = os.listdir('tempest')
+                            return "请输入主题", os.listdir('tempest')
                         do_parse = not os.path.exists(f"tempest/{title}ppt.md")
                         final_response = ""
                         for chunk in convert_to_pptx(f'tempest/{title}',
                                                      do_parse):
                             final_response = chunk
-                            yield chunk, temp_tempest_file_list
+                            yield chunk, []
+                        gr.Info('已完成，请刷新')
                         yield final_response, os.listdir('tempest')
 
                     generate_button.click(generate_ppt, [title], [pptBox, tempest_file_list])
