@@ -1,9 +1,10 @@
-from typing import List, Sequence
+from typing import List, Sequence, Optional
 from langchain_core.embeddings import Embeddings
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain_core.documents import Document
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from openai import OpenAI
+from langchain.callbacks.manager import Callbacks
 import requests
 
 client1API_KEY = ""
@@ -28,7 +29,7 @@ def get_rerank(query, documents, top_n):
     }
     headers = {
         "Authorization":
-        "Bearer <token>",
+        "Bearer",
         "Content-Type": "application/json"
     }
     response = requests.request("POST", url, json=payload,
@@ -52,6 +53,7 @@ class CustomEmbeddings(Embeddings):
         grouped = groupLists(texts)
         finalEmbedding = []
         for group in grouped:
+            group = [text[:512] for text in group]
             embedding = client1.embeddings.create(input=group,
                                                   model=self.model)
             finalEmbedding.extend(
@@ -68,7 +70,8 @@ class CustomCompressor(BaseDocumentCompressor):
     def compress_documents(
         self,
         documents: Sequence[Document],
-        query: str
+        query: str,
+        callbacks: Optional[Callbacks] = None
     ) -> Sequence[Document]:
         """
         Compress documents using `BCEmbedding RerankerModel API`.
