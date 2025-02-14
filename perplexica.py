@@ -14,7 +14,7 @@ def constructQuery(query, focusMode):
         },
         "embeddingModel": {
             "provider": "ollama",
-            "model": "mxbai-embed-large:latest"
+            "model": "snowflake-arctic-embed2:latest"
         },
         "optimizationMode": "balanced",
         "focusMode": focusMode,
