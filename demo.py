@@ -11,7 +11,7 @@ from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
 from deepseek import deepseek, attachHints
-from qanythingClient import update, qanything_fetch
+from bceInference import update, get_response
 from fileConversion import convert_to_pptx, convert_to
 from imageUtils import encode_image
 from modelclient import client1
@@ -181,7 +181,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     message = promptcall(message)
                     if isinstance(message, str):
                         if knowledgeBase:
-                            knowledgeBaseSearch = qanything_fetch(message)
+                            knowledgeBaseSearch = get_response(message)
                             if knowledgeBaseSearch:
                                 message = knowledgeBaseSearch + '\n\n' + message
                         message = constructMultimodalMessage(
@@ -237,7 +237,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     with open(f"knowledgeBase/{simpfile}.md", "w") as f:
                         f.write(text)
                     update()
-                    gr.Info("上传成功，请刷新")
+                    return os.listdir('paper'), os.listdir('knowledgeBase')
 
                 def base_show_regular_files(folder, listener):
                     for file in os.listdir(folder):
@@ -272,7 +272,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Tab("论文"):
                     with gr.Row():
                         uploadThesis = gr.UploadButton("上传论文", scale=1)
-                        uploadThesis.upload(upload_paper, uploadThesis)
+                        uploadThesis.upload(upload_paper, uploadThesis, [paper_file_list, knowledgeBase_file_list])
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[
@@ -335,10 +335,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         if url:
                             gr.Info("正在克隆，请耐心等候")
                             os.system(f"cd repositry && git clone {url}")
-                            gr.Info("克隆完成，请刷新")
-                        return ""
+                        return "", os.listdir('repositry')
 
-                    githubClone.click(clone_repo, githubUrl, githubUrl)
+                    githubClone.click(clone_repo, githubUrl, [githubUrl, repositry_folder_list])
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, repositry_folder_list.change
@@ -503,20 +502,20 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
             def generateAndSave(title):
                 if title.strip() == "":
-                    return "请输入主题"
+                    return "请输入主题", os.listdir('tempest')
                 else:
+                    temp_tempest_file_list = os.listdir('tempest')
                     gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
                     thesisGenerator = generate(title)
                     for tempThesis in thesisGenerator:
                         thesis = tempThesis
-                        yield thesis
+                        yield thesis, temp_tempest_file_list
                     with open(f'tempest/{title}.md', 'w') as f:
                         f.write(thesis)
-                    gr.Info(f"已完成，请刷新")
-                    yield thesis
+                    yield thesis, os.listdir('tempest')
 
             generate_button.click(generateAndSave, [title],
-                                  thesisBox,
+                                  [thesisBox, tempest_file_list],
                                   concurrency_limit=1)
         with gr.Tab("全自动生成PPT"):
             with gr.Row():
@@ -550,13 +549,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             title = title[:-3]
                         if title.strip() == "":
                             return "请输入主题"
+                        temp_tempest_file_list = os.listdir('tempest')
                         do_parse = not os.path.exists(f"tempest/{title}ppt.md")
+                        final_response = ""
                         for chunk in convert_to_pptx(f'tempest/{title}',
                                                      do_parse):
-                            yield chunk
-                        gr.Info('已完成，请刷新')
+                            final_response = chunk
+                            yield chunk, temp_tempest_file_list
+                        yield final_response, os.listdir('tempest')
 
-                    generate_button.click(generate_ppt, [title], pptBox)
+                    generate_button.click(generate_ppt, [title], [pptBox, tempest_file_list])
 
                 with gr.Column(scale=1, min_width=150):
 
@@ -568,10 +570,10 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             return
                         upload_folder = "tempest"
                         shutil.copy(file, upload_folder)
-                        gr.Info("上传成功，请刷新")
+                        return os.listdir('tempest')
 
                     uploadDraft = gr.UploadButton("上传markdown文案", scale=0)
-                    uploadDraft.upload(upload_paper, uploadDraft)
+                    uploadDraft.upload(upload_paper, uploadDraft, tempest_file_list)
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[
@@ -756,15 +758,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
             def convert_file(file_to_convert, convert_to_format):
                 if file_to_convert.strip() == "":
-                    return ""
+                    return "", os.listdir('knowledgeBase'), os.listdir('tempest')
                 else:
                     convert_to(file_to_convert, convert_to_format)
-                    gr.Info("转换完成，请刷新")
-                return ""
+                return "", os.listdir('knowledgeBase'), os.listdir('tempest')
 
             convert_Button.click(convert_file,
                                  [file_to_convert, convert_to_format],
-                                 file_to_convert,
+                                 [file_to_convert, knowledgeBase_file_list, tempest_file_list],
                                  concurrency_limit=12)
 
 demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
