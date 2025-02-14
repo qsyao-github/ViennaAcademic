@@ -8,6 +8,7 @@ from modelclient import client1, client2, qvqClient
 import os
 
 
+# 定义一个函数python，接收一个参数code
 def python(code):
     return f"""\n
 {execute_code(code)}
