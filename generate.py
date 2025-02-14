@@ -1,6 +1,6 @@
 from doclingParse import parseWebsite
 from perplexica import stormSearch
-from qanythingClient import update, qanything_fetch
+from bceInference import update, get_response
 from downloadpaper import downloadArxivPaper
 from modelclient import client1, client2, siliconClient
 import re
@@ -136,7 +136,7 @@ def generate_outline(summary, topic, chinese=True):
 
 
 def write_paragraph(outlines, i, subtitle, subtopic, title, level, chinese=True, thread_num=0):
-    reference = qanything_fetch(f"{title}: {subtopic}").strip()
+    reference = get_response(f"{title}: {subtopic}").strip()
     if reference:
         if chinese:
             response = mixed_chat(
