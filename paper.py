@@ -15,6 +15,9 @@ def attach(file):
             if file in os.listdir('paper'):
                 with open(f'paper/{file}', 'r', encoding='utf-8') as f:
                     return f.read()
+            elif file in os.listdir('code'):
+                with open(f'code/{file}', 'r', encoding='utf-8') as f:
+                    return f.read()
         except:
             return ""
 
