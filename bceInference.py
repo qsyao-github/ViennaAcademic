@@ -1,6 +1,5 @@
 import os
-from BCEmbedding.tools.langchain import BCERerank
-from customEmbeddings import CustomEmbeddings
+from customEmbeddings import CustomEmbeddings, CustomCompressor
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_community.document_loaders import TextLoader
@@ -10,15 +9,14 @@ from langchain.retrievers import ContextualCompressionRetriever
 embedding_model_name = 'netease-youdao/bce-embedding-base_v1'
 
 embed_model = CustomEmbeddings(model=embedding_model_name)
-reranker_args = {'model': 'maidalun1020/bce-reranker-base_v1', 'top_n': 10}
-reranker = BCERerank(**reranker_args)
+reranker = CustomCompressor(10)
 
 
 def get_document(file):
     documents = TextLoader(file).load()
     text_splitter = RecursiveCharacterTextSplitter(separators=[
         r"\n+#{1,6}\s+", r"\n{2,}", r"\n+", r"\s{2,}",
-        r"(?<=[.!?;])\s+|(?<=[。？！；])"
+        r"(?<=[.!?;])\s+|(?<=[。？！；])",r"(?<=[,])\s+|(?<=[，])",r"\s+"
     ],
                                                    is_separator_regex=True,
                                                    chunk_overlap=32,
@@ -53,7 +51,6 @@ def update():
         try:
             os.remove(f'retrievers/{file}.pkl')
             os.remove(f'retrievers/{file}.faiss')
-            print(f'{file} retriever removed')
         except:
             pass
 
@@ -63,7 +60,7 @@ def merge_retrievers():
         FAISS.load_local('retrievers',
                          embed_model,
                          file,
-                         distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT)
+                         distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,allow_dangerous_deserialization=True)
         for file in set(
             [os.path.splitext(file)[0] for file in os.listdir('retrievers')])
     ]
@@ -73,7 +70,8 @@ def merge_retrievers():
     base_retriever = base_retriever.as_retriever(search_type="similarity",
                                                  search_kwargs={
                                                      "score_threshold": 0.35,
-                                                     "k": 10
+                                                     "k": 100,
+                                                     "fetch-k": 100
                                                  })
     compression_retriever = ContextualCompressionRetriever(
         base_compressor=reranker, base_retriever=base_retriever)
