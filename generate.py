@@ -1,4 +1,4 @@
-from doclingParse import parseWebsite
+from crawler import crawl_and_save
 from perplexica import stormSearch
 from bceInference import update, get_response
 from downloadpaper import downloadArxivPaper
@@ -9,17 +9,21 @@ import time
 from datetime import datetime
 import shutil
 import threading
+import asyncio
+import concurrent.futures
 
 def write_to_file(content, filename):
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(content)
 def handle_reference(references):
+    crawl_dict = {}
     for i in range(len(references)):
         entry = references[i]
         index = str(i+1)
         pageContent, link = entry["pageContent"], entry["metadata"]["url"]
         filePath=f'knowledgeBase/STORMtemp{index}.md'
         if 'http://arxiv.org/abs/' in link:
+            print(index)
             arxivID = link.split('/')[-1]
             if 'v' in arxivID:
                 arxivID = arxivID.split('v')[0]
@@ -31,13 +35,14 @@ def handle_reference(references):
                     content = ''
             else:
                 content = pageContent
+        elif link.endswith('.pdf'):
+            content = pageContent
         else:
-            try:
-                content = pageContent + '\n###### \n'+parseWebsite(link)
-            except:
-                content = pageContent
+            crawl_dict[link] = filePath
+            content = pageContent + '\n###### \n'
         if content:
             write_to_file(content, filePath)
+    asyncio.run(crawl_and_save(crawl_dict))
     update()
 
 
@@ -120,11 +125,11 @@ def mistral_chat(system, query):
 def generate_outline(summary, topic, chinese=True):
     if chinese:
         response = silicon_chat(
-            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息写出提纲(包括引言、结论在内，不超过5部分)，各级标题使用markdown语法。用markdown无序列表列出标题下对应段落的小标题。每个item对应一段。",
+            f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息写出提纲(包括引言、结论在内，不超过5部分)，各级标题使用markdown语法。用markdown无序列表列出标题下对应段落的小标题。每个item对应一段，不要有子项。",
             summary)
     else:
         response = silicon_chat(
-            f"You are a text outline generation expert, skilled at creating a structured and easily expandable outline for a complete article based on the information provided by the user. You possess strong thematic analysis abilities, allowing you to accurately extract key information and core points. With a rich knowledge base in copywriting and familiarity with academic paper outline construction methods, you can generate targeted, logical, and coherent outlines while ensuring that the structure is reasonable and the logic flows smoothly. You will write an academic article titled: {topic}. Based on the information provided by the user, create an outline (including introduction and conclusion, no more than 5 sections). Use markdown syntax for headings. List corresponding paragraphs' subheadings for each section using markdown unordered lists. Each item corresponds to a paragraph.",
+            f"You are a text outline generation expert, skilled at creating a structured and easily expandable outline for a complete article based on the information provided by the user. You possess strong thematic analysis abilities, allowing you to accurately extract key information and core points. With a rich knowledge base in copywriting and familiarity with academic paper outline construction methods, you can generate targeted, logical, and coherent outlines while ensuring that the structure is reasonable and the logic flows smoothly. You will write an academic article titled: {topic}. Based on the information provided by the user, create an outline (including introduction and conclusion, no more than 5 sections). Use markdown syntax for headings. List corresponding paragraphs' subheadings for each section using markdown unordered lists. Each item corresponds to a paragraph, no sub-items.",
             summary)
     response = response.strip('`')
     response = response[response.find('#'):]
@@ -237,8 +242,10 @@ def generate(query):
     chinese = isChinese(query)
     summary, reference = stormSearch(query)
     yield summary
-    handle_reference(reference)
-    outline = generate_outline(summary, query, chinese)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(handle_reference, reference)
+        future_outline = executor.submit(generate_outline, summary, query, chinese)
+        outline = future_outline.result()
     yield outline
     articleGenerator = parse_outline(outline, query, chinese)
     for tempArticle in articleGenerator:
