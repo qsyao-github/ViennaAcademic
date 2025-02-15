@@ -2,7 +2,7 @@ import regex
 from executeCode import execute_code, manim_render
 from perplexica import webSearch, academicSearch
 from paper import attach
-from imageUtils import get_total_pixels, encode_image
+from imageUtils import encode_image
 from codeAnalysis import generate_docstring, optimize_code
 from modelclient import client1, client2, qvqClient
 import os
@@ -17,7 +17,7 @@ def python(code):
 
 def remove_newlines_from_formulas(text):
     # 用正则表达式匹配并替换
-    return regex.sub(r'\$\$[\s\r\n]*(.*?)\s*[\s\r\n]*\$\$',
+    return regex.sub(r'\$\$[\s]*(.*?)\s*[\s]*\$\$',
                      r'$$\1$$',
                      text,
                      flags=regex.DOTALL)
@@ -32,8 +32,7 @@ def toolcall(message, nowTime):
         'python': python,
         'manim': manim_render
     }
-    pattern = r"<(\w+)>(.*?)</\1>"
-    matches = regex.findall(pattern, message, regex.DOTALL)
+    matches = regex.findall(r"<(\w+)>(.*?)</\1>", message, regex.DOTALL)
     for tag, param in matches:
         if tag == 'manim':
             message = manim_render(param, nowTime)
@@ -43,11 +42,16 @@ def toolcall(message, nowTime):
                 replacement = function_to_call(param.strip())
                 if isinstance(replacement, str):
                     message = message.replace(f"<{tag}>{param}</{tag}>",
-                                            replacement)
+                                              replacement)
                 else:
                     message = message.replace(f"<{tag}>{param}</{tag}>",
-                                            replacement[1])
+                                              replacement[1])
     return message
+
+
+tool_call_pattern = regex.compile(
+    r'#(attach|findPaper|websearch|generateDocstring|optimizeCode)' +
+    FIND_MAGIC_COMMAND_SUFFIX)
 
 
 def promptcall(message):
@@ -58,8 +62,7 @@ def promptcall(message):
         '#generateDocstring': generate_docstring,
         '#optimizeCode': optimize_code
     }
-    pattern = r'#(attach|findPaper|websearch|generateDocstring|optimizeCode)' + FIND_MAGIC_COMMAND_SUFFIX
-    matches = regex.findall(pattern, message)
+    matches = tool_call_pattern.findall(message)
     for tag, param in matches:
         function_to_call = functions[f"#{tag}"]
         replacement = function_to_call(param)
@@ -126,23 +129,25 @@ def insertMultimodalHistory(text, encodedString):
     }
 
 
+image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
+                              regex.IGNORECASE)
+
+
 def historyParse(history, multimodal=False):
     returnList = []
-    sizeMax = 0
+    # sizeMax = 0
     if not multimodal:
         for ans in history:
             returnList.extend(insertHistory(ans[0].text, ans[1].text))
     else:
-        image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
-                                      regex.IGNORECASE)
         for ans in history:
             for dialogue in ans:
                 files = dialogue.files
                 if files:
                     file = files[0].file.path
                     if image_pattern.match(file):
-                        size = get_total_pixels(file)
-                        sizeMax = max(sizeMax, size)
+                        # size = get_total_pixels(file)
+                        # sizeMax = max(sizeMax, size)
                         txtFilePath = os.path.splitext(file)[0] + '.txt'
                         if os.path.exists(txtFilePath):
                             with open(txtFilePath, 'r') as f:
@@ -159,7 +164,7 @@ def historyParse(history, multimodal=False):
                         'role': 'user',
                         'content': dialogue.text
                     })
-    return returnList, sizeMax
+    return returnList, 0
 
 
 def queryParse(query, multimodal=False):
@@ -167,10 +172,8 @@ def queryParse(query, multimodal=False):
     if query:
         if not multimodal:
             returnList.append(insertHistory(query["text"]))
-            size = 0
+            # size = 0
         else:
-            image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
-                                          regex.IGNORECASE)
             files = query["files"]
             if files:
                 file = files[0]["file"].path
@@ -184,8 +187,8 @@ def queryParse(query, multimodal=False):
                         insertMultimodalHistory(query["text"], encodedString))
             else:
                 returnList.append(insertHistory(query["text"]))
-                size = 0
-        return returnList, 0
+                # size = 0
+    return returnList, 0
 
 
 def formatFormula(string):
@@ -205,13 +208,14 @@ class chatBot:
         if not multimodal:
             if query is not None:
                 try:
-                    returnMessage = modelInference("gpt-4o-mini", nowTime, query,
-                                                self, client1)
-                
+                    returnMessage = modelInference("gpt-4o-mini", nowTime,
+                                                   query, self, client1)
+
                     for chunk in returnMessage:
                         yield chunk
                 except:
-                    returnMessage = modelInference("glm-4-flash", nowTime, query, self, client2)
+                    returnMessage = modelInference("glm-4-flash", nowTime,
+                                                   query, self, client2)
                     for chunk in returnMessage:
                         yield chunk
         else:
