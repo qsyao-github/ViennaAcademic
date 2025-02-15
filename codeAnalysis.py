@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+from io import StringIO
 from modelclient import client1 as client
 
 
@@ -21,10 +22,10 @@ def codestral_stream(prompt):
                                                     "role": "user",
                                                     "content": prompt
                                                 }],stream=True)
-    finalResponse = ""
+    finalResponse = StringIO()
     for chunk in response:
-        finalResponse += chunk.choices[0].delta.content or ""
-        yield finalResponse
+        finalResponse.write(chunk.choices[0].delta.content or "")
+        yield finalResponse.getvalue()
 
 def is_program_file(filename):
     program_extensions = frozenset({
