@@ -7,6 +7,8 @@ import shutil
 from codeAnalysis import analyze_folder
 import datetime
 import time
+import subprocess
+from io import StringIO
 from generate import generate
 from downloadpaper import downloadArxivPaper
 from doclingParse import parseEverything
@@ -38,11 +40,7 @@ LATEX_DELIMITERS = [{
 
 def addToMsg(newStr):
 
-    def subaddToMsg(msg):
-        msg['text'] = msg['text'] + newStr
-        return msg
-
-    return subaddToMsg
+    return lambda msg: {**msg, 'text': msg['text'] + newStr}
 
 
 def constructMultimodalMessage(msg, filesConstructor):
@@ -54,11 +52,12 @@ def userFileConstructor(files):
 
 
 def botFileConstructor(nowTime):
-    files = []
-    for file_type in [".png", ".mp4"]:
-        file_path = nowTime + file_type
-        if os.path.exists(file_path):
-            files.append({"file": FileData(path=file_path)})
+    # 获取当前目录下的所有文件和目录
+    with os.scandir() as entries:
+        files = [{
+            "file": FileData(path=entry.name)
+        } for entry in entries if entry.is_file() and entry.name.endswith((
+            ".png", ".mp4")) and nowTime in entry.name]
     return files
 
 
@@ -73,24 +72,25 @@ with gr.Blocks(fill_height=True, fill_width=True,
     paper_file_list = gr.State(os.listdir("paper"))
     repositry_folder_list = gr.State(os.listdir("repositry"))
     tempest_file_list = gr.State(os.listdir("tempest"))
+
     def clean_old_files():
         # 获取当前时间
         now = time.time()
         # 计算3天前的时间戳
-        three_days_ago = now - (3 * 24 * 60 * 60)
+        three_days_ago = now - 259200
 
         # 遍历文件夹中的文件
-        for folder_path in ['code', 'knowledgeBase', 'paper', 'repositry', 'tempest']:
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename)
-                # 检查是否是文件
-                if os.path.isfile(file_path):
-                    # 获取文件的最后修改时间
-                    file_mod_time = os.path.getmtime(file_path)
-                    # 如果文件修改时间在3天之前，删除文件
-                    if file_mod_time < three_days_ago:
-                        os.remove(file_path)
-    
+        for folder_path in [
+                'code', 'knowledgeBase', 'paper', 'repositry', 'tempest'
+        ]:
+            with os.scandir(folder_path) as entries:
+                files_to_remove = [
+                    entry.path for entry in entries if entry.is_file()
+                    and entry.stat().st_mtime < three_days_ago
+                ]
+                for file_path in files_to_remove:
+                    os.remove(file_path)
+
     with gr.Tab("聊天"):
         with gr.Row():
             with gr.Column(scale=0, min_width=150):
@@ -117,19 +117,28 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     )
 
                 def checkDelete():
-                    file_suffixes_to_remove = {".png", ".mp4", ".txt"}
-                    for file in os.listdir():
-                        if any(
-                                file.endswith(suffix)
-                                for suffix in file_suffixes_to_remove):
-                            os.remove(file)
+                    file_suffixes_to_remove = (".png", ".mp4", ".txt")
+                    files_to_remove = [
+                        file for file in os.listdir()
+                        if file.endswith(file_suffixes_to_remove)
+                    ]
+                    for file in files_to_remove:
+                        os.remove(file)
                     if os.path.exists('media'):
                         shutil.rmtree('media')
                     clean_old_files()
                     update()
-                    return os.listdir('code'), os.listdir('knowledgeBase'), os.listdir('paper'), os.listdir('repositry'), os.listdir('tempest')
+                    return os.listdir('code'), os.listdir(
+                        'knowledgeBase'), os.listdir('paper'), os.listdir(
+                            'repositry'), os.listdir('tempest')
 
-                clear.click(checkDelete, None, [code_file_list, knowledgeBase_file_list, paper_file_list, repositry_folder_list, tempest_file_list], concurrency_limit=12)
+                clear.click(checkDelete,
+                            None, [
+                                code_file_list, knowledgeBase_file_list,
+                                paper_file_list, repositry_folder_list,
+                                tempest_file_list
+                            ],
+                            concurrency_limit=12)
                 websearchBtn.click(addToMsg("#websearch{"),
                                    msg,
                                    msg,
@@ -174,7 +183,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 def respond(message, chat_history, multimodal, knowledgeBase):
                     # integrating multimodal conversion here
-                    if type(message) != str:
+                    if not isinstance(message, str):
                         message, files = message["text"], message["files"]
                     message = formatFormula(message)
                     message = remove_newlines_from_formulas(message)
@@ -190,16 +199,19 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             '%y%m%d%H%M%S')
                         bot = chatBot(chat_history, multimodal)
                         bot_stream = bot.answer(message, nowTime, multimodal)
-                        os.chdir(r'/home/laowei/ViennaAcademic')
                         chat_history.append(
                             [message,
                              constructMultimodalMessage("", [])])
+                        bot_message = StringIO()
                         for bot_chunk in bot_stream:
-                            chat_history[-1][-1]['text'] += bot_chunk
+                            bot_message.write(bot_chunk)
+                            chat_history[-1][-1][
+                                'text'] = bot_message.getvalue()
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
-                        print('reached')
-                        full_bot_message = chat_history[-1][-1]['text']
+                        print(chat_history[-1][-1])
+                        full_bot_message = bot_message.getvalue()
+                        bot_message.close()
                         full_bot_message = remove_newlines_from_formulas(
                             formatFormula(toolcall(full_bot_message, nowTime)))
                         chat_history[-1][-1] = constructMultimodalMessage(
@@ -227,17 +239,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 def upload_paper(file):
                     gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要40s，请耐心等候")
                     simpfile = os.path.splitext(os.path.basename(file))[0]
-                    if os.path.exists(
-                            f"knowledgeBase/{simpfile}.md") or os.path.exists(
-                                f"knowledgeBase/{simpfile}.txt"):
-                        return
-                    upload_folder = "paper"
-                    shutil.copy(file, upload_folder)
+                    knowledge_base_files = set(os.listdir('knowledgeBase'))
+                    if simpfile + '.md' in knowledge_base_files or simpfile + '.txt' in knowledge_base_files:
+                        return os.listdir('paper'), list(knowledge_base_files)
+                    shutil.copy(file, "paper")
                     text = parseEverything(file)
-                    with open(f"knowledgeBase/{simpfile}.md", "w") as f:
+                    with open(f"knowledgeBase/{simpfile}.md", "w", encoding='utf-8') as f:
                         f.write(text)
                     update()
-                    return os.listdir('paper'), os.listdir('knowledgeBase')
+                    return os.listdir('paper'), list(knowledge_base_files)
 
                 def base_show_regular_files(folder, listener):
                     for file in os.listdir(folder):
@@ -261,7 +271,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                              concurrency_limit=12)
 
                         def appendToMsg(msg, file=file):
-                            msg['text'] = msg['text'] + f"{file}" + "}"
+                            msg['text'] += f"{file}" + "}"
                             return msg
 
                         fileBtn.click(appendToMsg,
@@ -272,7 +282,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Tab("论文"):
                     with gr.Row():
                         uploadThesis = gr.UploadButton("上传论文", scale=1)
-                        uploadThesis.upload(upload_paper, uploadThesis, [paper_file_list, knowledgeBase_file_list])
+                        uploadThesis.upload(
+                            upload_paper, uploadThesis,
+                            [paper_file_list, knowledgeBase_file_list])
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[
@@ -311,13 +323,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Tab("代码"):
 
                     def upload_code(file):
-                        upload_folder = "code"
-                        shutil.copy(file, upload_folder)
+                        shutil.copy(file, "code")
                         return os.listdir('code')
 
                     with gr.Row():
                         uploadCode = gr.UploadButton("上传代码", scale=1)
-                        uploadCode.upload(upload_code, uploadCode, code_file_list)
+                        uploadCode.upload(upload_code, uploadCode,
+                                          code_file_list)
                         refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[
@@ -331,13 +343,17 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     githubUrl = gr.Textbox()
                     githubClone = gr.Button("克隆仓库", scale=0)
 
+                    # unoptimized from here
                     def clone_repo(url):
                         if url:
                             gr.Info("正在克隆，请耐心等候")
-                            os.system(f"cd repositry && git clone {url}")
+                            subprocess.run(
+                                ["cd", "repositry", "&&", "git", "clone", url],
+                                shell=True)
                         return "", os.listdir('repositry')
 
-                    githubClone.click(clone_repo, githubUrl, [githubUrl, repositry_folder_list])
+                    githubClone.click(clone_repo, githubUrl,
+                                      [githubUrl, repositry_folder_list])
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, repositry_folder_list.change
@@ -390,23 +406,21 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 paper_answer = gr.Markdown(show_copy_button=True)
 
                 def generate_paper_answer(selected_function, selected_paper):
-                    if selected_paper in os.listdir('knowledgeBase'):
-                        temp_knowledgeBase_file_list = os.listdir(
-                            'knowledgeBase')
-                        gr.Info('正在生成答案，请耐心等候')
-                        if selected_function == '论文润色':
-                            answer = polishPaper(selected_paper)
-                        elif selected_function == '论文翻译->英':
-                            answer = translatePapertoEnglish(selected_paper)
-                        elif selected_function == '论文翻译->中':
-                            answer = translatePapertoChinese(selected_paper)
-                        else:
-                            answer = readPaper(selected_paper)
-                        for chunk in answer:
-                            yield chunk, temp_knowledgeBase_file_list
-                        yield chunk, os.listdir('knowledgeBase')
-                    else:
+                    if selected_paper not in os.listdir('knowledgeBase'):
                         yield '文件不存在', os.listdir('knowledgeBase')
+                        return
+                    gr.Info('正在生成答案，请耐心等候')
+                    function_map = {
+                        '论文润色': polishPaper,
+                        '论文翻译->英': translatePapertoEnglish,
+                        '论文翻译->中': translatePapertoChinese
+                    }
+                    process_function = function_map.get(
+                        selected_function, readPaper)
+                    answer = process_function(selected_paper)
+                    for chunk in answer:
+                        yield chunk, []
+                    yield chunk, os.listdir('knowledgeBase')
 
                 selected_paper.submit(generate_paper_answer,
                                       [selected_function, selected_paper],
@@ -433,6 +447,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     paper_refresh.click, demo.load,
                     knowledgeBase_file_list.change
                 ])
+                # unoptimized
                 def base_show_paper():
                     time.sleep(0.125)
                     for file in os.listdir('knowledgeBase'):
@@ -455,12 +470,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                              knowledgeBase_file_list,
                                              concurrency_limit=12)
 
-                        def appendToMsg(selected_paper, file=file):
-                            selected_paper = file
-                            return selected_paper
+                        def appendToMsg(file=file):
+                            return file
 
                         fileBtn.click(appendToMsg,
-                                      selected_paper,
+                                      None,
                                       selected_paper,
                                       concurrency_limit=12)
 
@@ -503,16 +517,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
             def generateAndSave(title):
                 if title.strip() == "":
                     return "请输入主题", os.listdir('tempest')
-                else:
-                    gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
-                    thesisGenerator = generate(title)
-                    for tempThesis in thesisGenerator:
-                        thesis = tempThesis
-                        yield thesis, []
-                    with open(f'tempest/{title}.md', 'w', encoding='utf-8') as f:
-                        f.write(thesis)
-                    gr.Info('已完成，请刷新')
-                    yield thesis, os.listdir('tempest')
+                gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
+                thesisGenerator = generate(title)
+                for tempThesis in thesisGenerator:
+                    thesis = tempThesis
+                    yield thesis, []
+                with open(f'tempest/{title}.md', 'w',
+                            encoding='utf-8') as f:
+                    f.write(thesis)
+                gr.Info('已完成，请刷新')
+                yield thesis, os.listdir('tempest')
 
             generate_button.click(generateAndSave, [title],
                                   [thesisBox, tempest_file_list],
@@ -558,22 +572,22 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         gr.Info('已完成，请刷新')
                         yield final_response, os.listdir('tempest')
 
-                    generate_button.click(generate_ppt, [title], [pptBox, tempest_file_list])
+                    generate_button.click(generate_ppt, [title],
+                                          [pptBox, tempest_file_list])
 
                 with gr.Column(scale=1, min_width=150):
 
                     def upload_paper(file):
                         simpfile = os.path.splitext(os.path.basename(file))[0]
-                        if os.path.exists(
-                                f"tempest/{simpfile}.md") or os.path.exists(
-                                    f"tempest/{simpfile}.txt"):
+                        existing_files = set(os.listdir('tempest'))
+                        if f"{simpfile}.md" in existing_files or f"{simpfile}.txt" in existing_files:
                             return
-                        upload_folder = "tempest"
-                        shutil.copy(file, upload_folder)
+                        shutil.copy(file, "tempest")
                         return os.listdir('tempest')
 
                     uploadDraft = gr.UploadButton("上传markdown文案", scale=0)
-                    uploadDraft.upload(upload_paper, uploadDraft, tempest_file_list)
+                    uploadDraft.upload(upload_paper, uploadDraft,
+                                       tempest_file_list)
                     refresh = gr.Button("刷新", scale=0, min_width=120)
 
                     @gr.render(triggers=[
@@ -624,12 +638,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 message = message.strip()
                 if message == "":
                     return "", chat_history
-                if chat_history == []:
+                if not chat_history:
                     message = attachHints(message)
                 chat_history.append({"role": 'user', "content": message})
                 answer = deepseek(chat_history)
                 chat_history.append({"role": 'assistant', "content": ''})
-                yield "", chat_history
                 for chunk in answer:
                     chat_history[-1]['content'] = chunk
                     yield "", chat_history
@@ -676,7 +689,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
             clearBtn = gr.ClearButton([solve_box, qvqchatbot])
 
             def solve_multimodal(message, chat_history):
-                if type(message) != str:
+                if not isinstance(message, str):
                     message, files = message["text"], message["files"]
                 message = formatFormula(message)
                 message = remove_newlines_from_formulas(message)
@@ -686,10 +699,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 bot_stream = bot.answer(message)
                 chat_history.append(
                     [message, constructMultimodalMessage("", [])])
+                bot_message = StringIO()
                 for bot_chunk in bot_stream:
-                    chat_history[-1][-1]['text'] += bot_chunk
+                    bot_message.write(bot_chunk)
+                    chat_history[-1][-1]['text'] = bot_message.getvalue()
                     yield gr.MultimodalTextbox(value=None), chat_history
-                full_bot_message = chat_history[-1][-1]['text']
+                full_bot_message = bot_message.getvalue()
+                bot_message.close()
                 chat_history[-1][-1]['text'] = remove_newlines_from_formulas(
                     formatFormula(full_bot_message))
                 yield gr.MultimodalTextbox(value=None), chat_history
@@ -726,10 +742,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             os.remove(f"{folder}/{file}")
                             return os.listdir(folder)
 
-                        deleteBtn.click(
-                            delete_file,
-                            None,
-                            listener)
+                        deleteBtn.click(delete_file, None, listener)
 
                 with gr.Tab("已解析文件"):
                     refresh = gr.Button("刷新", scale=0, min_width=120)
@@ -757,15 +770,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                             label="选择格式")
 
             def convert_file(file_to_convert, convert_to_format):
-                if file_to_convert.strip() == "":
-                    return "", os.listdir('knowledgeBase'), os.listdir('tempest')
-                else:
+                if file_to_convert:
                     convert_to(file_to_convert, convert_to_format)
                 return "", os.listdir('knowledgeBase'), os.listdir('tempest')
 
-            convert_Button.click(convert_file,
-                                 [file_to_convert, convert_to_format],
-                                 [file_to_convert, knowledgeBase_file_list, tempest_file_list],
-                                 concurrency_limit=12)
+            convert_Button.click(
+                convert_file, [file_to_convert, convert_to_format],
+                [file_to_convert, knowledgeBase_file_list, tempest_file_list],
+                concurrency_limit=12)
 
 demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
