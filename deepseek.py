@@ -18,3 +18,4 @@ def deepseek(messages):
     for chunk in response:
         final_response.write(chunk.choices[0].delta.content or "")
         yield final_response.getvalue()
+    final_response.close()
