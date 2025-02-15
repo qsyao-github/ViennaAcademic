@@ -26,6 +26,7 @@ def codestral_stream(prompt):
     for chunk in response:
         finalResponse.write(chunk.choices[0].delta.content or "")
         yield finalResponse.getvalue()
+    finalResponse.close()
 
 def is_program_file(filename):
     program_extensions = frozenset({
