@@ -54,8 +54,7 @@ def parseWebsite(url):
     success = get_html(url)
     if success:
         return parseEverything('temp.html')
-    else:
-        return None
+    return None
 
 
 def parseArxiv(url):
