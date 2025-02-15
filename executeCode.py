@@ -24,6 +24,7 @@ def execute_code(code):
     return stdout if stdout else '' + stderr if stderr else ''
 
 
+outputFolder = r'media/videos/temp/480p15/'
 def manim_render(code, nowTime):
     try:
         if '```' in code:
@@ -32,11 +33,11 @@ def manim_render(code, nowTime):
             shutil.rmtree('media')
         with open('temp.py', 'w') as f:
             f.write("from manim import *\n" + code)
-        os.system(f'manim temp.py -ql')
-        outputFolder = r'media/videos/temp/480p15/'
+        subprocess.run(['manim', 'temp.py', '-ql'], check=True)
         output = [f for f in os.listdir(outputFolder) if f.endswith('.mp4')][0]
-        os.rename(outputFolder + output, outputFolder + nowTime + '.mp4')
-        shutil.move(outputFolder + nowTime + '.mp4', os.getcwd())
+        new_output_path = os.path.join(outputFolder, f'{nowTime}.mp4')
+        os.rename(os.path.join(outputFolder, output), new_output_path)
+        shutil.move(new_output_path, os.getcwd())
         return f'```python\n{code}\n```'
     except:
         return 'gpt生成代码有误，请重试'
