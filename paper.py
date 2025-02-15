@@ -17,7 +17,15 @@ def attach(file):
                     return f.read()
             elif file in os.listdir('code'):
                 with open(f'code/{file}', 'r', encoding='utf-8') as f:
-                    return f.read()
+                    code = f.read()
+                    if file.endswith('.py'):
+                        return f"```python\n{code}\n```"
+                    elif file.endswith('.cpp'):
+                        return f"```cpp\n{code}\n```"
+                    elif file.endswith('.java'):
+                        return f"```java\n{code}\n```"
+                    elif file.endswith('.c'):
+                        return f"```c\n{code}\n```"
         except:
             return ""
 
@@ -107,7 +115,7 @@ def process_part_of_list(string_list, start, end, result_list, extraPrompt):
         result_list[i] = translation(string_list[i], extraPrompt)
 
 
-def baseConversion(file_path, suffix, prompt, userMessage):
+def baseConversion(file_path, suffix, prompt):
     base_name = file_path[:file_path.rfind('.')]
     paper_file_path = f'paper/{base_name}{suffix}.md'
     kb_file_path = f'knowledgeBase/{base_name}{suffix}.md'
