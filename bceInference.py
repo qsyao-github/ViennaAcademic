@@ -11,16 +11,18 @@ embedding_model_name = 'netease-youdao/bce-embedding-base_v1'
 embed_model = CustomEmbeddings(model=embedding_model_name)
 reranker = CustomCompressor(10)
 
+text_splitter = RecursiveCharacterTextSplitter(separators=[
+    r"\n+#{1,6}\s+", r"\n{2,}", r"\n+", r"\s{2,}",
+    r"(?<=[.!?;])\s+|(?<=[。？！；])", r"(?<=[,])\s+|(?<=[，])", r"\s+"
+],
+                                               is_separator_regex=True,
+                                               chunk_overlap=32,
+                                               chunk_size=512)
+check_chars = ['。', '！', '？', '.', '!', '?']
+
 
 def get_document(file):
     documents = TextLoader(file).load()
-    text_splitter = RecursiveCharacterTextSplitter(separators=[
-        r"\n+#{1,6}\s+", r"\n{2,}", r"\n+", r"\s{2,}",
-        r"(?<=[.!?;])\s+|(?<=[。？！；])",r"(?<=[,])\s+|(?<=[，])",r"\s+"
-    ],
-                                                   is_separator_regex=True,
-                                                   chunk_overlap=32,
-                                                   chunk_size=512)
     texts = text_splitter.split_documents(documents)
     return texts
 
@@ -35,24 +37,32 @@ def get_retriever(file):
         return retriever
 
 
+def save_retriever(file):
+    try:
+        retriever = get_retriever(f'knowledgeBase/{file}.md')
+        if retriever is not None:
+            retriever.save_local('retrievers', file)
+    except:
+        pass
+
+
+def remove_retriever(file):
+    try:
+        os.remove(f'retrievers/{file}.pkl')
+        os.remove(f'retrievers/{file}.faiss')
+    except:
+        pass
+
+
 def update():
     knowledgeBase = set(
-        [os.path.splitext(file)[0] for file in os.listdir('knowledgeBase')])
+        os.path.splitext(file)[0] for file in os.listdir('knowledgeBase'))
     retrievers = set(
-        [os.path.splitext(file)[0] for file in os.listdir('retrievers')])
+        os.path.splitext(file)[0] for file in os.listdir('retrievers'))
     for file in knowledgeBase - retrievers:
-        try:
-            retriever = get_retriever(f'knowledgeBase/{file}.md')
-            if retriever is not None:
-                retriever.save_local('retrievers', file)
-        except:
-            pass
+        save_retriever(file)
     for file in retrievers - knowledgeBase:
-        try:
-            os.remove(f'retrievers/{file}.pkl')
-            os.remove(f'retrievers/{file}.faiss')
-        except:
-            pass
+        remove_retriever(file)
 
 
 def merge_retrievers():
@@ -60,9 +70,10 @@ def merge_retrievers():
         FAISS.load_local('retrievers',
                          embed_model,
                          file,
-                         distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,allow_dangerous_deserialization=True)
+                         distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+                         allow_dangerous_deserialization=True)
         for file in set(
-            [os.path.splitext(file)[0] for file in os.listdir('retrievers')])
+            os.path.splitext(file)[0] for file in os.listdir('retrievers'))
     ]
     base_retriever = retrievers.pop()
     for retriever in retrievers:
@@ -86,8 +97,8 @@ def get_response(query):
         indicator = "Source: "
         content = document.page_content.strip(' \n')
         if content and '#' not in content and '\n' not in content and any(
-                char in content for char in ['。', '！', '？', '.', '!', '?']
-        ) and document.metadata["relevance_score"] >= 0.35:
+                char in content for char in
+                check_chars) and document.metadata["relevance_score"] >= 0.35:
             source = document.metadata["source"][14:]
             if source.startswith('STORMtemp'):
                 source = source[9:]
