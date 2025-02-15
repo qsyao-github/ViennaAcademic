@@ -41,7 +41,7 @@ def downloadArxivPaper(arxivID, storm=False, index=None):
         translated_title, translated_abstract = getTranslation(title, abstract)
     else:
         translated_title, translated_abstract = title, abstract
-    title = title if not storm else f"STORMtemp{index}"
+    title = f"STORMtemp{index}" if storm else title
     result = parseArxiv(link)
     with open(f'knowledgeBase/{title}.md','w', encoding='utf-8') as f:
         if result is not None:
