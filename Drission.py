@@ -1,12 +1,8 @@
 from DrissionPage import Chromium, ChromiumOptions
-import re
 co = ChromiumOptions().headless(True)
 co = co.set_argument('--no-sandbox')
 browser = Chromium(co)
 tab = browser.latest_tab
-
-def isChinese(query):
-    return bool(re.search(r'[\u4e00-\u9fff]', query))
 
 def get_html(url):
     success = tab.get(url, timeout=10, retry=1)
@@ -32,4 +28,3 @@ def get_wolfram(query):
         return '\n'.join(finalAnswer)
     except:
         return ''
-
