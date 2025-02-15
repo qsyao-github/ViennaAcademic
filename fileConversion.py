@@ -1,13 +1,14 @@
 import subprocess
 from generate import extract_content, isChinese
-from collections import deque
+import os
 
 
 def convert_to_pdf(input_file):
+    file_name, _ = os.path.splitext(input_file)
     subprocess.run([
         'pandoc', input_file, '--pdf-engine=xelatex','-V',
         'CJKmainfont=AR PL SungtiL GB', '-o',
-        input_file.split('.')[-2] + '.pdf'
+        f'{file_name}.pdf'
     ])
 
 
@@ -15,19 +16,11 @@ def convert_to(input_file, extension):
     if extension == 'pdf':
         convert_to_pdf(input_file)
     else:
+        file_name, _ = os.path.splitext(input_file)
         subprocess.run([
             'pandoc', input_file, '-o',
-            input_file.split('.')[-2] + '.' + extension
+            f'{file_name}.{extension}'
         ])
-
-
-def extract_from_toc(toc):
-    subheadings = deque()
-    for line in toc.splitlines():
-        level = (len(line) - len(line.lstrip(' '))) // 4
-        if level > 1:
-            subheadings.append('#' * level + ' ' + line.strip(' -'))
-    return subheadings
 
 
 def parse_markdown(input_file):
@@ -41,7 +34,6 @@ def parse_markdown(input_file):
         last_sharp = content.rfind('## Reference')
     toc, content, reference = content[:first_sharp].strip(
     ), content[first_sharp:last_sharp].strip(), content[last_sharp:].strip()
-    # subheadings = extract_from_toc(toc) if toc else deque()
     newContents = extract_content(content, isChinese(toc))
     referenceSplit = reference.split('\n', 1)
     newReference = f"{referenceSplit[0]} {{.allowframebreaks}}{referenceSplit[1]}"
@@ -50,21 +42,22 @@ def parse_markdown(input_file):
 
 
 def convert_to_pptx(input_file, do_parse=True):
+    output_md_file = f'{input_file}ppt.md'
     if do_parse:
         finalcontent = ''
         contents = parse_markdown(input_file)
         for content in contents:
             finalcontent = content
             yield content
-        with open(input_file + 'ppt.md', 'w', encoding='utf-8') as f:
+        with open(output_md_file, 'w', encoding='utf-8') as f:
             f.write(finalcontent)
     else:
-        with open(input_file + 'ppt.md', 'r', encoding='utf-8') as f:
+        with open(output_md_file, 'r', encoding='utf-8') as f:
             finalcontent = f.read()
         yield finalcontent
     subprocess.run([
-        'pandoc', input_file + 'ppt.md', '-t', 'beamer',
+        'pandoc', output_md_file, '-t', 'beamer',
         '--pdf-engine=xelatex', '-V', 'theme:Madrid', '-V',
         'CJKmainfont=AR PL SungtiL GB', '--slide-level', '2', '-o',
-        input_file + 'ppt.pdf'
+        f'{input_file}ppt.pdf'
     ])
