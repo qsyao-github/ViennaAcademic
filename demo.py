@@ -93,28 +93,30 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
     with gr.Tab("聊天"):
         with gr.Row():
-            with gr.Column(scale=0, min_width=150):
-                websearchBtn = gr.Button("网页搜索", scale=0)
-                findPaper = gr.Button("搜索论文", scale=0)
-                generateDocstring = gr.Button("生成注释", scale=0)
-                optimizeCode = gr.Button("优化代码", scale=0)
+            with gr.Column(scale=0, min_width=108):
+                websearchBtn = gr.Button("网页搜索", scale=1, min_width=64)
+                findPaper = gr.Button("搜索论文", scale=1, min_width=64)
+                generateDocstring = gr.Button("生成注释", scale=1, min_width=64)
+                optimizeCode = gr.Button("优化代码", scale=1, min_width=64)
             with gr.Column(scale=8):
                 chatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
-                                            show_copy_button=True, label="聊天框")
-                msg = gr.MultimodalTextbox(label="输入框",placeholder="输入文字，可点左侧按钮上传图片")
+                                            show_copy_button=True,
+                                            label="聊天框",
+                                            scale=8)
+                msg = gr.MultimodalTextbox(label="输入框",
+                                           placeholder="输入文字，可点左侧按钮上传图片",
+                                           scale=0)
                 with gr.Row():
-                    clear = gr.ClearButton([msg, chatbot],value="清除")
-                    attachBtn = gr.Button("引用")
+                    clear = gr.ClearButton([msg, chatbot], value="清除", scale=1)
+                    attachBtn = gr.Button("引用", scale=1)
                     multimodalSwitch = gr.Checkbox(
                         label="多模态",
-                        info=
-                        "若勾选，模型可直接理解图片，但速度与纯文本推理能力下降。确保图片方向正确，尽可能裁剪，用输入框左侧按钮上传"
-                    )
+                        info="模型可理解图片，但速度、纯文本推理能力下降。确保图片方向正确，尽可能裁剪",
+                        scale=1)
                     knowledgeBaseSwitch = gr.Checkbox(
                         label="知识库",
-                        info=
-                        "若勾选，模型每次回复前，服务器都将查询已经上传的论文/学术专著，供模型整合作答。大量文本可能干扰模型的基础推理能力。"
-                    )
+                        info="查询已上传论文，将相关文段附加在用户输入前。可能干扰模型的基础推理能力",
+                        scale=1)
 
                 def checkDelete():
                     file_suffixes_to_remove = (".png", ".mp4", ".txt")
@@ -214,31 +216,31 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 bot_message.write(bot_chunk)
                                 chat_history[-1][-1][
                                     'text'] = bot_message.getvalue()
-                                yield {"text":"","files":[]}, chat_history
+                                yield {"text": "", "files": []}, chat_history
                         full_bot_message = bot_message.getvalue()
                         bot_message.close()
                         full_bot_message = remove_newlines_from_formulas(
                             formatFormula(toolcall(full_bot_message, nowTime)))
                         chat_history[-1][-1] = constructMultimodalMessage(
                             full_bot_message, botFileConstructor(nowTime))
-                        yield {"text":"","files":[]}, chat_history
+                        yield {"text": "", "files": []}, chat_history
                     elif isinstance(message, tuple):
                         chat_history.append(
                             doubleMessage(message[0], message[1]))
-                        yield {"text":"","files":[]}, chat_history
+                        yield {"text": "", "files": []}, chat_history
                     else:
                         chunk = next(message)
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
-                        yield {"text":"","files":[]}, chat_history
+                        yield {"text": "", "files": []}, chat_history
                         for chunk in message:
                             chat_history[-1][-1]["text"] = chunk[1]
-                            yield {"text":"","files":[]}, chat_history
+                            yield {"text": "", "files": []}, chat_history
 
                 msg.submit(
                     respond,
                     [msg, chatbot, multimodalSwitch, knowledgeBaseSwitch],
                     [msg, chatbot])
-            with gr.Column(min_width=350):
+            with gr.Column(min_width=384):
 
                 def upload_paper(file):
                     gr.Info("已经开始上传，请不要重复提交，10页的论文大概需要40s，请耐心等候")
@@ -248,7 +250,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         return os.listdir('paper'), list(knowledge_base_files)
                     shutil.copy(file, "paper")
                     text = parseEverything(file)
-                    with open(f"knowledgeBase/{simpfile}.md", "w", encoding='utf-8') as f:
+                    with open(f"knowledgeBase/{simpfile}.md",
+                              "w",
+                              encoding='utf-8') as f:
                         f.write(text)
                     update()
                     return os.listdir('paper'), list(knowledge_base_files)
@@ -256,13 +260,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 def base_show_regular_files(folder, listener):
                     for file in os.listdir(folder):
                         with gr.Row():
-                            fileBtn = gr.Button(file, scale=0, min_width=120)
+                            fileBtn = gr.Button(file, scale=1, min_width=120)
                             downloadFile = gr.DownloadButton(
                                 f"下载",
                                 f'{folder}/{file}',
                                 scale=0,
-                                min_width=70)
-                            deleteFile = gr.Button("删除", scale=0, min_width=70)
+                                min_width=72)
+                            deleteFile = gr.Button("删除", scale=0, min_width=72)
 
                             def delete_file(file=file):
                                 os.remove(f"{folder}/{file}")
@@ -285,11 +289,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 with gr.Tab("论文"):
                     with gr.Row():
-                        uploadThesis = gr.UploadButton("上传论文", scale=1)
+                        uploadThesis = gr.UploadButton("上传论文",
+                                                       scale=1,
+                                                       min_width=64)
                         uploadThesis.upload(
                             upload_paper, uploadThesis,
                             [paper_file_list, knowledgeBase_file_list])
-                        refresh = gr.Button("刷新", scale=0, min_width=120)
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, paper_file_list.change
@@ -298,10 +304,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         base_show_regular_files("paper", paper_file_list)
 
                 with gr.Tab("已解析文件"):
-                    gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
-                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762",label="Arxiv ID")
-                    downloadArxiv = gr.Button("arxiv论文下载", scale=0)
+                    with gr.Row():
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
+                        downloadArxiv = gr.Button("arxiv论文下载",
+                                                  scale=1,
+                                                  min_width=168)
+                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762",
+                                          label="Arxiv ID")
 
                     def gradiodownloadArxivPaper(arxivNum,
                                                  chat_history=chatbot):
@@ -331,10 +340,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         return os.listdir('code')
 
                     with gr.Row():
-                        uploadCode = gr.UploadButton("上传代码", scale=1)
+                        uploadCode = gr.UploadButton("上传代码",
+                                                     scale=1,
+                                                     min_width=64)
                         uploadCode.upload(upload_code, uploadCode,
                                           code_file_list)
-                        refresh = gr.Button("刷新", scale=0, min_width=120)
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, code_file_list.change
@@ -343,16 +354,24 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         base_show_regular_files("code", code_file_list)
 
                 with gr.Tab("Github仓库"):
-                    refresh = gr.Button("刷新", scale=0, min_width=100)
-                    githubUrl = gr.Textbox(label = '仓库url', placeholder='输入Github仓库的url，点击克隆仓库')
-                    githubClone = gr.Button("克隆仓库", scale=0)
+                    with gr.Row():
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
+                        githubClone = gr.Button("克隆仓库", scale=1, min_width=64)
+                    githubUrl = gr.Textbox(label='仓库url',
+                                           placeholder='输入Github仓库的url，点击克隆仓库')
 
                     def clone_repo(url):
                         if url:
                             gr.Info("正在克隆，请耐心等候")
-                            subprocess.run(
+                            result = subprocess.run(
                                 ["cd", "repositry", "&&", "git", "clone", url],
-                                shell=True)
+                                shell=True,
+                                capture_output=True,
+                                text=True)
+                            if result.returncode == 0:
+                                gr.Info("克隆成功，请刷新")
+                            else:
+                                gr.Info("克隆失败:", result.stderr)
                         return "", os.listdir('repositry')
 
                     githubClone.click(clone_repo, githubUrl,
@@ -364,21 +383,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     def showFolder():
                         for folder in os.listdir(r'repositry'):
                             with gr.Row():
-                                folderBtn = gr.Button("解析" + folder,
-                                                      scale=0,
-                                                      min_width=120)
+                                folderBtn = gr.Button("解析" + folder, scale=1)
 
-                                deleteFolder = gr.Button("删除",
-                                                         scale=0,
-                                                         min_width=70)
+                                deleteFolder = gr.Button("删除", scale=0)
 
                                 def delete_folder(folder=folder):
                                     shutil.rmtree(f'repositry/{folder}')
                                     return os.listdir('repositry')
 
-                                deleteFolder.click(delete_folder,
-                                                   None,
-                                                   repositry_folder_list,
+                                deleteFolder.click(delete_folder, [],
+                                                   [repositry_folder_list],
                                                    concurrency_limit=12)
 
                                 def output_analysis(chathistory,
@@ -403,9 +417,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     selected_function = gr.Dropdown(
                         ['论文解读', '论文翻译->英', '论文翻译->中', '论文润色'],
                         scale=0,
-                        min_width=192,label="功能")
+                        min_width=180,
+                        label="功能")
                     selected_paper = gr.Textbox(placeholder='点击右侧文件名输入',
-                                                scale=1,label="文件名")
+                                                scale=1,
+                                                label="文件名")
                 paper_answer = gr.Markdown(show_copy_button=True)
 
                 def generate_paper_answer(selected_function, selected_paper):
@@ -429,11 +445,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                       [paper_answer, knowledgeBase_file_list],
                                       concurrency_limit=3)
 
-            with gr.Column(scale=1, min_width=350):
-                paper_refresh = gr.Button('刷新')
+            with gr.Column(scale=1, min_width=384):
+                with gr.Row():
+                    paper_refresh = gr.Button('刷新', scale=1, min_width=32)
+                    downloadArxiv = gr.Button("arxiv论文下载",
+                                              scale=1,
+                                              min_width=112)
                 paper_arxivNum = gr.Textbox(
-                    placeholder="输入arxiv号，例如：1706.03762",label = "Arxiv ID")
-                downloadArxiv = gr.Button("arxiv论文下载", scale=0)
+                    placeholder="输入arxiv号，例如：1706.03762", label="Arxiv ID")
 
                 def gradiodownloadArxivPaper(paper_arxivNum):
                     gr.Info("正在下载，请耐心等候")
@@ -453,13 +472,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     time.sleep(0.125)
                     for file in os.listdir('knowledgeBase'):
                         with gr.Row():
-                            fileBtn = gr.Button(file, scale=0, min_width=120)
+                            fileBtn = gr.Button(file, scale=1, min_width=120)
                             downloadFile = gr.DownloadButton(
                                 f"下载",
                                 f'knowledgeBase/{file}',
                                 scale=0,
-                                min_width=70)
-                            deleteFile = gr.Button("删除", scale=0, min_width=70)
+                                min_width=72)
+                            deleteFile = gr.Button("删除", scale=0, min_width=72)
 
                             def delete_paper(file=file):
                                 os.remove(f"knowledgeBase/{file}")
@@ -482,13 +501,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
     with gr.Tab("写作"):
         with gr.Tab("全自动生成论文"):
             with gr.Row():
-                with gr.Column(scale=3, min_width=150):
+                with gr.Column(scale=8, min_width=150):
                     title = gr.Textbox(
-                        placeholder="输入论文标题，例如：中华民族共同体意识, Fluid Field。建议只输入标题！",label="论文标题")
+                        placeholder="输入论文标题，例如：中华民族共同体意识, Fluid Field。建议只输入标题！",
+                        label="论文标题")
                     generate_button = gr.Button("生成论文")
                     thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件可在右侧下载")
-                with gr.Column(scale=1, min_width=150):
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
+                with gr.Column(scale=1, min_width=384):
+                    refresh = gr.Button("刷新", scale=1, min_width=120)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, tempest_file_list.change
@@ -497,16 +517,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         for file in os.listdir(r"tempest"):
                             with gr.Row():
                                 fileBtn = gr.Button(file,
-                                                    scale=0,
+                                                    scale=1,
                                                     min_width=120)
                                 downloadFile = gr.DownloadButton(
                                     f"下载",
                                     f'tempest/{file}',
                                     scale=0,
-                                    min_width=70)
+                                    min_width=72)
                                 deleteFile = gr.Button("删除",
                                                        scale=0,
-                                                       min_width=70)
+                                                       min_width=72)
 
                                 def delete_tempest_file(file=file):
                                     os.remove(f"tempest/{file}")
@@ -523,8 +543,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 for tempThesis in thesisGenerator:
                     thesis = tempThesis
                     yield thesis, []
-                with open(f'tempest/{title}.md', 'w',
-                            encoding='utf-8') as f:
+                with open(f'tempest/{title}.md', 'w', encoding='utf-8') as f:
                     f.write(thesis)
                 gr.Info('已完成，请刷新')
                 yield thesis, os.listdir('tempest')
@@ -537,7 +556,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Column(scale=3, min_width=150):
                     title = gr.Textbox(
                         placeholder=
-                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳",label="markdown文案")
+                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳",
+                        label="markdown文案")
                     generate_button = gr.Button("生成PPT")
                     pptBox = gr.Markdown(
                         """生成的PPT文案将显示在此，markdown源文件和ppt可在右侧下载。后缀分别为ppt.md和.pdf。
@@ -576,7 +596,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     generate_button.click(generate_ppt, [title],
                                           [pptBox, tempest_file_list])
 
-                with gr.Column(scale=1, min_width=150):
+                with gr.Column(scale=1, min_width=384):
 
                     def upload_paper(file):
                         simpfile = os.path.splitext(os.path.basename(file))[0]
@@ -586,10 +606,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         shutil.copy(file, "tempest")
                         return os.listdir('tempest')
 
-                    uploadDraft = gr.UploadButton("上传markdown文案", scale=0)
-                    uploadDraft.upload(upload_paper, uploadDraft,
-                                       tempest_file_list)
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
+                    with gr.Row():
+                        uploadDraft = gr.UploadButton("上传markdown文案",
+                                                      scale=1,
+                                                      min_width=192)
+                        uploadDraft.upload(upload_paper, uploadDraft,
+                                           tempest_file_list)
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, tempest_file_list.change
@@ -599,16 +622,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         for file in os.listdir(r"tempest"):
                             with gr.Row():
                                 fileBtn = gr.Button(file,
-                                                    scale=0,
+                                                    scale=1,
                                                     min_width=120)
                                 downloadFile = gr.DownloadButton(
                                     f"下载",
                                     f'tempest/{file}',
                                     scale=0,
-                                    min_width=70)
+                                    min_width=72)
                                 deleteFile = gr.Button("删除",
                                                        scale=0,
-                                                       min_width=70)
+                                                       min_width=72)
 
                                 def add_to_title(file=file):
                                     if file.endswith("ppt.md"):
@@ -673,11 +696,14 @@ with gr.Blocks(fill_height=True, fill_width=True,
             solve_chatbot = gr.Chatbot(type="messages",
                                        latex_delimiters=LATEX_DELIMITERS,
                                        show_copy_button=True,
-                                       show_copy_all_button=True,label="聊天框")
+                                       show_copy_all_button=True,
+                                       label="聊天框")
             solve_msg = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题",
-                                   interactive=True,label="输入框")
+                                   interactive=True,
+                                   label="输入框")
             with gr.Row():
-                solve_clear = gr.ClearButton([solve_msg, solve_chatbot],value="清除")
+                solve_clear = gr.ClearButton([solve_msg, solve_chatbot],
+                                             value="清除")
                 ocr_button = gr.UploadButton("识别题目(可手动纠错)")
             ocr_button.upload(ocr, ocr_button, solve_msg)
             solve_msg.submit(respond, [solve_msg, solve_chatbot],
@@ -685,12 +711,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                              concurrency_limit=2)
         with gr.Tab("多模态解题(需要上传图片)"):
             qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
-                                           show_copy_button=True,label="聊天框")
+                                           show_copy_button=True,
+                                           label="聊天框")
             solve_box = gr.MultimodalTextbox(
                 placeholder=
-                "上传一个图片(严格=1)，可输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，否则请移步常规解题。若模型回答意外终止，请回复“继续”。若未能得出答案，请勿反复尝试"
-            ,label="输入框")
-            clearBtn = gr.ClearButton([solve_box, qvqchatbot],value="清除")
+                "上传一个图片(严格=1)，可输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，否则请移步常规解题。若模型回答意外终止，请回复“继续”。若未能得出答案，请勿反复尝试",
+                label="输入框")
+            clearBtn = gr.ClearButton([solve_box, qvqchatbot], value="清除")
 
             def solve_multimodal(message, chat_history):
                 if not isinstance(message, str):
@@ -707,12 +734,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 for bot_chunk in bot_stream:
                     bot_message.write(bot_chunk)
                     chat_history[-1][-1]['text'] = bot_message.getvalue()
-                    yield {"text":"","files":[]}, chat_history
+                    yield {"text": "", "files": []}, chat_history
                 full_bot_message = bot_message.getvalue()
                 bot_message.close()
                 chat_history[-1][-1]['text'] = remove_newlines_from_formulas(
                     formatFormula(full_bot_message))
-                yield {"text":"","files":[]}, chat_history
+                yield {"text": "", "files": []}, chat_history
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
                              [solve_box, qvqchatbot],
@@ -722,7 +749,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
         with gr.Row():
             with gr.Column(scale=4):
                 file_to_convert = gr.Textbox(
-                    placeholder="输入需要转换的文件名或点击下方的按钮填入",label="文件名")
+                    placeholder="输入需要转换的文件名或点击下方的按钮填入", label="文件名")
 
                 def base_show_files(folder, listener):
                     for file in os.listdir(folder):
@@ -731,8 +758,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             downloadBtn = gr.DownloadButton("下载",
                                                             f'{folder}/{file}',
                                                             scale=0,
-                                                            min_width=70)
-                            deleteBtn = gr.Button("删除", scale=0, min_width=70)
+                                                            min_width=72)
+                            deleteBtn = gr.Button("删除", scale=0, min_width=72)
 
                         def appendToCandidate(file=file):
                             if file.endswith(".md"):
@@ -749,7 +776,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         deleteBtn.click(delete_file, None, listener)
 
                 with gr.Tab("已解析文件"):
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
+                    refresh = gr.Button("刷新", scale=1, min_width=120)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load,
@@ -761,7 +788,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                         knowledgeBase_file_list)
 
                 with gr.Tab("论文/PPT生成产物"):
-                    refresh = gr.Button("刷新", scale=0, min_width=120)
+                    refresh = gr.Button("刷新", scale=1, min_width=120)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, tempest_file_list.change
@@ -771,7 +798,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         base_show_files("tempest", tempest_file_list)
 
             convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
-                                            label="选择格式")
+                                            label="选择格式",
+                                            scale=1,
+                                            min_width=64)
 
             def convert_file(file_to_convert, convert_to_format):
                 if file_to_convert:
