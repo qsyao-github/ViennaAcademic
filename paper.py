@@ -344,7 +344,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     githubUrl = gr.Textbox()
                     githubClone = gr.Button("克隆仓库", scale=0)
 
-                    # unoptimized from here
                     def clone_repo(url):
                         if url:
                             gr.Info("正在克隆，请耐心等候")
