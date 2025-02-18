@@ -1,6 +1,4 @@
 from modelclient import client1, client4
-from sympy import *
-from io import StringIO
 from Drission import get_wolfram
 
 def attachHints(query):
@@ -11,11 +9,9 @@ def attachHints(query):
 
 
 def deepseek(messages):
+    
     messages = [{k: message[k] for k in ["role", "content"]} for message in messages]
     response = client1.chat.completions.create(
         model="deepseek-r1-distill-llama-70b", messages=messages, temperature=0.6, stream=True)
-    final_response = StringIO()
     for chunk in response:
-        final_response.write(chunk.choices[0].delta.content or "")
-        yield final_response.getvalue()
-    final_response.close()
+        yield chunk.choices[0].delta.content or ""
