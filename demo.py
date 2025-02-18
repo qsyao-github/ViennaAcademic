@@ -100,10 +100,10 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 optimizeCode = gr.Button("优化代码", scale=0)
             with gr.Column(scale=8):
                 chatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
-                                            show_copy_button=True)
-                msg = gr.MultimodalTextbox()
+                                            show_copy_button=True, label="聊天框")
+                msg = gr.MultimodalTextbox(label="输入框",placeholder="输入文字，可点左侧按钮上传图片")
                 with gr.Row():
-                    clear = gr.ClearButton([msg, chatbot])
+                    clear = gr.ClearButton([msg, chatbot],value="清除")
                     attachBtn = gr.Button("引用")
                     multimodalSwitch = gr.Checkbox(
                         label="多模态",
@@ -203,12 +203,19 @@ with gr.Blocks(fill_height=True, fill_width=True,
                             [message,
                              constructMultimodalMessage("", [])])
                         bot_message = StringIO()
-                        for bot_chunk in bot_stream:
-                            bot_message.write(bot_chunk)
-                            chat_history[-1][-1][
-                                'text'] = bot_message.getvalue()
-                            yield gr.MultimodalTextbox(
-                                value=None), chat_history
+                        first_few_characters = next(bot_stream)
+                        bot_message.write(first_few_characters)
+                        tag_glitch = '<' in first_few_characters
+                        if tag_glitch:
+                            for bot_chunk in bot_stream:
+                                bot_message.write(bot_chunk)
+                        else:
+                            for bot_chunk in bot_stream:
+                                bot_message.write(bot_chunk)
+                                chat_history[-1][-1][
+                                    'text'] = bot_message.getvalue()
+                                yield gr.MultimodalTextbox(
+                                    value=None), chat_history
                         full_bot_message = bot_message.getvalue()
                         bot_message.close()
                         full_bot_message = remove_newlines_from_formulas(
@@ -295,7 +302,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Tab("已解析文件"):
                     gr.Button("只有在本列表中的.md文件才可以引用、解读、翻译、润色")
                     refresh = gr.Button("刷新", scale=0, min_width=120)
-                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762")
+                    arxivNum = gr.Textbox(placeholder="输入arxiv号，例如：1706.03762",label="Arxiv ID")
                     downloadArxiv = gr.Button("arxiv论文下载", scale=0)
 
                     def gradiodownloadArxivPaper(arxivNum,
@@ -339,10 +346,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 with gr.Tab("Github仓库"):
                     refresh = gr.Button("刷新", scale=0, min_width=100)
-                    githubUrl = gr.Textbox()
+                    githubUrl = gr.Textbox(label = '仓库url', placeholder='输入Github仓库的url，点击克隆仓库')
                     githubClone = gr.Button("克隆仓库", scale=0)
 
-                    # unoptimized from here
                     def clone_repo(url):
                         if url:
                             gr.Info("正在克隆，请耐心等候")
@@ -399,9 +405,9 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     selected_function = gr.Dropdown(
                         ['论文解读', '论文翻译->英', '论文翻译->中', '论文润色'],
                         scale=0,
-                        min_width=192)
+                        min_width=192,label="功能")
                     selected_paper = gr.Textbox(placeholder='点击右侧文件名输入',
-                                                scale=1)
+                                                scale=1,label="文件名")
                 paper_answer = gr.Markdown(show_copy_button=True)
 
                 def generate_paper_answer(selected_function, selected_paper):
@@ -428,7 +434,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
             with gr.Column(scale=1, min_width=350):
                 paper_refresh = gr.Button('刷新')
                 paper_arxivNum = gr.Textbox(
-                    placeholder="输入arxiv号，例如：1706.03762")
+                    placeholder="输入arxiv号，例如：1706.03762",label = "Arxiv ID")
                 downloadArxiv = gr.Button("arxiv论文下载", scale=0)
 
                 def gradiodownloadArxivPaper(paper_arxivNum):
@@ -445,7 +451,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     paper_refresh.click, demo.load,
                     knowledgeBase_file_list.change
                 ])
-                # unoptimized
                 def base_show_paper():
                     time.sleep(0.125)
                     for file in os.listdir('knowledgeBase'):
@@ -481,7 +486,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
             with gr.Row():
                 with gr.Column(scale=3, min_width=150):
                     title = gr.Textbox(
-                        placeholder="输入主题，例如：中华民族共同体意识, Fluid Field")
+                        placeholder="输入论文标题，例如：中华民族共同体意识, Fluid Field。建议只输入标题！",label="论文标题")
                     generate_button = gr.Button("生成论文")
                     thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件可在右侧下载")
                 with gr.Column(scale=1, min_width=150):
@@ -534,7 +539,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 with gr.Column(scale=3, min_width=150):
                     title = gr.Textbox(
                         placeholder=
-                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳")
+                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳",label="markdown文案")
                     generate_button = gr.Button("生成PPT")
                     pptBox = gr.Markdown(
                         """生成的PPT文案将显示在此，markdown源文件和ppt可在右侧下载。后缀分别为ppt.md和.pdf。
@@ -670,11 +675,11 @@ with gr.Blocks(fill_height=True, fill_width=True,
             solve_chatbot = gr.Chatbot(type="messages",
                                        latex_delimiters=LATEX_DELIMITERS,
                                        show_copy_button=True,
-                                       show_copy_all_button=True)
+                                       show_copy_all_button=True,label="聊天框")
             solve_msg = gr.Textbox(placeholder="输入题目，难度不宜低于小学奥数，不宜高于IMO第1, 4题",
-                                   interactive=True)
+                                   interactive=True,label="输入框")
             with gr.Row():
-                clear = gr.ClearButton([solve_msg, solve_chatbot])
+                solve_clear = gr.ClearButton([solve_msg, solve_chatbot],value="清除")
                 ocr_button = gr.UploadButton("识别题目(可手动纠错)")
             ocr_button.upload(ocr, ocr_button, solve_msg)
             solve_msg.submit(respond, [solve_msg, solve_chatbot],
@@ -682,12 +687,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                              concurrency_limit=2)
         with gr.Tab("多模态解题(需要上传图片)"):
             qvqchatbot = MultimodalChatbot(latex_delimiters=LATEX_DELIMITERS,
-                                           show_copy_button=True)
+                                           show_copy_button=True,label="聊天框")
             solve_box = gr.MultimodalTextbox(
                 placeholder=
                 "请上传一个图片(严格=1)，可以输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，其余题目请移步常规解题。如果模型回答意外终止，请回复“继续”"
-            )
-            clearBtn = gr.ClearButton([solve_box, qvqchatbot])
+            ,label="输入框")
+            clearBtn = gr.ClearButton([solve_box, qvqchatbot],value="清除")
 
             def solve_multimodal(message, chat_history):
                 if not isinstance(message, str):
@@ -719,7 +724,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
         with gr.Row():
             with gr.Column(scale=4):
                 file_to_convert = gr.Textbox(
-                    placeholder="输入需要转换的文件名或点击下方的按钮填入")
+                    placeholder="输入需要转换的文件名或点击下方的按钮填入",label="文件名")
 
                 def base_show_files(folder, listener):
                     for file in os.listdir(folder):
