@@ -363,15 +363,16 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     def clone_repo(url):
                         if url:
                             gr.Info("正在克隆，请耐心等候")
+                            os.chdir('repositry')
                             result = subprocess.run(
-                                ["cd", "repositry", "&&", "git", "clone", url],
-                                shell=True,
+                                ["git", "clone", url],
                                 capture_output=True,
                                 text=True)
+                            os.chdir('..')
                             if result.returncode == 0:
                                 gr.Info("克隆成功，请刷新")
                             else:
-                                gr.Info("克隆失败:", result.stderr)
+                                gr.Info("克隆失败")
                         return "", os.listdir('repositry')
 
                     githubClone.click(clone_repo, githubUrl,
@@ -438,6 +439,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     answer = process_function(selected_paper)
                     for chunk in answer:
                         yield chunk, []
+                    gr.Info('已完成，请刷新')
                     yield chunk, os.listdir('knowledgeBase')
 
                 selected_paper.submit(generate_paper_answer,
