@@ -214,27 +214,25 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 bot_message.write(bot_chunk)
                                 chat_history[-1][-1][
                                     'text'] = bot_message.getvalue()
-                                yield gr.MultimodalTextbox(
-                                    value=None), chat_history
+                                yield {"text":"","files":[]}, chat_history
                         full_bot_message = bot_message.getvalue()
                         bot_message.close()
                         full_bot_message = remove_newlines_from_formulas(
                             formatFormula(toolcall(full_bot_message, nowTime)))
                         chat_history[-1][-1] = constructMultimodalMessage(
                             full_bot_message, botFileConstructor(nowTime))
-                        yield gr.MultimodalTextbox(value=None), chat_history
+                        yield {"text":"","files":[]}, chat_history
                     elif isinstance(message, tuple):
                         chat_history.append(
                             doubleMessage(message[0], message[1]))
-                        yield gr.MultimodalTextbox(value=None), chat_history
+                        yield {"text":"","files":[]}, chat_history
                     else:
                         chunk = next(message)
                         chat_history.append(doubleMessage(chunk[0], chunk[1]))
-                        yield gr.MultimodalTextbox(value=None), chat_history
+                        yield {"text":"","files":[]}, chat_history
                         for chunk in message:
                             chat_history[-1][-1]["text"] = chunk[1]
-                            yield gr.MultimodalTextbox(
-                                value=None), chat_history
+                            yield {"text":"","files":[]}, chat_history
 
                 msg.submit(
                     respond,
@@ -690,7 +688,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                            show_copy_button=True,label="聊天框")
             solve_box = gr.MultimodalTextbox(
                 placeholder=
-                "请上传一个图片(严格=1)，可以输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，其余题目请移步常规解题。如果模型回答意外终止，请回复“继续”"
+                "上传一个图片(严格=1)，可输入文字，此功能仅适用于必须看懂配图的题目(电路、几何等)，否则请移步常规解题。若模型回答意外终止，请回复“继续”。若未能得出答案，请勿反复尝试"
             ,label="输入框")
             clearBtn = gr.ClearButton([solve_box, qvqchatbot],value="清除")
 
@@ -709,12 +707,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 for bot_chunk in bot_stream:
                     bot_message.write(bot_chunk)
                     chat_history[-1][-1]['text'] = bot_message.getvalue()
-                    yield gr.MultimodalTextbox(value=None), chat_history
+                    yield {"text":"","files":[]}, chat_history
                 full_bot_message = bot_message.getvalue()
                 bot_message.close()
                 chat_history[-1][-1]['text'] = remove_newlines_from_formulas(
                     formatFormula(full_bot_message))
-                yield gr.MultimodalTextbox(value=None), chat_history
+                yield {"text":"","files":[]}, chat_history
 
             solve_box.submit(solve_multimodal, [solve_box, qvqchatbot],
                              [solve_box, qvqchatbot],
