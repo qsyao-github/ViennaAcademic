@@ -16,7 +16,7 @@ from deepseek import deepseek, attachHints
 from bceInference import update, get_response
 from fileConversion import convert_to_pptx, convert_to
 from imageUtils import encode_image
-from modelclient import client1
+from modelclient import client1, client2
 from paper import readPaper, translatePapertoChinese, translatePapertoEnglish, polishPaper
 
 LATEX_DELIMITERS = [{
@@ -209,7 +209,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 'text'] = bot_message.getvalue()
                             yield gr.MultimodalTextbox(
                                 value=None), chat_history
-                        print(chat_history[-1][-1])
                         full_bot_message = bot_message.getvalue()
                         bot_message.close()
                         full_bot_message = remove_newlines_from_formulas(
@@ -407,8 +406,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
 
                 def generate_paper_answer(selected_function, selected_paper):
                     if selected_paper not in os.listdir('knowledgeBase'):
-                        yield '文件不存在', os.listdir('knowledgeBase')
-                        return
+                        return '文件不存在', os.listdir('knowledgeBase')
                     gr.Info('正在生成答案，请耐心等候')
                     function_map = {
                         '论文润色': polishPaper,
@@ -643,10 +641,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 chat_history.append({"role": 'user', "content": message})
                 answer = deepseek(chat_history)
                 chat_history.append({"role": 'assistant', "content": ''})
+                temp_answer = StringIO()
                 for chunk in answer:
-                    chat_history[-1]['content'] = chunk
+                    temp_answer.write(chunk)
+                    chat_history[-1]['content'] = temp_answer.getvalue()
                     yield "", chat_history
-                final_answer = chat_history[-1]['content']
+                final_answer = temp_answer.getvalue()
+                temp_answer.close()
                 index = final_answer.rfind(r'</think>')
                 if index != -1:
                     final_answer = final_answer[index + 8:]
@@ -661,8 +662,8 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     insertMultimodalHistory('请准确返回题目的文字与公式，不要返回其它内容',
                                             encoded_image)
                 ]
-                response = client1.chat.completions.create(
-                    model='pixtral-large-latest', messages=ocr_message)
+                response = client2.chat.completions.create(
+                    model='glm-4v-flash', messages=ocr_message)
                 return remove_newlines_from_formulas(
                     formatFormula(response.choices[0].message.content))
 
