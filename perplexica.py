@@ -1,5 +1,5 @@
 import requests
-from modelclient import client1API_KEY, client1BASE_URL
+from modelclient import client1API_KEY, client1BASE_URL, client2API_KEY
 
 proxies = {"http": "http://localhost:7890", "https": "http://localhost:7890"}
 
@@ -8,9 +8,9 @@ def constructQuery(query, focusMode):
     return {
         "chatModel": {
             "provider": "custom_openai",
-            "model": "gpt-4o-mini",
-            "customOpenAIBaseURL": client1BASE_URL,
-            "customOpenAIKey": client1API_KEY
+            "model": "glm-4-flash",
+            "customOpenAIBaseURL": 'https://open.bigmodel.cn/api/paas/v4',
+            "customOpenAIKey": client2API_KEY
         },
         "embeddingModel": {
             "provider": "ollama",
