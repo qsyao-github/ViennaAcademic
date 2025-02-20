@@ -47,9 +47,6 @@ generate a markdown list of learnings from the contents. Return a maximum of 3 l
     learnings = glm_query(simplify_prompt, message)
     print(learnings)
     input()
-    for result in results:
-        print(result[1])
-        input()
     sourcesList = sum([result[1] for result in results], [])
     return message, sourcesList, learnings
 
@@ -75,7 +72,7 @@ def goal_and_future_directions(messages):
 
 
 def generate_query(query, breadth, learnings):
-    list_generation_prompt = f"Given the following prompt from the user, generate keywords to research the topic as a markdown unordered list. Return a maximum of {breadth} queries, but feel free to return less if the original prompt is clear. Make sure each query is unique and not similar to each other.\n{query}" + (
+    list_generation_prompt = f"Given the following prompt from the user, generate keywords to research the topic as a markdown unordered list in English. Return a maximum of {breadth} queries, but feel free to return less if the original prompt is clear. Make sure each query is unique and not similar to each other.\n{query}" + (
         f"""\nHere are some learnings from previous research, use them to generate more specific and less repetitive queries.\n{'\n'.join(learnings)}"""
         if learnings else '')
     search_list = deepseek_r1_query([{
