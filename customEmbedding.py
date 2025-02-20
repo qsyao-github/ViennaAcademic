@@ -3,14 +3,9 @@ from langchain_core.embeddings import Embeddings
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain_core.documents import Document
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
-from openai import OpenAI
 from langchain.callbacks.manager import Callbacks
+from modelclient import client5
 import requests
-
-client1API_KEY = ""
-client1BASE_URL = ""
-client1 = OpenAI(api_key=client1API_KEY, base_url=client1BASE_URL)
-
 
 def groupLists(lst: List[str]):
     # 将lst中每32个元素分为1组，最后一组可能不足32个元素
@@ -54,7 +49,7 @@ class CustomEmbeddings(Embeddings):
         finalEmbedding = []
         for group in grouped:
             group = [text[:512] for text in group]
-            embedding = client1.embeddings.create(input=group,
+            embedding = client5.embeddings.create(input=group,
                                                   model=self.model)
             finalEmbedding.extend(
                 [vector.embedding for vector in embedding.data])
