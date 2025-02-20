@@ -63,3 +63,8 @@ def stormSearch(query):
     message = message1 + '\n\n' + message2
     sourcesList = sourcesList1 + sourcesList2
     return message, sourcesList
+
+def deepAcademicSearch(query):
+    jsonquery = constructQuery(query, "academicSearch")
+    message, _, sourcesList = getResult(jsonquery)
+    return message, sourcesList
