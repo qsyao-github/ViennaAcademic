@@ -8,6 +8,7 @@ from codeAnalysis import analyze_folder
 import datetime
 import time
 import subprocess
+import math
 from io import StringIO
 from generate import generate
 from downloadpaper import downloadArxivPaper
@@ -501,16 +502,33 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                       concurrency_limit=12)
 
     with gr.Tab("写作"):
-        with gr.Tab("全自动生成论文"):
+        with gr.Tab("全自动生成论文(正在爆改，请勿使用)"):
             with gr.Row():
                 with gr.Column(scale=8, min_width=150):
                     title = gr.Textbox(
                         placeholder="输入论文标题，例如：中华民族共同体意识, Fluid Field。建议只输入标题！",
                         label="论文标题")
+                    with gr.Row():
+                        depth = gr.Number(label="深度(搜索轮数)", value=1, minimum = 1, maximum = 3)
+                        breadth = gr.Number(label="广度(单次搜索词数量)", value=2, minimum = 1, maximum = 4)
+                        estimation = gr.Textbox(label="预计用时&字数",placeholder=f"200s, 3600字/词")
+                        def update_estimation(depth, breadth):
+                            depth = round(depth)
+                            breadth = round(breadth)
+                            depth = max(1, min(depth, 3))
+                            breadth = max(1, min(breadth, 4))
+                            total_paragraphs = 2
+                            temp_breadth = breadth
+                            for _ in range(depth):
+                                total_paragraphs += temp_breadth
+                                temp_breadth = math.ceil(temp_breadth / 2)
+                            return f"{depth*90 + 30 + total_paragraphs*20}s, {total_paragraphs*900}字/词"
+                        depth.change(update_estimation, [depth, breadth], estimation)
+                        breadth.change(update_estimation, [depth, breadth], estimation)
                     generate_button = gr.Button("生成论文")
                     thesisBox = gr.Markdown("生成的论文将显示在此，markdown源文件可在右侧下载")
                 with gr.Column(scale=1, min_width=384):
-                    refresh = gr.Button("刷新", scale=1, min_width=120)
+                    refresh = gr.Button("刷新", scale=0, min_width=384)
 
                     @gr.render(triggers=[
                         refresh.click, demo.load, tempest_file_list.change
@@ -537,11 +555,15 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                 deleteFile.click(delete_tempest_file, None,
                                                  tempest_file_list)
 
-            def generateAndSave(title):
+            def generateAndSave(title, depth, breadth):
                 if title.strip() == "":
                     return "请输入主题", os.listdir('tempest')
+                depth = round(depth)
+                breadth = round(breadth)
+                depth = max(1, min(depth, 3))
+                breadth = max(1, min(breadth, 4))
                 gr.Info(f"正在生成，大概需要240s，请不要关闭界面。稍后可获取md文件")
-                thesisGenerator = generate(title)
+                thesisGenerator = generate(title, depth, breadth)
                 for tempThesis in thesisGenerator:
                     thesis = tempThesis
                     yield thesis, []
@@ -550,7 +572,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 gr.Info('已完成，请刷新')
                 yield thesis, os.listdir('tempest')
 
-            generate_button.click(generateAndSave, [title],
+            generate_button.click(generateAndSave, [title, depth, breadth],
                                   [thesisBox, tempest_file_list],
                                   concurrency_limit=1)
         with gr.Tab("全自动生成PPT"):
