@@ -2,12 +2,12 @@ from crawler import crawl_and_save
 from perplexica import stormSearch
 from bceInference import update, get_response
 from downloadpaper import downloadArxivPaper
-from modelclient import client1, client2, siliconClient
+from modelclient import client1, client2, client5
+from deepresearch import research
 import re
 import os
 import time
 from datetime import datetime
-import subprocess
 import threading
 import asyncio
 import concurrent.futures
@@ -46,9 +46,10 @@ def handle_reference(references):
 
 
 def delete_temp_files():
-    folders = ['knowledgeBase', 'retrievers']
-    for folder in folders:
-        subprocess.run(['rm', '-rf', os.path.join(folder, 'STORMtemp*')])
+    for folder in ['knowledgeBase', 'retrievers']:
+        for file in os.listdir(folder):
+            if file.startswith('STORMtemp'):
+                os.remove(f'{folder}/{file}')
 
 
 def gpt_chat(system, query):
@@ -77,9 +78,17 @@ def deepseek_chat(system, query):
                                                }])
     return response.choices[0].message.content
 def silicon_chat(system, query):
-    messages=[{"role": "system","content": system}, {"role": "user","content": query}]
-    response = siliconClient(messages, temperature=0.7)
-    return response
+    messages = [{
+        "role": "system",
+        "content": system
+    }, {
+        "role": "user",
+        "content": query
+    }]
+    response = client5.chat.completions.create(
+        model="Pro/deepseek-ai/DeepSeek-V3",
+        messages=messages)
+    return response.choices[0].message.content
 def mixed_chat(system, query, thread_num):
     if thread_num == 1:
         return gpt_chat(system, query)
@@ -113,14 +122,19 @@ def mistral_chat(system, query):
 
 """你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。"""
 def generate_outline(summary, topic, chinese=True):
-    prompt = f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，标题为：{topic}。根据用户提供的信息写出提纲(包括引言、结论在内，不超过5部分)，各级标题使用markdown语法。用markdown无序列表列出标题下对应段落的小标题。每个item对应一段，不要有子项。" if chinese else f"You are a text outline generation expert, skilled at creating a structured and easily expandable outline for a complete article based on the information provided by the user. You possess strong thematic analysis abilities, allowing you to accurately extract key information and core points. With a rich knowledge base in copywriting and familiarity with academic paper outline construction methods, you can generate targeted, logical, and coherent outlines while ensuring that the structure is reasonable and the logic flows smoothly. You will write an academic article titled: {topic}. Based on the information provided by the user, create an outline (including introduction and conclusion, no more than 5 sections). Use markdown syntax for headings. List corresponding paragraphs' subheadings for each section using markdown unordered lists. Each item corresponds to a paragraph, no sub-items."
+    prompt = f"你是一位文本大纲生成专家，擅长根据用户提供的信息创建一个有条理且易于扩展成完整文章的大纲，你拥有强大的主题分析能力，能准确提取关键信息和核心要点。具备丰富的文案写作知识储备，熟悉学术论文大纲构建方法，能够生成具有针对性、逻辑性和条理性的文案大纲，并且能确保大纲结构合理、逻辑通顺。你将撰写一篇学术文章，主题为：{topic}。根据用户提供的信息用markdown无序列表写出提纲(包括引言、结论)" if chinese else f"You are a text outline generation expert, skilled at creating a structured and easily expandable outline for a complete article based on the information provided by the user. You possess strong thematic analysis abilities, allowing you to accurately extract key information and core points. With a rich knowledge base in copywriting and familiarity with academic paper outline construction methods, you can generate targeted, logical, and coherent outlines. You will ensure that the outline structure is reasonable and the logic flows smoothly. You will write an academic article titled: {topic}. Based on the information provided by the user, write the outline in markdown unordered list format (including introduction and conclusion)."
     response = silicon_chat(prompt, summary)
     response = response.strip('`')
     response = response[response.find('#'):]
-    for keyword in ['关键词', 'keyword', 'Keyword', 'Reference', 'reference', '参考文献']:
+    for keyword in [
+            '关键词', 'keyword', 'Keyword', 'Reference', 'reference', '参考文献'
+    ]:
         if keyword in response:
             response = response.split(keyword)[0].rstrip(' \n#*')
     response = re.sub(r'\d+\.\s+|\d+\.\d+\s+', '', response)
+    response = '\n'.join([
+        line for line in response.split('\n')
+        if line.strip() if line.startswith('#') or line.startswith('- ')])
     return response.strip()
 
 
@@ -139,6 +153,7 @@ def write_paragraph(outlines, i, subtitle, subtopic, title, level, chinese=True,
     outlines[i] = response
 
 
+# 定义一个函数，用于写入段落
 def write_paragraphs(list_of_tasks, thread_num):
     for task in list_of_tasks:
         write_paragraph(*task, thread_num)
@@ -214,12 +229,22 @@ def write_abstract(article, chinese=True):
                 break
     return abstract
 
-
-def generate(query):
+def get_title(query, chinese):
+    prompt = "根据用户输入，为文章拟一个标题，不要返回其他内容" if chinese else "Based on user input, please give a title for the article, do not return other content"
+    title = silicon_chat(prompt, query)
+    return title.strip()
+def get_query(query, chinese):
+    prompt = "根据用户输入，请返回一个搜索词用于上网搜索，不要返回其他内容。" if chinese else "Based on user input, please return a search term for online search, do not return other content."
+    search_term = gpt_chat(prompt, query)
+    return search_term.strip()
+def generate(query, depth = 2, breadth = 2):
     delete_temp_files()
     chinese = isChinese(query)
-    summary, reference = stormSearch(query)
-    yield summary
+    researchIter = research(query, depth, breadth)
+    summary, reference = "", []
+    for temp_result in researchIter:
+        summary, reference = temp_result
+        yield temp_result[0]
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.submit(handle_reference, reference)
         future_outline = executor.submit(generate_outline, summary, query, chinese)
