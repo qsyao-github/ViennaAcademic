@@ -12,8 +12,8 @@ embed_model = CustomEmbeddings(model=embedding_model_name)
 reranker = CustomCompressor(10)
 
 text_splitter = RecursiveCharacterTextSplitter(separators=[
-    r"\n+#{1,6}\s+", r"\n{2,}", r"\n+", r"\s{2,}",
-    r"(?<=[.!?;])\s+|(?<=[。？！；])", r"(?<=[,])\s+|(?<=[，])", r"\s+"
+    r"\n{2,}", r"\n+", r"\s{2,}", r"(?<=[.!?;])\s+|(?<=[。？！；])",
+    r"(?<=[,])\s+|(?<=[，])", r"\s+"
 ],
                                                is_separator_regex=True,
                                                chunk_overlap=32,
@@ -91,7 +91,7 @@ def merge_retrievers():
 
 def get_response(query):
     compression_retriever = merge_retrievers()
-    response = compression_retriever.get_relevant_documents(query)
+    response = compression_retriever.invoke(query)
     text_response = []
     for document in response:
         indicator = "Source: "
