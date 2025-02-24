@@ -7,6 +7,7 @@ from langchain.callbacks.manager import Callbacks
 from modelclient import client5
 import requests
 
+
 def groupLists(lst: List[str]):
     # 将lst中每32个元素分为1组，最后一组可能不足32个元素
     grouped = [lst[i:i + 32] for i in range(0, len(lst), 32)]
@@ -24,7 +25,7 @@ def get_rerank(query, documents, top_n):
     }
     headers = {
         "Authorization":
-        "Bearer",
+        "Bearer sk-qwbvqlmgbfrljbexaokcccoqvqawifttgbkucuhhmdhgtzdz",
         "Content-Type": "application/json"
     }
     response = requests.request("POST", url, json=payload,
@@ -40,7 +41,7 @@ class CustomEmbeddings(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         """Embed query text."""
-        embedding = client1.embeddings.create(input=text, model=self.model)
+        embedding = client5.embeddings.create(input=text, model=self.model)
         return embedding.data[0].embedding
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
