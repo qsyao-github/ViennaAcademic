@@ -45,11 +45,9 @@ generate a markdown list of learnings from the contents. Return a maximum of 3 l
 """
     learnings = mistral_query(simplify_prompt, message)
     print(learnings)
-    input()
     sourcesList = sum([result[1] for result in results], [])
     print(len(sourcesList))
-    input()
-    return sourcesList, learnings
+    return message, sourcesList, learnings
 
 
 def goal_and_future_directions(messages, depth):
@@ -98,22 +96,24 @@ def generate_query(query, breadth, learnings, depth):
         future_search_result = executor.submit(perform_search, search_list)
         future_goal_and_directions = executor.submit(
             goal_and_future_directions, messages, depth)
-        sourcesList, learnings = future_search_result.result()
+        research_result, sourcesList, learnings = future_search_result.result()
         goal, future_directions = future_goal_and_directions.result()
     new_query = f'Previous research goal: {goal}\nFollow-up research directions: {future_directions}'
-    return sourcesList, learnings, new_query
+    return research_result, sourcesList, learnings, new_query
 
 
 def research(query, depth=2, breadth=2):
+    result = []
     sources = []
     learnings = []
     while depth > 0:
-        sourcesList, newlearnings, new_query = generate_query(
+        research_result, sourcesList, newlearnings, new_query = generate_query(
             query, breadth, learnings, depth)
+        result.append(research_result)
         sources.extend(sourcesList)
         learnings.append(newlearnings)
         query = new_query
         depth -= 1
         breadth = math.ceil(breadth / 2)
-        yield '\n'.join(learnings), []
-    yield '\n'.join(learnings), sources
+        yield '\n---\n'.join(result), []
+    yield '\n---\n'.join(result), sources
