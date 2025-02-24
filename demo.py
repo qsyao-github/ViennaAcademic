@@ -823,7 +823,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         time.sleep(0.25)
                         base_show_files("tempest", tempest_file_list)
 
-            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx"],
+            convert_to_format = gr.Dropdown(["html", "tex", "pdf", "docx", "typ"],
                                             label="选择格式",
                                             scale=1,
                                             min_width=64)
@@ -838,4 +838,4 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 [file_to_convert, knowledgeBase_file_list, tempest_file_list],
                 concurrency_limit=12)
 
-demo.launch(auth=(), server_port=7860)
+demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
