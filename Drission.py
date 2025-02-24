@@ -14,6 +14,8 @@ def get_html(url):
 
 def get_wolfram(query):
     finalAnswer = []
+    if not query or '\n' in query:
+        return ''
     try:
         tab.get(f'https://www.wolframalpha.com/input?i={query}&lang=zh')
         answer_head = tab.ele('xpath:/html/body/div/div/main/main/div[2]/div/div[2]/section',timeout=10)
