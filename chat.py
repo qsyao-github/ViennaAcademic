@@ -76,13 +76,13 @@ def promptcall(message):
 def modelInference(model, nowTime, query, chatbot, client):
     stream = client.chat.completions.create(
         model=model,
-        messages=chatbot.chatHistory + [{
+        messages= [{
             'role':
             'system',
             'content':
             """你是强大的LLM Agent，你可以通过魔术命令上网、制作动画、执行Python代码。命令形如<function_name>params</function_name>。若你需要上网搜索，请在回答中加入"<websearch>关键字</websearch>"；若你需要使用manim制作动画，请在回答中加入"<manim>代码</manim>"。若你需要运行Python代码，请在回答中加入"<python>代码</python>"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
             + f"{nowTime}.png"
-        }] + [{
+        }] + chatbot.chatHistory+ [{
             "role": "user",
             "content": query[0]["content"]
         }],
