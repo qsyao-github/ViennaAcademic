@@ -1,7 +1,6 @@
-import asyncio
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CrawlerMonitor, BrowserConfig, DisplayMode, CacheMode
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-from crawl4ai.content_filter_strategy import PruningContentFilter
+from crawl4ai.content_filter_strategy import PruningContentFilter, BM25ContentFilter
 from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
 
 browser_config = BrowserConfig(headless=True, verbose=False)
