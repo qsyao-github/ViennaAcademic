@@ -5,11 +5,17 @@ import os
 
 def convert_to_pdf(input_file):
     file_name, _ = os.path.splitext(input_file)
-    subprocess.run([
-        'pandoc', input_file, '--pdf-engine=xelatex','-V',
-        'CJKmainfont=AR PL SungtiL GB', '-o',
-        f'{file_name}.pdf'
-    ])
+    result_file = f'{file_name}.typ'
+    result = subprocess.run(['pandoc', '-f', 'markdown', '-t', 'typst', input_file], capture_output=True, text=True).stdout
+    result = """#set text(font: (
+  (name: "libertinus serif", covers: "latin-in-cjk"),
+  "Noto Sans CJK SC"
+))\n""" + result
+    with open(result_file, 'w', encoding='utf-8') as f:
+        f.write(result)
+    subprocess.run(['./typst', 'compile', result_file])
+    os.remove(result_file)
+
 
 
 def convert_to(input_file, extension):
@@ -17,10 +23,8 @@ def convert_to(input_file, extension):
         convert_to_pdf(input_file)
     else:
         file_name, _ = os.path.splitext(input_file)
-        subprocess.run([
-            'pandoc', input_file, '-o',
-            f'{file_name}.{extension}'
-        ])
+        subprocess.run(
+            ['pandoc', input_file, '-o', f'{file_name}.{extension}'])
 
 
 def parse_markdown(input_file):
@@ -56,8 +60,15 @@ def convert_to_pptx(input_file, do_parse=True):
             finalcontent = f.read()
         yield finalcontent
     subprocess.run([
-        'pandoc', output_md_file, '-t', 'beamer',
-        '--pdf-engine=xelatex', '-V', 'theme:Madrid', '-V',
-        'CJKmainfont=AR PL SungtiL GB', '--slide-level', '2', '-o',
-        f'{input_file}ppt.pdf'
+        'pandoc', output_md_file, '-t', 'beamer', '--pdf-engine=xelatex', '-V',
+        'theme:Madrid', '-V', 'CJKmainfont=AR PL SungtiL GB', '--slide-level',
+        '2', '-o', f'{input_file}ppt.pdf'
     ])
+
+
+"""pandoc -f markdown -t typst path1 -o path2"""
+"""./typst compile path"""
+"""#set text(font: (
+  (name: "libertinus serif", covers: "latin-in-cjk"),
+  "Noto Sans CJK SC"
+))"""
