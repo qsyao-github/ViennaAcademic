@@ -21,7 +21,7 @@ def execute_code(code):
             if cleanedLine:
                 outputList.append(cleanedLine)
         stdout = '\n'.join(outputList)
-    return stdout if stdout else '' + stderr if stderr else ''
+    return stdout if stdout else '' + f'```error\n{stderr}\n```' if stderr else ''
 
 
 outputFolder = r'media/videos/temp/480p15/'
