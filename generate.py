@@ -1,5 +1,4 @@
 from crawler import crawl_and_save
-from perplexica import stormSearch
 from bceInference import update, get_response
 from downloadpaper import downloadArxivPaper
 from modelclient import client1, client2, client5
@@ -229,14 +228,7 @@ def write_abstract(article, chinese=True):
                 break
     return abstract
 
-def get_title(query, chinese):
-    prompt = "根据用户输入，为文章拟一个标题，不要返回其他内容" if chinese else "Based on user input, please give a title for the article, do not return other content"
-    title = silicon_chat(prompt, query)
-    return title.strip()
-def get_query(query, chinese):
-    prompt = "根据用户输入，请返回一个搜索词用于上网搜索，不要返回其他内容。" if chinese else "Based on user input, please return a search term for online search, do not return other content."
-    search_term = gpt_chat(prompt, query)
-    return search_term.strip()
+
 def generate(query, depth = 2, breadth = 2):
     delete_temp_files()
     chinese = isChinese(query)
@@ -276,6 +268,7 @@ def generate(query, depth = 2, breadth = 2):
 def _extract_content(contentList, prompt, tasks, thread_num):
     for task in tasks:
         bullets = mixed_chat(prompt, task[1], thread_num)
+        bullets = max(re.split('\n+',bullets.strip()), key=len)
         contentList[task[0]] = task[2] + bullets
     return
 
@@ -285,18 +278,20 @@ def extract_content(content, chinese=True):
                               "You are an experienced PPT creator. Based on the presentation script, create a PPT with concise language, and return a markdown unordered list. The number of top-level items should not exceed 3. Do not return any other content.")
     contentList = re.split(r'\n+', content.strip())
     title = contentList[0].strip('#').strip()
-    contentList[0] = f'---\ntitle:\n- "{title}"\n---\n\n'
+    contentList[0] = ''
     tasks = []
+    abstract_index = contentList.index('##### 摘要')
+    if abstract_index == -1:
+        abstract_index = contentList.index('##### Abstract')
+    if abstract_index != -1:
+        contentList[abstract_index] = ''
+        contentList[abstract_index + 1] = ''
     for i, line in enumerate(contentList[1:]):
         line = line.strip()
         if line.startswith('#'):
-            if not line.startswith('##### 摘要') and not line.startswith('##### Abstract'):
-                contentList[i+1] = line[1:] + ' {.allowframebreaks}'
-            else:
-                contentList[i+1] = ''
-                contentList[i+2] = ''
-        else:
-            tasks.append((i+1, line+"---\n\n", ""))
+            contentList[i+1] = line[1:]
+        elif line:
+            tasks.append((i+1, f"{line}\n\n", ""))
     length = len(tasks)
     # num_threads = min(length, 4)
     threads = []
@@ -315,8 +310,8 @@ def extract_content(content, chinese=True):
         threads.append(t)
         t.start()
     while any(thread.is_alive() for thread in threads):
-        yield '\n\n'.join(contentList)
+        yield '\n\n'.join(contentList), title
         time.sleep(1)
     for t in threads:
         t.join()
-    yield '\n\n'.join(contentList)
+    yield '\n\n'.join(contentList), title
