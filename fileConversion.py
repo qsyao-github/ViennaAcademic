@@ -28,6 +28,8 @@ def convert_to_pdf(input_file):
 def convert_to(input_file, extension):
     if extension == 'pdf':
         convert_to_pdf(input_file)
+    elif extension == 'typ':
+        convert_to_typst(input_file)
     else:
         file_name, _ = os.path.splitext(input_file)
         subprocess.run(
