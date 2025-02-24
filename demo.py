@@ -502,7 +502,7 @@ with gr.Blocks(fill_height=True, fill_width=True,
                                       concurrency_limit=12)
 
     with gr.Tab("写作"):
-        with gr.Tab("全自动生成论文(正在爆改，请勿使用)"):
+        with gr.Tab("全自动生成论文(开放公测)"):
             with gr.Row():
                 with gr.Column(scale=8, min_width=150):
                     title = gr.Textbox(
@@ -578,10 +578,12 @@ with gr.Blocks(fill_height=True, fill_width=True,
         with gr.Tab("全自动生成PPT"):
             with gr.Row():
                 with gr.Column(scale=3, min_width=150):
-                    title = gr.Textbox(
-                        placeholder=
-                        "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳",
-                        label="markdown文案")
+                    with gr.Row():
+                        title = gr.Textbox(
+                            placeholder=
+                            "需要转换为PPT的markdown文案，点击文件对应按钮即可填入。搭配全自动生成论文使用效果更佳",
+                            label="markdown文案", scale=1)
+                        theme = gr.Dropdown(["metropolis", "dewdrop", "university", "aqua", "stargazer"], label="主题", value = "dewdrop", min_width=180, scale = 0)
                     generate_button = gr.Button("生成PPT")
                     pptBox = gr.Markdown(
                         """生成的PPT文案将显示在此，markdown源文件和ppt可在右侧下载。后缀分别为ppt.md和.pdf。
@@ -601,23 +603,23 @@ with gr.Blocks(fill_height=True, fill_width=True,
 ```
 """)
 
-                    def generate_ppt(title):
+                    def generate_ppt(title, theme):
                         if title.endswith(".md"):
                             title = title[:-3]
                         if title.endswith("ppt"):
                             title = title[:-3]
                         if title.strip() == "":
                             return "请输入主题", os.listdir('tempest')
-                        do_parse = not os.path.exists(f"tempest/{title}ppt.md")
+                        do_parse = not os.path.exists(f"tempest/{title}ppt.typ")
                         final_response = ""
                         for chunk in convert_to_pptx(f'tempest/{title}',
-                                                     do_parse):
+                                                     do_parse, theme):
                             final_response = chunk
                             yield chunk, []
                         gr.Info('已完成，请刷新')
                         yield final_response, os.listdir('tempest')
 
-                    generate_button.click(generate_ppt, [title],
+                    generate_button.click(generate_ppt, [title, theme],
                                           [pptBox, tempest_file_list])
 
                 with gr.Column(scale=1, min_width=384):
@@ -836,4 +838,4 @@ with gr.Blocks(fill_height=True, fill_width=True,
                 [file_to_convert, knowledgeBase_file_list, tempest_file_list],
                 concurrency_limit=12)
 
-demo.launch(auth=("laowei", "1145141919810"), server_port=7860)
+demo.launch(auth=(), server_port=7860)
