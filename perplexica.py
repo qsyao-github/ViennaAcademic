@@ -1,5 +1,5 @@
 import requests
-from modelclient import client1API_KEY, client1BASE_URL, client2API_KEY
+from modelclient import client2API_KEY, client1API_KEY, client1BASE_URL
 
 proxies = {"http": "http://localhost:7890", "https": "http://localhost:7890"}
 
@@ -8,9 +8,9 @@ def constructQuery(query, focusMode):
     return {
         "chatModel": {
             "provider": "custom_openai",
-            "model": "glm-4-flash",
-            "customOpenAIBaseURL": 'https://open.bigmodel.cn/api/paas/v4',
-            "customOpenAIKey": client2API_KEY
+            "model": "mistral-large-latest",
+            "customOpenAIBaseURL": client1BASE_URL,
+            "customOpenAIKey": client1API_KEY
         },
         "embeddingModel": {
             "provider": "ollama",
@@ -26,6 +26,7 @@ def getResult(jsonquery):
     response = requests.post('http://127.0.0.1:3001/api/search',
                              json=jsonquery,
                              proxies=proxies)
+    print(response)
     message = response.json()['message']
     sourcesList = response.json()['sources']
     referenceList = [
