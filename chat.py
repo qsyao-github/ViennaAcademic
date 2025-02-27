@@ -3,15 +3,11 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages import HumanMessage, BaseMessage
 import base64
-import tiktoken
 from typing import Dict, Union
-
-encoding = tiktoken.get_encoding("cl100k_base")
 
 
 class DynamicMessagesState(MessagesState):
     multimodal: bool
-    previous_context: int
 
 
 workflow = StateGraph(state_schema=DynamicMessagesState)
@@ -22,27 +18,18 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def count_tokens(string: str) -> int:
-    return len(encoding.encode(string))
-
-
 # Define the function that calls the model
 def call_model(
         state: DynamicMessagesState) -> Dict[str, Union[BaseMessage, int]]:
     message = state["messages"]
     if state['multimodal']:
         response = pixtral_large_latest.invoke(message)
-    elif state['previous_context'] < 8000:
-        response = gpt_4o_mini.invoke(message)
     else:
-        response = glm_4_flash.invoke(message)
-    return {
-        "messages":
-        response,
-        "previous_context":
-        state["previous_context"] + count_tokens(message[-1].content) +
-        count_tokens(response.content)
-    }
+        try:
+            response = gpt_4o_mini.invoke(message)
+        except:
+            response = glm_4_flash.invoke(message)
+    return {"messages": response}
 
 
 # Define the (single) node in the graph
@@ -69,8 +56,18 @@ def add_message(text, files, thread_id, multimodal):
             }
         })
     input_message = [HumanMessage(content)]
-    for chunk, _ in chat_app.stream({"messages": input_message, "multimodal": multimodal}, config={"configurable": {"thread_id": thread_id}}, stream_mode="messages"):
+    for chunk, _ in chat_app.stream(
+        {
+            "messages": input_message,
+            "multimodal": multimodal
+        },
+            config={"configurable": {
+                "thread_id": thread_id
+            }},
+            stream_mode="messages"):
         yield chunk.content
+
+
 """
 {
                 "url": f"data:image/png;base64,{encodedString}"
