@@ -1,237 +1,92 @@
-import regex
-from executeCode import execute_code, manim_render
-from perplexica import webSearch, academicSearch
-from paper import attach
-from imageUtils import encode_image
-from codeAnalysis import generate_docstring, optimize_code
-from modelclient import client1, client2, qvqClient
-import os
+from modelclient import gpt_4o_mini, glm_4_flash, pixtral_large_latest
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, MessagesState, StateGraph
+from langchain_core.messages import HumanMessage, BaseMessage
+import base64
+import tiktoken
+from typing import Dict, Union
+
+encoding = tiktoken.get_encoding("cl100k_base")
 
 
-# 定义一个函数python，接收一个参数code
-def python(code):
-    return f"""\n
-{execute_code(code)}
-\n"""
+class DynamicMessagesState(MessagesState):
+    multimodal: bool
+    previous_context: int
 
 
-def remove_newlines_from_formulas(text):
-    # 用正则表达式匹配并替换
-    return regex.sub(r'\$\$[\s]*(.*?)\s*[\s]*\$\$',
-                     r'$$\1$$',
-                     text,
-                     flags=regex.DOTALL)
+workflow = StateGraph(state_schema=DynamicMessagesState)
 
 
-FIND_MAGIC_COMMAND_SUFFIX = r"\{((?:[^{}]|(?:\{(?:[^{}]|(?R))*\}))*)\}"
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def toolcall(message, nowTime):
-    functions = {
-        'websearch': webSearch,
-        'python': python,
-        'manim': manim_render
-    }
-    matches = regex.findall(r"<(\w+)>(.*?)</\1>", message, regex.DOTALL)
-    for tag, param in matches:
-        if tag == 'manim':
-            message = manim_render(param, nowTime)
-        elif param.strip() != '':
-            function_to_call = functions.get(tag, None)
-            if function_to_call is not None:
-                replacement = function_to_call(param.strip())
-                if isinstance(replacement, str):
-                    message = message.replace(f"<{tag}>{param}</{tag}>",
-                                              replacement)
-                else:
-                    message = message.replace(f"<{tag}>{param}</{tag}>",
-                                              replacement[1])
-    return message
+def count_tokens(string: str) -> int:
+    return len(encoding.encode(string))
 
 
-tool_call_pattern = regex.compile(
-    r'#(attach|findPaper|websearch|generateDocstring|optimizeCode)' +
-    FIND_MAGIC_COMMAND_SUFFIX)
-
-
-def promptcall(message):
-    functions = {
-        '#attach': attach,
-        '#findPaper': academicSearch,
-        '#websearch': webSearch,
-        '#generateDocstring': generate_docstring,
-        '#optimizeCode': optimize_code
-    }
-    matches = tool_call_pattern.findall(message)
-    for tag, param in matches:
-        function_to_call = functions[f"#{tag}"]
-        replacement = function_to_call(param)
-        if isinstance(replacement, str):
-            message = message.replace(f"#{tag}{{{param}}}", replacement)
-        else:
-            message = replacement
-    return message
-
-
-def modelInference(model, nowTime, query, chatbot, client):
-    stream = client.chat.completions.create(
-        model=model,
-        messages= [{
-            'role':
-            'system',
-            'content':
-            """你是强大的LLM Agent，你可以通过魔术命令上网、制作动画、执行Python代码。命令形如<function_name>params</function_name>。若你需要上网搜索，请在回答中加入"<websearch>关键字</websearch>"；若你需要使用manim制作动画，请在回答中加入"<manim>代码</manim>"。若你需要运行Python代码，请在回答中加入"<python>代码</python>"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至"""
-            + f"{nowTime}.png"
-        }] + chatbot.chatHistory+ [{
-            "role": "user",
-            "content": query[0]["content"]
-        }],
-        stream=True)
-    for chunk in stream:
-        yield chunk.choices[0].delta.content or ""
-
-
-def multimodelInference(model, query, chatbot):
-    stream = client1.chat.completions.create(model=model,
-                                             messages=chatbot.chatHistory +
-                                             query,
-                                             stream=True)
-    for chunk in stream:
-        yield chunk.choices[0].delta.content or ""
-
-
-def insertHistory(text1, text2=None):
-    if text2 is None:
-        return {'role': 'user', 'content': text1}
+# Define the function that calls the model
+def call_model(
+        state: DynamicMessagesState) -> Dict[str, Union[BaseMessage, int]]:
+    message = state["messages"]
+    if state['multimodal']:
+        response = pixtral_large_latest.invoke(message)
+    elif state['previous_context'] < 8000:
+        response = gpt_4o_mini.invoke(message)
     else:
-        return [{
-            'role': 'user',
-            'content': text1
-        }, {
-            'role': 'assistant',
-            'content': text2
-        }]
-
-
-def insertMultimodalHistory(text, encodedString):
+        response = glm_4_flash.invoke(message)
     return {
-        'role':
-        'user',
-        'content': [{
+        "messages":
+        response,
+        "previous_context":
+        state["previous_context"] + count_tokens(message[-1].content) +
+        count_tokens(response.content)
+    }
+
+
+# Define the (single) node in the graph
+workflow.add_edge(START, "model")
+workflow.add_node("model", call_model)
+
+# Add memory
+memory = MemorySaver()
+chat_app = workflow.compile(checkpointer=memory)
+
+
+def add_message(text, files, thread_id, multimodal):
+    content = [
+        {
             "type": "text",
             "text": text
-        }, {
+        },
+    ]
+    for file in files:
+        content.append({
             "type": "image_url",
             "image_url": {
+                "url": f"data:image/png;base64,{encode_image(file)}"
+            }
+        })
+    input_message = [HumanMessage(content)]
+    for chunk, _ in chat_app.stream({"messages": input_message, "multimodal": multimodal}, config={"configurable": {"thread_id": thread_id}}, stream_mode="messages"):
+        yield chunk.content
+"""
+{
                 "url": f"data:image/png;base64,{encodedString}"
             }
-        }]
-    }
+input_messages = [HumanMessage(query)]
+output = chat_app.stream({"messages": input_messages, "multimodal": False}, config, stream_mode = "messages")
+for chunk, _ in output:
+    print(chunk.content, end="")
+def clear_memory(memory: BaseCheckpointSaver, thread_id: str) -> None:
+    checkpoint = empty_checkpoint()
+    memory.put(config={"configurable": {"thread_id": thread_id}}, checkpoint=checkpoint, metadata={})
 
+# Calling the function
 
-image_pattern = regex.compile(r'.*\.(png|jpg|jpeg|tiff|bmp|heic)$',
-                              regex.IGNORECASE)
+memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
+app = graph.compile(checkpointer=memory)
 
-
-def historyParse(history, multimodal=False):
-    returnList = []
-    # sizeMax = 0
-    if not multimodal:
-        for ans in history:
-            returnList.extend(insertHistory(ans[0].text, ans[1].text))
-    else:
-        for ans in history:
-            for dialogue in ans:
-                files = dialogue.files
-                if files:
-                    file = files[0].file.path
-                    if image_pattern.match(file):
-                        # size = get_total_pixels(file)
-                        # sizeMax = max(sizeMax, size)
-                        txtFilePath = os.path.splitext(file)[0] + '.txt'
-                        if os.path.exists(txtFilePath):
-                            with open(txtFilePath, 'r') as f:
-                                encodedString = f.read()
-                        else:
-                            encodedString = encode_image(file)
-                            with open(txtFilePath, 'w') as f:
-                                f.write(encodedString)
-                        returnList.append(
-                            insertMultimodalHistory(dialogue.text,
-                                                    encodedString))
-                else:
-                    returnList.append({
-                        'role': 'user',
-                        'content': dialogue.text
-                    })
-    return returnList, 0
-
-
-def queryParse(query, multimodal=False):
-    returnList = []
-    if query:
-        if not multimodal:
-            returnList.append(insertHistory(query["text"]))
-            # size = 0
-        else:
-            files = query["files"]
-            if files:
-                file = files[0]["file"].path
-                if image_pattern.match(file):
-                    # size = get_total_pixels(file)
-                    encodedString = encode_image(file)
-                    txtFilePath = os.path.splitext(file)[0] + '.txt'
-                    with open(txtFilePath, 'w') as f:
-                        f.write(encodedString)
-                    returnList.append(
-                        insertMultimodalHistory(query["text"], encodedString))
-            else:
-                returnList.append(insertHistory(query["text"]))
-                # size = 0
-    return returnList, 0
-
-
-def formatFormula(string):
-    return string.replace('\\(',
-                          '$').replace('\\)',
-                                       '$').replace('\\[',
-                                                    '$$').replace('\\]', '$$')
-
-
-class chatBot:
-
-    def __init__(self, history, multimodal=False):
-        self.chatHistory, self.size = historyParse(history, multimodal)
-
-    def answer(self, query, nowTime, multimodal=False):
-        query, _ = queryParse(query, multimodal)
-        if not multimodal:
-            if query is not None:
-                try:
-                    returnMessage = modelInference("gpt-4o-mini", nowTime,
-                                                   query, self, client1)
-
-                    for chunk in returnMessage:
-                        yield chunk
-                except:
-                    returnMessage = modelInference("glm-4-flash", nowTime,
-                                                   query, self, client2)
-                    for chunk in returnMessage:
-                        yield chunk
-        else:
-            if query is not None:
-                for chunk in multimodelInference("pixtral-large-latest", query,
-                                                 self):
-                    yield chunk
-
-
-class QvQchatBot(chatBot):
-
-    def __init__(self, history):
-        super().__init__(history, True)
-
-    def answer(self, query):
-        query, _ = queryParse(query, True)
-        if query is not None:
-            for chunk in qvqClient(self.chatHistory + query):
-                yield chunk
+clear_memory(memory=memory, thread_id="123456")
+"""
