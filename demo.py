@@ -2,6 +2,7 @@ import gradio as gr
 import os
 import datetime
 from chat import add_message, format_formula
+from typing import Generator, Dict, List, Union, Tuple
 
 LATEX_DELIMITERS = [{
     'left': '$$',
@@ -20,7 +21,6 @@ LATEX_DELIMITERS = [{
     'right': r'\]',
     'display': True
 }]
-
 
 with gr.Blocks(fill_height=True, fill_width=True,
                delete_cache=(3600, 3600)) as demo:
@@ -53,19 +53,22 @@ with gr.Blocks(fill_height=True, fill_width=True,
                         label="知识库",
                         info="查询已上传论文，将相关文段附加在用户输入前。可能干扰模型的基础推理能力",
                         scale=1)
+
                     def check_delete():
                         for file in os.listdir():
                             if file.endswith(".png"):
                                 os.remove(file)
+
                     clear_button.click(check_delete, None, None)
 
-                def switch_multimodal(multimodal_switch, knowledgeBase_switch):
+                def switch_multimodal(multimodal_switch: bool,
+                                      knowledgeBase_switch: bool) -> bool:
                     if multimodal_switch:
                         knowledgeBase_switch = False
                     return knowledgeBase_switch
 
-                def switch_knowledgeBase(knowledgeBase_switch,
-                                         multimodal_switch):
+                def switch_knowledgeBase(knowledgeBase_switch: bool,
+                                         multimodal_switch: bool) -> bool:
                     if knowledgeBase_switch:
                         multimodal_switch = False
                     return multimodal_switch
@@ -81,8 +84,13 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     [multimodal_switch],
                     concurrency_limit=12)
 
-                def respond(msg, chatbot, multimodal_switch,
-                            knowledgeBase_switch):
+                def respond(
+                    msg: Dict[str, Union[str, List[str]]],
+                    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+                    multimodal_switch: bool, knowledgeBase_switch: bool
+                ) -> Generator[Tuple[Dict[str, Union[str, List[str]]],
+                                     List[Dict[str, Union[str, Dict[
+                                         str, str], None]]]], None, None]:
                     now_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
                     possible_media_path = f'{now_time}.png'
                     text, files = msg["text"], msg["files"]
@@ -106,7 +114,6 @@ with gr.Blocks(fill_height=True, fill_width=True,
                     for chunk in bot_response:
                         chatbot[-1]["content"] = chunk
                         yield {"text": "", "files": []}, chatbot
-                    print(chatbot[-1]["content"])
                     if possible_media_path in os.listdir(
                             current_user_directory):
                         chatbot.append({
