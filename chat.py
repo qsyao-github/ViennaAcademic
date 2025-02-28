@@ -1,47 +1,46 @@
-from modelclient import gpt_4o_mini, glm_4_flash, pixtral_large_latest
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, MessagesState, StateGraph
-from langchain_core.messages import HumanMessage, BaseMessage
+from chat_backend import chat_app
+from io import StringIO
+from langchain_core.messages import HumanMessage
 import base64
-from typing import Dict, Union
+import re
+import os
+from execute_code import insert_python
+
+FORMAT_FORMULA_PATTERN = re.compile(r'\$\$[\s]*(.*?)\s*[\s]*\$\$',
+                                    flags=re.DOTALL)
+XML_PATTERN = re.compile(r"<(\w+)>(.*?)</\1>", re.DOTALL)
+tools = {'python': insert_python}
 
 
-class DynamicMessagesState(MessagesState):
-    multimodal: bool
-
-
-workflow = StateGraph(state_schema=DynamicMessagesState)
-
-
-def encode_image(image_path):
+def encode_image(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-# Define the function that calls the model
-def call_model(
-        state: DynamicMessagesState) -> Dict[str, Union[BaseMessage, int]]:
-    message = state["messages"]
-    if state['multimodal']:
-        response = pixtral_large_latest.invoke(message)
-    else:
-        try:
-            response = gpt_4o_mini.invoke(message)
-        except:
-            response = glm_4_flash.invoke(message)
-    return {"messages": response}
+def format_formula(text):
+    return FORMAT_FORMULA_PATTERN.sub(
+        r'$$\1$$',
+        text.replace('\\(',
+                     '$').replace('\\)',
+                                  '$').replace('\\[',
+                                               '$$').replace('\\]', '$$'))
 
 
-# Define the (single) node in the graph
-workflow.add_edge(START, "model")
-workflow.add_node("model", call_model)
+def toolcall(message: str):
+    matches = XML_PATTERN.findall(message)
+    for tag, param in matches:
+        if param.strip():
+            tool_to_call = tools.get(tag, None)
+            if tool_to_call:
+                replacement = tool_to_call(param.strip())
+                print(replacement)
+                message = message.replace(f"<{tag}>{param}</{tag}>",
+                                          replacement)
+    return message
 
-# Add memory
-memory = MemorySaver()
-chat_app = workflow.compile(checkpointer=memory)
 
-
-def add_message(text, files, thread_id, multimodal):
+def add_message(text, files, thread_id, multimodal, now_time):
+    current_config = {"configurable": {"thread_id": thread_id}}
     content = [
         {
             "type": "text",
@@ -56,34 +55,31 @@ def add_message(text, files, thread_id, multimodal):
             }
         })
     input_message = [HumanMessage(content)]
+    response = StringIO()
     for chunk, _ in chat_app.stream(
         {
             "messages": input_message,
-            "multimodal": multimodal
+            "multimodal": multimodal,
+            "now_time": now_time
         },
-            config={"configurable": {
-                "thread_id": thread_id
-            }},
+            config=current_config,
             stream_mode="messages"):
-        yield chunk.content
-
-
-"""
-{
-                "url": f"data:image/png;base64,{encodedString}"
-            }
-input_messages = [HumanMessage(query)]
-output = chat_app.stream({"messages": input_messages, "multimodal": False}, config, stream_mode = "messages")
-for chunk, _ in output:
-    print(chunk.content, end="")
-def clear_memory(memory: BaseCheckpointSaver, thread_id: str) -> None:
-    checkpoint = empty_checkpoint()
-    memory.put(config={"configurable": {"thread_id": thread_id}}, checkpoint=checkpoint, metadata={})
-
-# Calling the function
-
-memory = SqliteSaver.from_conn_string("checkpoints.sqlite")
-app = graph.compile(checkpointer=memory)
-
-clear_memory(memory=memory, thread_id="123456")
-"""
+        response.write(chunk.content)
+        yield response.getvalue()
+    final_response = toolcall(response.getvalue())
+    final_response = format_formula(final_response)
+    for png_file in os.listdir():
+        if png_file.endswith(".png"):
+            chat_app.update_state(
+                current_config, {
+                    'messages':
+                    HumanMessage([{
+                        "type": "image_url",
+                        "image_url": {
+                            "url":
+                            f"data:image/png;base64,{encode_image(png_file)}"
+                        }
+                    }])
+                })
+            print(chat_app.get_state(current_config))
+    yield final_response
