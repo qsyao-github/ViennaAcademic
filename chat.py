@@ -1,85 +1,98 @@
-from chat_backend import chat_app
-from io import StringIO
-from langchain_core.messages import HumanMessage
 import base64
-import re
 import os
+import re
+from io import StringIO
+from typing import Dict, Generator, List, Union
+
+from langchain_core.messages import HumanMessage
+
+from chat_backend import chat_app
 from execute_code import insert_python
 
-FORMAT_FORMULA_PATTERN = re.compile(r'\$\$[\s]*(.*?)\s*[\s]*\$\$',
-                                    flags=re.DOTALL)
-XML_PATTERN = re.compile(r"<(\w+)>(.*?)</\1>", re.DOTALL)
-tools = {'python': insert_python}
+# Regular expression patterns
+FORMULA_PATTERN = re.compile(r'\$\$\s*(.*?)\s*\$\$', re.DOTALL)
+XML_TAG_PATTERN = re.compile(r"<(\w+)>(.*?)</\1>", re.DOTALL)
+
+# Supported tools mapping
+TOOLS = {'python': insert_python}
 
 
 def encode_image(image_path: str) -> str:
+    """Encode an image file to base64 string."""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def format_formula(text):
-    return FORMAT_FORMULA_PATTERN.sub(
+def format_formula(text: str) -> str:
+    """Normalize LaTeX formula formatting."""
+    return FORMULA_PATTERN.sub(
         r'$$\1$$',
-        text.replace('\\(',
-                     '$').replace('\\)',
-                                  '$').replace('\\[',
-                                               '$$').replace('\\]', '$$'))
+        text.replace(r'\(', '$').replace(r'\)', '$')
+            .replace(r'\[', '$$').replace(r']', '$$')
+    )
 
 
-def toolcall(message: str):
-    matches = XML_PATTERN.findall(message)
-    for tag, param in matches:
-        if param.strip():
-            tool_to_call = tools.get(tag, None)
-            if tool_to_call:
-                replacement = tool_to_call(param.strip())
-                print(replacement)
-                message = message.replace(f"<{tag}>{param}</{tag}>",
-                                          replacement)
-    return message
+def toolcall(message: str) -> str:
+    """Process XML-like tags in message using registered tools."""
+    def replace_tag(match: re.Match) -> str:
+        tag = match.group(1)
+        param = match.group(2).strip()
+        if not param or tag not in TOOLS:
+            return match.group(0)  # Return original if invalid
+        return TOOLS[tag](param)
+    
+    return XML_TAG_PATTERN.sub(replace_tag, message)
 
 
-def add_message(text, files, thread_id, multimodal, now_time):
-    current_config = {"configurable": {"thread_id": thread_id}}
-    content = [
-        {
-            "type": "text",
-            "text": text
-        },
-    ]
-    for file in files:
-        content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{encode_image(file)}"
-            }
-        })
-    input_message = [HumanMessage(content)]
-    response = StringIO()
+def create_image_component(image_path: str) -> Dict[str, Union[str, Dict[str, str]]]:
+    """Create an image component dictionary for chat messages."""
+    return {
+        "type": "image_url",
+        "image_url": {
+            "url": f"data:image/png;base64,{encode_image(image_path)}"
+        }
+    }
+
+
+def add_message(
+    text: str,
+    files: List[str],
+    thread_id: str,
+    multimodal: bool,
+    now_time: str
+) -> Generator[str, None, None]:
+    """Add a message to the chat and stream processed responses."""
+    chat_config = {"configurable": {"thread_id": thread_id}}
+    
+    # Build message content
+    content = [{"type": "text", "text": text}]
+    content.extend(create_image_component(f) for f in files)
+    
+    response_buffer = StringIO()
+    
+    # Stream chat response chunks
     for chunk, _ in chat_app.stream(
         {
-            "messages": input_message,
+            "messages": [HumanMessage(content=content)],
             "multimodal": multimodal,
             "now_time": now_time
         },
-            config=current_config,
-            stream_mode="messages"):
-        response.write(chunk.content)
-        yield response.getvalue()
-    final_response = toolcall(response.getvalue())
+        config=chat_config,
+        stream_mode="messages"
+    ):
+        response_buffer.write(chunk.content)
+        yield response_buffer.getvalue()
+    
+    # Process final response
+    final_response = toolcall(response_buffer.getvalue())
     final_response = format_formula(final_response)
-    for png_file in os.listdir():
-        if png_file.endswith(".png"):
-            chat_app.update_state(
-                current_config, {
-                    'messages':
-                    HumanMessage([{
-                        "type": "image_url",
-                        "image_url": {
-                            "url":
-                            f"data:image/png;base64,{encode_image(png_file)}"
-                        }
-                    }])
-                })
-            print(chat_app.get_state(current_config))
+    
+    # Check for generated image
+    generated_image = f"{now_time}.png"
+    if os.path.exists(generated_image):
+        chat_app.update_state(
+            chat_config,
+            {"messages": HumanMessage([create_image_component(generated_image)])}
+        )
+    
     yield final_response
