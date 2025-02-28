@@ -1,11 +1,12 @@
+# Third-party imports
 from modelclient import gpt_4o_mini, glm_4_flash, pixtral_large_latest
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages import BaseMessage
-
-from typing import Dict
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from typing import Dict
 
+# Define the prompt template
 prompt_template = ChatPromptTemplate.from_messages([
     (
         "system",
@@ -15,30 +16,47 @@ prompt_template = ChatPromptTemplate.from_messages([
 ])
 
 
+# State class for managing dynamic messages
 class DynamicMessagesState(MessagesState):
+    """State class for managing dynamic messages with additional attributes."""
+
     multimodal: bool
     now_time: str
 
 
-workflow = StateGraph(state_schema=DynamicMessagesState)
-
-
-# Define the function that calls the model
 def call_model(state: DynamicMessagesState) -> Dict[str, BaseMessage]:
+    """
+    Invoke the appropriate model based on the state and return the response.
+    
+    Args:
+        state: The current state containing messages and other attributes.
+        
+    Returns:
+        A dictionary containing the response message.
+    """
     message = state["messages"]
-    if state['multimodal']:
-        print('multimodal')
+
+    if state["multimodal"]:
         response = pixtral_large_latest.invoke(message)
     else:
         prompted_message = prompt_template.invoke(state)
         try:
             response = gpt_4o_mini.invoke(prompted_message)
-        except:
+        except Exception as e:
+            # Log the exception
+            import logging
+            logging.error(f"An error occurred while invoking GPT-4o-mini: {e}")
+            # Fallback to another model
             response = glm_4_flash.invoke(prompted_message)
+
     return {"messages": response}
 
 
+# Create the workflow graph
+workflow = StateGraph(state_schema=DynamicMessagesState)
 workflow.add_edge(START, "model")
 workflow.add_node("model", call_model)
+
+# Initialize memory saver and compile the chat application
 memory = MemorySaver()
 chat_app = workflow.compile(checkpointer=memory)
