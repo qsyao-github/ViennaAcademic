@@ -1,131 +1,121 @@
 import gradio as gr
+from typing import Generator, Dict, List, Union, Tuple, Callable
 import os
-import datetime
-from chat import add_message, format_formula
-from typing import Generator, Dict, List, Union, Tuple
+from demo_utils import LATEX_DELIMITERS, check_delete, exclusive_switch, respond, search
 
-LATEX_DELIMITERS = [{
-    'left': '$$',
-    'right': '$$',
-    'display': True
-}, {
-    'left': '$',
-    'right': '$',
-    'display': False
-}, {
-    'left': r'\(',
-    'right': r'\)',
-    'display': False
-}, {
-    'left': r'\[',
-    'right': r'\]',
-    'display': True
-}]
+
+def get_current_user(
+    request: gr.Request
+) -> Tuple[str, List[str], List[str], List[str], List[str], List[str],
+           List[str]]:
+    username = request.username
+    return username, os.listdir(f'{username}/code'), os.listdir(
+        f'{username}/knowledgeBase'), os.listdir(
+            f'{username}/paper'), os.listdir(
+                f'{username}/repositry'), os.listdir(f'{username}/tempest')
+
+
+def show_files(folder_path: str, file_list: List[str],
+               msg: Dict[str, Union[str, List[str]]]) -> None:
+    for file in os.listdir(folder_path):
+        with gr.Row():
+            file_button = gr.Button(file, scale=1, min_width=120)
+            download_file_button = gr.DownloadButton(f"下载",
+                                                     f'{folder_path}/{file}',
+                                                     scale=0,
+                                                     min_width=72)
+            delete_file_button = gr.Button("删除", scale=0, min_width=72)
+
+            def delete_file(file: str = file) -> List[str]:
+                os.remove(f"{folder_path}/{file}")
+                return os.listdir(folder_path)
+
+            delete_file_button.click(delete_file,
+                                     None,
+                                     file_list,
+                                     concurrency_limit=12)
+
+            def append_to_msg(
+                    msg: Dict[str, Union[str, List[str]]],
+                    file: str = file) -> Dict[str, Union[str, List[str]]]:
+                msg['text'] += file + "}"
+                return msg
+
+            file_button.click(append_to_msg, msg, msg, concurrency_limit=12)
+
 
 with gr.Blocks(fill_height=True, fill_width=True,
                delete_cache=(3600, 3600)) as demo:
-    current_user_directory = "./"
+    current_user_directory = gr.State("")
+    code_file_list = gr.State([])
+    knowledgeBase_file_list = gr.State([])
+    paper_file_list = gr.State([])
+    repositry_file_list = gr.State([])
+    tempest_file_list = gr.State([])
+    demo.load(get_current_user, [], [
+        current_user_directory, code_file_list, knowledgeBase_file_list,
+        paper_file_list, repositry_file_list, tempest_file_list
+    ])
     with gr.Tab("聊天"):
         with gr.Row():
-            with gr.Column(scale=0, min_width=108):
-                websearch_button = gr.Button("网页搜索", scale=1, min_width=64)
-                find_paper = gr.Button("搜索论文", scale=1, min_width=64)
-                generate_docstring = gr.Button("生成注释", scale=1, min_width=64)
-                optimize_code = gr.Button("优化代码", scale=1, min_width=64)
             with gr.Column(scale=8):
                 chatbot = gr.Chatbot(type='messages',
                                      latex_delimiters=LATEX_DELIMITERS,
                                      show_copy_button=True,
                                      label="聊天框",
                                      scale=8)
-                msg = gr.MultimodalTextbox(label="输入框",
-                                           placeholder="输入文字，可点左侧按钮上传图片",
-                                           scale=0,
-                                           file_types=['image'])
-                with gr.Row():
-                    clear_button = gr.ClearButton([msg, chatbot], value="清除")
-                    attach_button = gr.Button("引用", scale=1)
-                    multimodal_switch = gr.Checkbox(
-                        label="多模态",
-                        info="模型可理解图片，但速度、纯文本推理能力下降。确保图片方向正确，尽可能裁剪",
-                        scale=1)
-                    knowledgeBase_switch = gr.Checkbox(
-                        label="知识库",
-                        info="查询已上传论文，将相关文段附加在用户输入前。可能干扰模型的基础推理能力",
-                        scale=1)
+                with gr.Tab("聊天"):
+                    msg = gr.MultimodalTextbox(label="输入框",
+                                            placeholder="输入文字，可点左侧按钮上传图片",
+                                            scale=0,
+                                            file_types=['image'])
+                    with gr.Row():
+                        clear_button = gr.ClearButton([msg, chatbot],
+                                                    value="清除",
+                                                    scale=1)
+                        attach_button = gr.Button("引用", scale=1)
+                        multimodal_switch = gr.Checkbox(
+                            label="多模态",
+                            info="模型可理解图片，但速度、纯文本推理能力下降。确保图片方向正确，尽可能裁剪",
+                            scale=1)
+                        knowledgeBase_switch = gr.Checkbox(
+                            label="知识库",
+                            info="查询已上传论文，将相关文段附加在用户输入前。可能干扰模型的基础推理能力",
+                            scale=1)
 
-                    def check_delete():
-                        for file in os.listdir():
-                            if file.endswith(".png"):
-                                os.remove(file)
+                        clear_button.click(check_delete, [current_user_directory],
+                                        None)
 
-                    clear_button.click(check_delete, None, None)
+                        multimodal_switch.input(
+                            exclusive_switch,
+                            [multimodal_switch, knowledgeBase_switch],
+                            [knowledgeBase_switch],
+                            concurrency_limit=12)
+                        knowledgeBase_switch.input(
+                            exclusive_switch,
+                            [knowledgeBase_switch, multimodal_switch],
+                            [multimodal_switch],
+                            concurrency_limit=12)
 
-                def switch_multimodal(multimodal_switch: bool,
-                                      knowledgeBase_switch: bool) -> bool:
-                    if multimodal_switch:
-                        knowledgeBase_switch = False
-                    return knowledgeBase_switch
-
-                def switch_knowledgeBase(knowledgeBase_switch: bool,
-                                         multimodal_switch: bool) -> bool:
-                    if knowledgeBase_switch:
-                        multimodal_switch = False
-                    return multimodal_switch
-
-                multimodal_switch.input(
-                    switch_multimodal,
-                    [multimodal_switch, knowledgeBase_switch],
-                    [knowledgeBase_switch],
-                    concurrency_limit=12)
-                knowledgeBase_switch.input(
-                    switch_knowledgeBase,
-                    [knowledgeBase_switch, multimodal_switch],
-                    [multimodal_switch],
-                    concurrency_limit=12)
-
-                def respond(
-                    msg: Dict[str, Union[str, List[str]]],
-                    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
-                    multimodal_switch: bool, knowledgeBase_switch: bool
-                ) -> Generator[Tuple[Dict[str, Union[str, List[str]]],
-                                     List[Dict[str, Union[str, Dict[
-                                         str, str], None]]]], None, None]:
-                    now_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
-                    possible_media_path = f'{now_time}.png'
-                    text, files = msg["text"], msg["files"]
-                    text = format_formula(text)
-                    chatbot.append({
-                        "role": "user",
-                        'metadata': None,
-                        "content": text,
-                        'options': None
-                    })
-                    for file in files:
-                        chatbot.append({
-                            "role": "user",
-                            "content": {
-                                "path": file
-                            }
-                        })
-                    chatbot.append({"role": "assistant", "content": ""})
-                    bot_response = add_message(text, files, str(chatbot[0]),
-                                               multimodal_switch, now_time)
-                    for chunk in bot_response:
-                        chatbot[-1]["content"] = chunk
-                        yield {"text": "", "files": []}, chatbot
-                    if possible_media_path in os.listdir(
-                            current_user_directory):
-                        chatbot.append({
-                            "role": "assistant",
-                            "content": {
-                                "path": possible_media_path
-                            }
-                        })
-                    yield {"text": "", "files": []}, chatbot
-
-                msg.submit(
-                    respond,
-                    [msg, chatbot, multimodal_switch, knowledgeBase_switch],
-                    [msg, chatbot])
-demo.launch()
+                    msg.submit(respond, [
+                        msg, chatbot, multimodal_switch, knowledgeBase_switch,
+                        current_user_directory
+                    ], [msg, chatbot])
+                with gr.Tab("搜索"):
+                    search_box = gr.Textbox(label="搜索框", scale=1)
+                    with gr.Row():
+                        webSearch_button = gr.Button("网页搜索", scale=1, min_width=64)
+                        academicSearch_button = gr.Button("论文搜索",
+                                                        scale=1,
+                                                        min_width=64)
+                        webSearch_button.click(search('webSearch'), [search_box, chatbot],
+                                            [search_box, chatbot])
+                        academicSearch_button.click(search('academicSearch'),
+                                                    [search_box, chatbot],
+                                                    [search_box, chatbot])
+            with gr.Column(scale = 0, min_width=384):
+                with gr.Tab("论文"):
+                    with gr.Row():
+                        upload_paper = gr.UploadButton("上传论文", scale=1, min_width=64)
+                        pass
+demo.launch(auth=[('laowei', '1145141919810'), ('main', '2147483647')])
