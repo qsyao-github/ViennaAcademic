@@ -1,71 +1,84 @@
+from typing import Dict, Union, List, Tuple, TypedDict
 import requests
-from modelclient import client2API_KEY, client1API_KEY, client1BASE_URL
+from modelclient import xkx_client_API_KEY, xkx_client_BASE_URL
 
-proxies = {"http": "http://localhost:7890", "https": "http://localhost:7890"}
+# 常量定义
+SEARCH_API_URL = "http://127.0.0.1:3001/api/search"
+PROXIES = {"http": "http://localhost:7890", "https": "http://localhost:7890"}
 
+CHAT_MODEL_CONFIG = {
+    "provider": "custom_openai",
+    "model": "mistral-large-latest",
+    "customOpenAIBaseURL": xkx_client_BASE_URL,
+    "customOpenAIKey": xkx_client_API_KEY
+}
 
-def constructQuery(query, focusMode):
-    return {
-        "chatModel": {
-            "provider": "custom_openai",
-            "model": "mistral-large-latest",
-            "customOpenAIBaseURL": client1BASE_URL,
-            "customOpenAIKey": client1API_KEY
-        },
-        "embeddingModel": {
-            "provider": "ollama",
-            "model": "snowflake-arctic-embed2:latest"
-        },
-        "optimizationMode": "balanced",
-        "focusMode": focusMode,
-        "query": query
-    }
+EMBEDDING_MODEL_CONFIG = {
+    "provider": "ollama",
+    "model": "snowflake-arctic-embed2:latest"
+}
 
 
-def getResult(jsonquery):
-    response = requests.post('http://127.0.0.1:3001/api/search',
-                             json=jsonquery,
-                             proxies=proxies)
-    print(response)
-    message = response.json()['message']
-    sourcesList = response.json()['sources']
-    referenceList = [
-        f'[{i+1}] [{source["metadata"]["title"]}]({source["metadata"]["url"]})'
-        for i, source in enumerate(sourcesList)
-    ]
-    return message, referenceList, sourcesList
+class SearchResult(TypedDict):
+    message: str
+    sources: List[Dict[str, Union[str, Dict[str, str]]]]
 
 
-def webSearch(query):
+class QueryParams(TypedDict):
+    chatModel: Dict[str, str]
+    embeddingModel: Dict[str, str]
+    optimizationMode: str
+    focusMode: str
+    query: str
+
+
+def build_query_params(query: str, focus_mode: str) -> QueryParams:
+    """构建统一的搜索查询参数"""
+    return QueryParams(chatModel=CHAT_MODEL_CONFIG,
+                       embeddingModel=EMBEDDING_MODEL_CONFIG,
+                       optimizationMode="balanced",
+                       focusMode=focus_mode,
+                       query=query)
+
+
+def fetch_search_results(query_params: QueryParams) -> SearchResult:
+    """发送搜索请求并获取结果"""
+    response = requests.post(SEARCH_API_URL,
+                             json=query_params,
+                             proxies=PROXIES)
+    response.raise_for_status()
+    return response.json()
+
+
+def format_references(
+        sources: List[Dict[str, Union[str, Dict[str, str]]]]) -> str:
+    """格式化参考文献为Markdown格式"""
+    return "\n\n".join(
+        f"[{i+1}] [{source['metadata']['title']}]({source['metadata']['url']})"
+        for i, source in enumerate(sources))
+
+
+def execute_search(query: str, focus_mode: str) -> str:
+    """执行搜索的核心逻辑"""
     try:
-        jsonquery = constructQuery(query, "webSearch")
-        message, referenceList, _ = getResult(jsonquery)
-        return (f"请搜索{query}",
-                message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
-    except:
-        return (f"请搜索{query}", "老卫可能在深圳")
+        query_params = build_query_params(query, focus_mode)
+        result = fetch_search_results(query_params)
+        references = format_references(result["sources"])
+        return f"{result['message']}\n\n参考文献\n\n{references}"
+    except requests.exceptions.RequestException as e:
+        return f"网络请求异常: {str(e)}"
+    except (KeyError, ValueError) as e:
+        return f"数据处理错误: {str(e)}"
 
 
-def academicSearch(query):
+def academic_search(
+        query: str) -> Tuple[str, List[Dict[str, Union[str, Dict[str, str]]]]]:
+    """学术深度搜索（返回原始数据结构）"""
     try:
-        jsonquery = constructQuery(query, "academicSearch")
-        message, referenceList, _ = getResult(jsonquery)
-        return ("查找" + query + "有关论文",
-                message + '\n\n参考文献\n\n' + '\n\n'.join(referenceList))
-    except:
-        return ("查找" + query + "有关论文", "老卫可能在深圳")
-
-
-def stormSearch(query):
-    jsonquery = constructQuery(query, "academicSearch")
-    message1, _, sourcesList1 = getResult(jsonquery)
-    jsonquery = constructQuery(query, "webSearch")
-    message2, _, sourcesList2 = getResult(jsonquery)
-    message = message1 + '\n\n' + message2
-    sourcesList = sourcesList1 + sourcesList2
-    return message, sourcesList
-
-def deepAcademicSearch(query):
-    jsonquery = constructQuery(query, "academicSearch")
-    message, _, sourcesList = getResult(jsonquery)
-    return message, sourcesList
+        query_params = build_query_params(query, "academicSearch")
+        result = fetch_search_results(query_params)
+        return result["message"], result["sources"]
+    except requests.exceptions.RequestException as e:
+        return f"请求失败: {str(e)}", []
+    except KeyError:
+        return "响应数据格式异常", []
