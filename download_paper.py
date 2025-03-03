@@ -4,6 +4,7 @@ from docling_parser import parse_arxiv
 from modelclient import gpt_4o_mini
 from langchain_core.prompts import ChatPromptTemplate
 from typing import Tuple, Optional
+import concurrent.futures
 
 translate_template = ChatPromptTemplate.from_messages(
     [
@@ -26,7 +27,7 @@ def get_information(arxiv_id: str) -> Tuple[str, str, str]:
     )
 
 
-def get_translation(title: str, abstract: str) -> Tuple[str, str]:
+def _get_translation(title: str, abstract: str) -> Tuple[str, str]:
     translate_title_prompt = translate_template.invoke(
         {"type": "标题", "content": title}
     )
@@ -38,6 +39,12 @@ def get_translation(title: str, abstract: str) -> Tuple[str, str]:
     return translated_title, translated_abstract
 
 
+def get_translation(title: str, abstract: str, storm: bool = False) -> Tuple[str, str]:
+    if not storm:
+        return _get_translation(title, abstract)
+    return title, abstract
+
+
 def download_arxiv_paper(
     arxiv_id: str, current_dir: str, storm: bool = False, index: Optional[int] = None
 ) -> str:
@@ -45,12 +52,12 @@ def download_arxiv_paper(
         title, abstract, link = get_information(arxiv_id)
     except:
         return "ID可能错误"
-    if not storm:
-        translated_title, translated_abstract = get_translation(title, abstract)
-    else:
-        translated_title, translated_abstract = title, abstract
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        future_translation = executor.submit(get_translation, title, abstract, "storm")
+        future_parse = executor.submit(parse_arxiv, link)
+        translated_title, translated_abstract = future_translation.result()
+        result = future_parse.result()
     title = f"STORMtemp{index}" if storm else title
-    result = parse_arxiv(link)
     with open(f"{current_dir}/knowledgeBase/{title}.md", "w", encoding="utf-8") as f:
         if result is not None:
             f.write(result)
