@@ -223,7 +223,7 @@ def download_paper(
     append_text(chatbot, f"下载{arxiv_num}并翻译标题与摘要", "user")
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
     append_text(chatbot, download_arxiv_paper(arxiv_num, current_dir), "assistant")
-    update()
+    update(current_dir)
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
