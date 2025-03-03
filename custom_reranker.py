@@ -1,21 +1,20 @@
-from typing import List, Sequence, Optional
-from langchain_core.embeddings import Embeddings
-from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
+import requests
+from typing import List, Sequence, Optional, Dict, Union
 from langchain_core.documents import Document
+from modelclient import silicon_client_API_KEY, silicon_client_BASE_URL
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain.callbacks.manager import Callbacks
-from modelclient import client5
-import requests
+
+url = silicon_client_BASE_URL + '/rerank'
+headers = {
+    "Authorization": f"Bearer {silicon_client_API_KEY}",
+    "Content-Type": "application/json"
+}
 
 
-def groupLists(lst: List[str]):
-    # 将lst中每32个元素分为1组，最后一组可能不足32个元素
-    grouped = [lst[i:i + 32] for i in range(0, len(lst), 32)]
-    return grouped
+def get_rerank(query: str, documents: List[str],
+               top_n: int) -> List[Dict[str, Union[int, Dict[str, str]]]]:
 
-
-def get_rerank(query, documents, top_n):
-    url = "https://api.siliconflow.cn/v1/rerank"
     payload = {
         "model": "netease-youdao/bce-reranker-base_v1",
         "query": query,
@@ -23,38 +22,11 @@ def get_rerank(query, documents, top_n):
         "top_n": top_n,
         "return_documents": True
     }
-    headers = {
-        "Authorization":
-        "Bearer sk-qwbvqlmgbfrljbexaokcccoqvqawifttgbkucuhhmdhgtzdz",
-        "Content-Type": "application/json"
-    }
+
     response = requests.request("POST", url, json=payload,
                                 headers=headers).json()
 
     return response["results"]
-
-
-class CustomEmbeddings(Embeddings):
-
-    def __init__(self, model: str):
-        self.model = model
-
-    def embed_query(self, text: str) -> List[float]:
-        """Embed query text."""
-        embedding = client5.embeddings.create(input=text, model=self.model)
-        return embedding.data[0].embedding
-
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embed search docs."""
-        grouped = groupLists(texts)
-        finalEmbedding = []
-        for group in grouped:
-            group = [text[:512] for text in group]
-            embedding = client5.embeddings.create(input=group,
-                                                  model=self.model)
-            finalEmbedding.extend(
-                [vector.embedding for vector in embedding.data])
-        return finalEmbedding
 
 
 class CustomCompressor(BaseDocumentCompressor):
@@ -64,11 +36,10 @@ class CustomCompressor(BaseDocumentCompressor):
         super().__init__(top_n=top_n)
 
     def compress_documents(
-        self,
-        documents: Sequence[Document],
-        query: str,
-        callbacks: Optional[Callbacks] = None
-    ) -> Sequence[Document]:
+            self,
+            documents: Sequence[Document],
+            query: str,
+            callbacks: Optional[Callbacks] = None) -> Sequence[Document]:
         """
         Compress documents using `BCEmbedding RerankerModel API`.
 
@@ -110,4 +81,3 @@ class CustomCompressor(BaseDocumentCompressor):
 
         final_results = final_results[:self.top_n]
         return final_results
-
