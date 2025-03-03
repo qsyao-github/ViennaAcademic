@@ -53,7 +53,7 @@ def download_arxiv_paper(
     except:
         return "ID可能错误"
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_translation = executor.submit(get_translation, title, abstract, "storm")
+        future_translation = executor.submit(get_translation, title, abstract, False)
         future_parse = executor.submit(parse_arxiv, link)
         translated_title, translated_abstract = future_translation.result()
         result = future_parse.result()
