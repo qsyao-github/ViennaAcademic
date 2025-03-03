@@ -56,7 +56,7 @@ def attach(file: str, current_user_directory: str) -> str:
         with open(knowledgeBase_path, "r", encoding="utf-8") as f:
             return f.read()
     code_path = os.path.join(current_user_directory, "code", file)
-    if os.exists(code_path):
+    if os.path.exists(code_path):
         with open(code_path, "r", encoding="utf-8") as f:
             code = f.read()
         return f"```{file_suffix_to_markdown.get(file_suffix, '')}\n{code}\n```"
