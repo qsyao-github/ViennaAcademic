@@ -107,12 +107,6 @@ def check_delete(
     )
 
 
-def exclusive_switch(main_switch: bool, secondary_switch: bool) -> bool:
-    if main_switch:
-        secondary_switch = False
-    return secondary_switch
-
-
 def append_attach_to_msg(
     msg: Dict[str, Union[str, List[str]]]
 ) -> Dict[str, Union[str, List[str]]]:
@@ -150,8 +144,7 @@ def append_files(
 def respond(
     msg: Dict[str, Union[str, List[str]]],
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
-    multimodal_switch: bool,
-    knowledgeBase_switch: bool,
+    chat_mode: int,
     current_user_dir: str,
 ) -> Generator[
     Tuple[
@@ -169,7 +162,7 @@ def respond(
         # Process incoming message
         # A special suffix is added to formatted_text. This is to address gradio issue #10450
         text = msg["text"]
-        if knowledgeBase_switch:
+        if chat_mode == 2:
             knowledgeBase_search = get_response(text, current_user_dir)
             if knowledgeBase_search:
                 text = knowledgeBase_search + "\n\n" + text
@@ -183,7 +176,7 @@ def respond(
 
         # Generate and stream responses
         bot_response = ChatManager.stream_response(
-            formatted_text, msg["files"], str(chatbot[0]), multimodal_switch, now_time
+            formatted_text, msg["files"], str(chatbot[0]), chat_mode == 1, now_time
         )
 
         for response_chunk in bot_response:
