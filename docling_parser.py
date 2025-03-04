@@ -28,6 +28,8 @@ pipeline_options.do_table_structure = True
 pipeline_options.table_structure_options.do_cell_matching = True
 pipeline_options.ocr_options = RapidOcrOptions()
 pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
+pipeline_options.do_code_enrichment = True
+pipeline_options.do_formula_enrichment = True
 
 doc_converter = DocumentConverter(  # all of the below is optional, has internal defaults.
     allowed_formats=[
