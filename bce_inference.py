@@ -57,15 +57,12 @@ def remove_retriever(file: str, current_dir: str) -> None:
 
 
 def update(current_dir: str) -> None:
-    print(current_dir)
     knowledgeBase = set(
         os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/knowledgeBase")
     )
     retrievers = set(
         os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/retrievers")
     )
-    print(knowledgeBase)
-    print(retrievers)
     for file in knowledgeBase - retrievers:
         save_retriever(file, current_dir)
     for file in retrievers - knowledgeBase:
