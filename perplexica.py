@@ -10,12 +10,12 @@ CHAT_MODEL_CONFIG = {
     "provider": "custom_openai",
     "model": "mistral-large-latest",
     "customOpenAIBaseURL": xkx_client_BASE_URL,
-    "customOpenAIKey": xkx_client_API_KEY
+    "customOpenAIKey": xkx_client_API_KEY,
 }
 
 EMBEDDING_MODEL_CONFIG = {
     "provider": "ollama",
-    "model": "snowflake-arctic-embed2:latest"
+    "model": "snowflake-arctic-embed2:latest",
 }
 
 
@@ -34,28 +34,28 @@ class QueryParams(TypedDict):
 
 def build_query_params(query: str, focus_mode: str) -> QueryParams:
     """构建统一的搜索查询参数"""
-    return QueryParams(chatModel=CHAT_MODEL_CONFIG,
-                       embeddingModel=EMBEDDING_MODEL_CONFIG,
-                       optimizationMode="balanced",
-                       focusMode=focus_mode,
-                       query=query)
+    return QueryParams(
+        chatModel=CHAT_MODEL_CONFIG,
+        embeddingModel=EMBEDDING_MODEL_CONFIG,
+        optimizationMode="balanced",
+        focusMode=focus_mode,
+        query=query,
+    )
 
 
 def fetch_search_results(query_params: QueryParams) -> SearchResult:
     """发送搜索请求并获取结果"""
-    response = requests.post(SEARCH_API_URL,
-                             json=query_params,
-                             proxies=PROXIES)
+    response = requests.post(SEARCH_API_URL, json=query_params, proxies=PROXIES)
     response.raise_for_status()
     return response.json()
 
 
-def format_references(
-        sources: List[Dict[str, Union[str, Dict[str, str]]]]) -> str:
+def format_references(sources: List[Dict[str, Union[str, Dict[str, str]]]]) -> str:
     """格式化参考文献为Markdown格式"""
     return "\n\n".join(
         f"[{i+1}] [{source['metadata']['title']}]({source['metadata']['url']})"
-        for i, source in enumerate(sources))
+        for i, source in enumerate(sources)
+    )
 
 
 def execute_search(query: str, focus_mode: str) -> str:
@@ -72,7 +72,8 @@ def execute_search(query: str, focus_mode: str) -> str:
 
 
 def academic_search(
-        query: str) -> Tuple[str, List[Dict[str, Union[str, Dict[str, str]]]]]:
+    query: str,
+) -> Tuple[str, List[Dict[str, Union[str, Dict[str, str]]]]]:
     """学术深度搜索（返回原始数据结构）"""
     try:
         query_params = build_query_params(query, "academicSearch")
