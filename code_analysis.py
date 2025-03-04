@@ -42,14 +42,12 @@ def find_program_files(
 
 
 def generate_tree(folder_path):
-    folder_path = os.path.basename(folder_path)
     tree_str = subprocess.run(f"tree {folder_path}",
                               shell=True,
                               text=True,
                               check=True,
                               stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE,
-                              cwd='repositry').stdout
+                              stderr=subprocess.PIPE).stdout
     tree_array = tree_str.split('\n')
     new_tree_array = [
         file for file in tree_array if '.' not in file or is_program_file(file)
