@@ -207,7 +207,7 @@ def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
         return os.listdir(paper_directory), list(knowledge_base_files)
     shutil.move(file, paper_directory)
     text = parse_everything(f"{current_dir}/paper/{file_base_name}")
-    with open(f"knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
+    with open(f"{current_dir}/knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
         f.write(text)
     update(current_dir)
     return os.listdir(paper_directory), list(knowledge_base_files)
