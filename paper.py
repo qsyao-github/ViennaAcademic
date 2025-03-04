@@ -4,7 +4,8 @@ import concurrent.futures
 from io import StringIO
 from typing import List, Generator
 from langchain_core.prompts import ChatPromptTemplate
-from modelclient import glm_4_flash
+from langchain_openai import ChatOpenAI
+from modelclient import glm_4_flash, deepseek_v3
 
 file_suffix_to_markdown = {
     ".py": "python",
@@ -46,6 +47,77 @@ process_paper_prompt_template = ChatPromptTemplate.from_messages(
     ]
 )
 
+TRANSLATE_TO_CHINESE_PROMPT = """# 论文翻译任务
+
+## 目标：
+- 将提供的英文论文内容翻译成中文。
+
+## 注意事项：
+- 翻译应忠实于原文，确保内容准确无误。
+- 不需要添加任何解释或注释，只需直接翻译文本。
+- 保持原文的格式和结构，包括段落、标题和参考文献等。
+- 如果遇到专业术语或缩写，应保持原样，不要自行解释或翻译。
+
+## 工作流程：
+1. 接收并阅读英文论文内容。
+2. 使用专业知识进行翻译，确保语义准确。
+3. 检查翻译的中文文本，确保没有语法错误或遗漏。
+4. 保持原文格式，完成翻译任务。
+
+## 输出示例：
+- 输入：英文论文段落
+- 输出：对应的中文翻译段落
+
+## 响应：
+- 以文本形式提供翻译结果，保持原有格式不变。"""
+TRANSLATE_TO_ENGLISH_PROMPT = """# 论文翻译任务
+
+## 目标：
+- 将提供的中文论文内容翻译成英文。
+
+## 注意事项：
+- 确保翻译的准确性和学术性，保持原文的专业术语和意义。
+- 不需要添加任何额外的解释或注释，只需直接翻译文本。
+- 遵守学术翻译的规范，使用适当的学术语言和格式。
+
+## 工作流程：
+1. 仔细阅读并理解中文论文的内容。
+2. 使用专业翻译技巧，将中文翻译成英文。
+3. 确保翻译后的英文文本语法正确，表达清晰。
+4. 检查并修改翻译，确保没有遗漏或错误。
+
+## 示例：
+- **输入**：一段中文论文文本。
+- **输出**：对应的英文翻译文本。
+
+## 响应：
+- 以文本形式提供英文翻译。
+
+## 语气：
+- 保持客观和专业的语气。
+
+## 受众：
+- 针对学术研究人员和专业人士。
+
+## 风格：
+- 使用正式和准确的学术语言。
+
+## 上下文：
+- 适用于将中文学术论文翻译成英文，以便在国际学术期刊上发表或供国际学术界参考。"""
+POLISH_PROMPT = """你是一位专业的学术论文润色助手，专注于将论文提升至Nature期刊的发表标准。你的能力包括但不限于：
+1. **语言优化**：确保语言简洁、精确，符合学术写作规范。
+2. **逻辑清晰**：优化段落结构，增强论点的连贯性和说服力。
+3. **学术风格**：调整措辞，使其符合顶级期刊的学术风格。
+4. **格式规范**：确保引用、图表、公式等符合Nature的格式要求。
+
+你的知识储备包括：
+1. **Nature期刊的写作指南**：熟悉Nature的投稿要求和编辑偏好。
+2. **学术写作规范**：精通学术论文的写作技巧和语言风格。
+3. **相关领域知识**：具备广泛的专业知识，能够理解并优化不同领域的论文。
+
+请根据以上要求，对用户提供的论文进行润色，无需解释。若原文为中文，无需翻译为英文。
+"""
+
 
 def attach(file: str, current_user_directory: str) -> str:
     file_name, file_suffix = os.path.splitext(file)
@@ -82,24 +154,28 @@ def read_paper(
         {"content": attach(file_path, current_user_directory)}
     )
     answer = StringIO()
-    for chunk in glm_4_flash.stream(prompt):
+    for chunk in deepseek_v3.stream(prompt):
         answer.write(chunk.content)
         yield answer.getvalue()
 
 
-def process_text(text: str, system_prompt: str) -> str:
+def process_text(text: str, system_prompt: str, model: ChatOpenAI) -> str:
     if text.strip():
         prompt = process_paper_prompt_template.invoke(
             {"system": system_prompt, "content": text}
         )
-        return glm_4_flash.invoke(prompt).content
+        return model.invoke(prompt).content
     return text
 
 
 def process_paper(
-    file_path: str, suffix: str, prompt: str, current_user_directory: str
+    file_path: str,
+    suffix: str,
+    prompt: str,
+    current_user_directory: str,
+    model: ChatOpenAI,
 ) -> Generator[str, None, None]:
-    base_name = os.path.basename(file_path)
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
     knowledgeBase_file_path = (
         f"{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
     )
@@ -107,7 +183,7 @@ def process_paper(
     results = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {
-            executor.submit(process_text, text, prompt): text for text in content
+            executor.submit(process_text, text, prompt, model): text for text in content
         }
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
@@ -121,31 +197,13 @@ def process_paper(
 def translate_paper_to_Chinese(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    prompt = """# 论文翻译任务
-
-## 目标：
-- 将提供的英文论文内容翻译成中文。
-
-## 注意事项：
-- 翻译应忠实于原文，确保内容准确无误。
-- 不需要添加任何解释或注释，只需直接翻译文本。
-- 保持原文的格式和结构，包括段落、标题和参考文献等。
-- 如果遇到专业术语或缩写，应保持原样，不要自行解释或翻译。
-
-## 工作流程：
-1. 接收并阅读英文论文内容。
-2. 使用专业知识进行翻译，确保语义准确。
-3. 检查翻译的中文文本，确保没有语法错误或遗漏。
-4. 保持原文格式，完成翻译任务。
-
-## 输出示例：
-- 输入：英文论文段落
-- 输出：对应的中文翻译段落
-
-## 响应：
-- 以文本形式提供翻译结果，保持原有格式不变。
-"""
-    converter = process_paper(file_path, "Chi", prompt, current_user_directory)
+    converter = process_paper(
+        file_path,
+        "Chi",
+        TRANSLATE_TO_CHINESE_PROMPT,
+        current_user_directory,
+        glm_4_flash,
+    )
     for result in converter:
         yield result
 
@@ -153,42 +211,13 @@ def translate_paper_to_Chinese(
 def translate_paper_to_English(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    prompt = """# 论文翻译任务
-
-## 目标：
-- 将提供的中文论文内容翻译成英文。
-
-## 注意事项：
-- 确保翻译的准确性和学术性，保持原文的专业术语和意义。
-- 不需要添加任何额外的解释或注释，只需直接翻译文本。
-- 遵守学术翻译的规范，使用适当的学术语言和格式。
-
-## 工作流程：
-1. 仔细阅读并理解中文论文的内容。
-2. 使用专业翻译技巧，将中文翻译成英文。
-3. 确保翻译后的英文文本语法正确，表达清晰。
-4. 检查并修改翻译，确保没有遗漏或错误。
-
-## 示例：
-- **输入**：一段中文论文文本。
-- **输出**：对应的英文翻译文本。
-
-## 响应：
-- 以文本形式提供英文翻译。
-
-## 语气：
-- 保持客观和专业的语气。
-
-## 受众：
-- 针对学术研究人员和专业人士。
-
-## 风格：
-- 使用正式和准确的学术语言。
-
-## 上下文：
-- 适用于将中文学术论文翻译成英文，以便在国际学术期刊上发表或供国际学术界参考。
-"""
-    converter = process_paper(file_path, "Eng", prompt, current_user_directory)
+    converter = process_paper(
+        file_path,
+        "Eng",
+        TRANSLATE_TO_ENGLISH_PROMPT,
+        current_user_directory,
+        glm_4_flash,
+    )
     for result in converter:
         yield result
 
@@ -196,31 +225,8 @@ def translate_paper_to_English(
 def polish_paper(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    prompt = """# 角色：  
-资深编辑，擅长论文润色和语法修正
-
-# 背景信息：  
-针对需要润色的学术论文，确保语言流畅性和学术规范性
-
-# 工作流程/工作任务：  
-1. 阅读并理解论文内容
-2. 识别并修正语法错误
-3. 提升句子结构和表达清晰度
-4. 保持原论文的学术风格和语调
-
-# 输出示例：  
-- 原文： "This study shows that the effect of factor A on phenomenon B is significant."
-- 润色后： "This study demonstrates a significant impact of factor A on phenomenon B."
-- 原文：研究结果证明了我们的假设是正确的。
-- 润色后：研究结果表明，我们的假设得到了证实。
-
-# 注意事项：  
-- 保持原文的研究目的和结论不变
-- 遵循学术写作的规范和格式
-- 确保润色后的文本符合学术期刊的要求
-- 若原文为中文，不必译为英文
-- 只提供润色后的文本，避免包括解释
-"""
-    converter = process_paper(file_path, "Pol", prompt, current_user_directory)
+    converter = process_paper(
+        file_path, "Pol", POLISH_PROMPT, current_user_directory, deepseek_v3
+    )
     for result in converter:
         yield result
