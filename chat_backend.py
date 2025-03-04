@@ -6,7 +6,7 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from modelclient import gpt_4o_mini, glm_4_flash, pixtral_large_latest
+from modelclient import gpt_4o_mini, glm_4_flash, pixtral_large_latest, deepseek_v3
 
 
 # Define the prompt template
@@ -43,13 +43,7 @@ def call_model(state: DynamicMessagesState) -> Dict[str, BaseMessage]:
         response = pixtral_large_latest.invoke(message)
     else:
         prompted_message = prompt_template.invoke(state)
-        try:
-            response = gpt_4o_mini.invoke(prompted_message)
-        except Exception as e:
-            # Log the exception
-            logging.error(f"An error occurred while invoking GPT-4o-mini: {e}")
-            # Fallback to another model
-            response = glm_4_flash.invoke(prompted_message)
+        response = deepseek_v3.invoke(prompted_message)
 
     return {"messages": response}
 
