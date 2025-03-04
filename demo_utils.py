@@ -10,6 +10,12 @@ import shutil
 from docling_parser import parse_everything
 from download_paper import download_arxiv_paper
 from code_analysis import analyze_folder
+from paper import (
+    polish_paper,
+    translate_paper_to_Chinese,
+    translate_paper_to_English,
+    read_paper,
+)
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -32,18 +38,24 @@ def get_current_user(
 
 
 def show_files(
-    folder_path: str, file_list: List[str], msg: Dict[str, Union[str, List[str]]]
+    folder: str,
+    current_dir: str,
+    file_list: gr.State,
+    msg: gr.MultimodalTextbox,
 ) -> None:
+    folder_path = f"{current_dir}/{folder}"
     for file in os.listdir(folder_path):
         with gr.Row():
+            file_path = f"{current_dir}/{folder}/{file}"
             file_button = gr.Button(file, scale=1, min_width=120)
             download_file_button = gr.DownloadButton(
-                f"下载", f"{folder_path}/{file}", scale=0, min_width=72
+                "下载", file_path, scale=0, min_width=72
             )
             delete_file_button = gr.Button("删除", scale=0, min_width=72)
 
-            def delete_file(file: str = file) -> List[str]:
-                os.remove(f"{folder_path}/{file}")
+            def delete_file(file_path: str = file_path) -> List[str]:
+                os.remove(file_path)
+                update(current_dir)
                 return os.listdir(folder_path)
 
             delete_file_button.click(delete_file, None, file_list, concurrency_limit=28)
@@ -55,6 +67,26 @@ def show_files(
                 return msg
 
             file_button.click(append_to_msg, msg, msg, concurrency_limit=28)
+
+
+def _paper_show_files(
+    current_dir: str, file_list: gr.State, selected_paper: gr.Textbox
+) -> None:
+    folder_path = f"{current_dir}/knowledgeBase"
+    for file in os.listdir(folder_path):
+        with gr.Row():
+            file_path = f"{current_dir}/knowledgeBase/{file}"
+            file_button = gr.Button(file, scale=1, min_width=120)
+            download_file = gr.DownloadButton("下载", file_path, scale=0, min_width=72)
+            delete_file = gr.Button("删除", scale=0, min_width=72)
+
+            def delete_paper(file_path: str = file_path):
+                os.remove(file_path)
+                update(current_dir)
+                return os.listdir(folder_path)
+
+            delete_file.click(delete_paper, None, file_list, concurrency_limit=28)
+            file_button.click(lambda: file, None, selected_paper, concurrency_limit=28)
 
 
 def check_delete(
@@ -213,7 +245,7 @@ def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     return os.listdir(paper_directory), list(knowledge_base_files)
 
 
-def download_paper(
+def download_paper_chatbot(
     arxiv_num: str,
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     current_dir: str,
@@ -228,6 +260,15 @@ def download_paper(
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
+def download_paper_textbox(
+    arxiv_num: str, current_dir: str
+) -> Tuple[str, str, List[str]]:
+    gr.Info("正在下载，请耐心等候")
+    answer = download_arxiv_paper(arxiv_num, current_dir)
+    update(current_dir)
+    return "", answer, os.listdir(f"{current_dir}/knowledgeBase")
+
+
 def upload_code(file: str, current_dir: str) -> List[str]:
     code_directory = f"{current_dir}/code"
     shutil.move(file, code_directory)
@@ -235,8 +276,7 @@ def upload_code(file: str, current_dir: str) -> List[str]:
 
 
 def clone_repo(url: str, current_dir: str) -> Tuple[str, List[str]]:
-    url = url.strip('/')
-    print(f"{current_dir}/repositry/{url[url.rfind('/')+1:]}")
+    url = url.strip("/")
     if url and not os.path.exists(f"{current_dir}/repositry/{url[url.rfind('/')+1:]}"):
         result = subprocess.run(
             f"cd {current_dir}/repositry && git clone {url}",
@@ -253,8 +293,8 @@ def clone_repo(url: str, current_dir: str) -> Tuple[str, List[str]]:
 
 def _show_repo(
     current_dir: str,
-    repositry_file_list: List[str],
-    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+    repositry_file_list: gr.State,
+    chatbot: gr.Chatbot,
 ) -> None:
     for folder in os.listdir(f"{current_dir}/repositry"):
         with gr.Row():
@@ -286,3 +326,26 @@ def _show_repo(
                     yield chatbot
 
             folder_button.click(repo_analysis, chatbot, chatbot)
+
+
+paper_function_map = {
+    "论文润色": polish_paper,
+    "论文翻译->英": translate_paper_to_English,
+    "论文翻译->中": translate_paper_to_Chinese,
+}
+
+
+def generate_paper_answer(
+    selected_function: str, selected_paper: str, current_dir: str
+) -> Generator[Tuple[str, List[str]], None, None]:
+    if selected_paper not in os.listdir(f"{current_dir}/knowledgeBase"):
+        yield "文件不存在", os.listdir(f"{current_dir}/knowledgeBase")
+        return
+    gr.Info("正在生成答案，请耐心等候")
+    process_function = paper_function_map.get(selected_function, read_paper)
+    final_answer = ""
+    for chunk in process_function(selected_paper, current_dir):
+        final_answer = chunk
+        yield final_answer, []
+    gr.Info("已完成，请刷新")
+    yield final_answer, os.listdir(f"{current_dir}/knowledgeBase")
