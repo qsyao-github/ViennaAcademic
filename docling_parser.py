@@ -19,17 +19,15 @@ from rapidocr_onnxruntime import RapidOCR
 import re
 
 engine = RapidOCR()
-pipeline_options = PdfPipelineOptions(artifacts_path="/home/laowei/model/docling")
+pipeline_options = PdfPipelineOptions(artifacts_path="/home/laowei/model/ds4sd/docling-models")
 pipeline_options.do_ocr = True
 pipeline_options.accelerator_options = AcceleratorOptions(
-    num_threads=12, device=AcceleratorDevice.CPU
+    num_threads=20, device=AcceleratorDevice.CPU
 )
 pipeline_options.do_table_structure = True
 pipeline_options.table_structure_options.do_cell_matching = True
 pipeline_options.ocr_options = RapidOcrOptions()
 pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
-pipeline_options.do_code_enrichment = True
-pipeline_options.do_formula_enrichment = True
 
 doc_converter = DocumentConverter(  # all of the below is optional, has internal defaults.
     allowed_formats=[
