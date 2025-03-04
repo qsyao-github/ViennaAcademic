@@ -7,21 +7,21 @@ from langchain_core.prompts import ChatPromptTemplate
 from modelclient import glm_4_flash
 
 file_suffix_to_markdown = {
-    "py": "python",
-    "c": "c",
-    "cpp": "cpp",
-    "md": "markdown",
-    "json": "json",
-    "html": "html",
-    "css": "css",
-    "js": "javascript",
-    "jinja2": "jinja2",
-    "ts": "typescript",
-    "yaml": "yaml",
-    "dockerfile": "dockerfile",
-    "sh": "shell",
-    "r": "r",
-    "sql": "sql",
+    ".py": "python",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".md": "markdown",
+    ".json": "json",
+    ".html": "html",
+    ".css": "css",
+    ".js": "javascript",
+    ".jinja2": "jinja2",
+    ".ts": "typescript",
+    ".yaml": "yaml",
+    ".dockerfile": "dockerfile",
+    ".sh": "shell",
+    ".r": "r",
+    ".sql": "sql",
 }
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
