@@ -234,7 +234,9 @@ def upload_code(file: str, current_dir: str) -> List[str]:
 
 
 def clone_repo(url: str, current_dir: str) -> Tuple[str, List[str]]:
-    if url:
+    url = url.strip('/')
+    print(f"{current_dir}/repositry/{url[url.rfind('/')+1:]}")
+    if url and not os.path.exists(f"{current_dir}/repositry/{url[url.rfind('/')+1:]}"):
         result = subprocess.run(
             f"cd {current_dir}/repositry && git clone {url}",
             capture_output=True,
@@ -245,7 +247,7 @@ def clone_repo(url: str, current_dir: str) -> Tuple[str, List[str]]:
             gr.Info("克隆成功，请刷新")
         else:
             gr.Info(f"克隆失败：{result.stderr}")
-    return "", os.listdir("repositry")
+    return "", os.listdir(f"{current_dir}/repositry")
 
 
 def _show_repo(
