@@ -1,5 +1,6 @@
 import gradio as gr
 from typing import List, Dict, Tuple, Union
+from gradio.themes.utils import sizes
 from demo_utils import (
     LATEX_DELIMITERS,
     get_current_user,
@@ -16,12 +17,11 @@ from demo_utils import (
     _show_repo,
 )
 
-
 with gr.Blocks(
     fill_height=True,
     fill_width=True,
     delete_cache=(3600, 3600),
-    theme=gr.themes.Citrus(),
+    theme=gr.themes.Citrus(spacing_size=sizes.spacing_md),
 ) as demo:
     current_user_directory = gr.State("")
     code_file_list = gr.State([])
@@ -65,12 +65,10 @@ with gr.Blocks(
                         attach_button = gr.Button("引用", scale=1)
                         multimodal_switch = gr.Checkbox(
                             label="多模态",
-                            info="模型可理解图片，但速度、纯文本推理能力下降。确保图片方向正确，尽可能裁剪",
                             scale=1,
                         )
                         knowledgeBase_switch = gr.Checkbox(
                             label="知识库",
-                            info="查询已上传论文，将相关文段附加在用户输入前。可能干扰模型的基础推理能力",
                             scale=1,
                         )
 
@@ -147,6 +145,7 @@ with gr.Blocks(
                             upload_paper,
                             [upload_paper_button, current_user_directory],
                             [paper_file_list, knowledgeBase_file_list],
+                            concurrency_limit=1,
                         )
                         refresh = gr.Button("刷新", scale=1, min_width=32)
 
