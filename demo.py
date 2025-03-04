@@ -11,10 +11,13 @@ from demo_utils import (
     search,
     append_attach_to_msg,
     upload_paper,
-    download_paper,
+    download_paper_chatbot,
+    download_paper_textbox,
     upload_code,
     clone_repo,
     _show_repo,
+    generate_paper_answer,
+    _paper_show_files,
 )
 
 with gr.Blocks(
@@ -111,8 +114,7 @@ with gr.Blocks(
                             current_user_directory,
                         ],
                         [msg, chatbot],
-                        concurrency_id="chat related",
-                        concurrency_limit=1,
+                        concurrency_limit=28,
                     )
                 with gr.Tab("搜索"):
                     search_box = gr.Textbox(label="搜索框", scale=1)
@@ -158,7 +160,7 @@ with gr.Blocks(
                         inputs=[current_user_directory],
                     )
                     def show_paper(current_dir: str) -> None:
-                        show_files(f"{current_dir}/paper", paper_file_list, msg)
+                        show_files("paper", current_dir, paper_file_list, msg)
 
                 with gr.Tab("已解析文件"):
                     with gr.Row():
@@ -170,7 +172,7 @@ with gr.Blocks(
                         placeholder="输入arxiv号，例如：1706.03762", label="Arxiv ID"
                     )
                     download_arxiv.click(
-                        download_paper,
+                        download_paper_chatbot,
                         [arxiv_num, chatbot, current_user_directory],
                         [arxiv_num, chatbot, knowledgeBase_file_list],
                     )
@@ -185,7 +187,7 @@ with gr.Blocks(
                     )
                     def show_knowledgeBase(current_dir: str) -> None:
                         show_files(
-                            f"{current_dir}/knowledgeBase", knowledgeBase_file_list, msg
+                            "knowledgeBase", current_dir, knowledgeBase_file_list, msg
                         )
 
                 with gr.Tab("代码"):
@@ -209,7 +211,7 @@ with gr.Blocks(
                         inputs=[current_user_directory],
                     )
                     def show_code(current_dir: str) -> None:
-                        show_files(f"{current_dir}/code", code_file_list, msg)
+                        show_files("code", current_dir, code_file_list, msg)
 
                 with gr.Tab("Github仓库"):
                     with gr.Row():
@@ -236,6 +238,53 @@ with gr.Blocks(
                         current_dir: str,
                     ) -> None:
                         _show_repo(current_dir, repositry_file_list, chatbot)
+
+    with gr.Tab("论文"):
+        with gr.Row():
+            with gr.Column(scale=8):
+                with gr.Row():
+                    selected_function = gr.Dropdown(
+                        ["论文解读", "论文翻译->英", "论文翻译->中", "论文润色"],
+                        scale=0,
+                        min_width=180,
+                        label="功能",
+                    )
+                    selected_paper = gr.Textbox(
+                        placeholder="点击右侧文件名输入", scale=1, label="文件名"
+                    )
+                paper_answer = gr.Markdown(show_copy_button=True)
+                selected_paper.submit(
+                    generate_paper_answer,
+                    [selected_function, selected_paper, current_user_directory],
+                    [paper_answer, knowledgeBase_file_list],
+                )
+            with gr.Column(scale=1, min_width=384):
+                with gr.Row():
+                    paper_refresh = gr.Button("刷新", scale=1, min_width=32)
+                    paper_download_arxiv = gr.Button(
+                        "arxiv论文下载", scale=1, min_width=112
+                    )
+                paper_arxiv_num = gr.Textbox(
+                    placeholder="输入arxiv号，例如：1706.03762", label="Arxiv ID"
+                )
+                paper_download_arxiv.click(
+                    download_paper_textbox,
+                    [paper_arxiv_num, current_user_directory],
+                    [paper_arxiv_num, paper_answer, knowledgeBase_file_list],
+                )
+
+                @gr.render(
+                    triggers=[
+                        paper_refresh.click,
+                        knowledgeBase_file_list.change,
+                        current_user_directory.change,
+                    ],
+                    inputs=[current_user_directory],
+                )
+                def paper_show_knowledgeBase(current_dir: str):
+                    _paper_show_files(
+                        current_dir, knowledgeBase_file_list, selected_paper
+                    )
 
 
 demo.launch(auth=[("laowei", "1145141919810"), ("main", "2147483647")])
