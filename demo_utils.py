@@ -196,7 +196,8 @@ def search(
 
 def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     gr.Info("已开始上传，请勿重复提交。10页的论文约需40s，请耐心等候")
-    simpfile = os.path.splitext(os.path.basename(file))[0]
+    file_base_name = os.path.basename(file)
+    simpfile = os.path.splitext(file_base_name)[0]
     knowledge_base_files = set(os.listdir(f"{current_dir}/knowledgeBase"))
     paper_directory = f"{current_dir}/paper"
     if (
@@ -205,7 +206,7 @@ def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     ):
         return os.listdir(paper_directory), list(knowledge_base_files)
     shutil.move(file, paper_directory)
-    text = parse_everything(file)
+    text = parse_everything(f"{current_dir}/paper/{file_base_name}")
     with open(f"knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
         f.write(text)
     update(current_dir)
