@@ -21,7 +21,7 @@ with gr.Blocks(
     fill_height=True,
     fill_width=True,
     delete_cache=(3600, 3600),
-    theme=gr.themes.Ocean(neutral_hue="sky"),
+    theme=gr.themes.Citrus(),
 ) as demo:
     current_user_directory = gr.State("")
     code_file_list = gr.State([])
@@ -231,11 +231,10 @@ with gr.Blocks(
                             current_user_directory.change,
                             repositry_file_list.change,
                         ],
-                        inputs=[current_user_directory, chatbot],
+                        inputs=[current_user_directory],
                     )
                     def show_repo(
                         current_dir: str,
-                        chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
                     ) -> None:
                         _show_repo(current_dir, repositry_file_list, chatbot)
 
