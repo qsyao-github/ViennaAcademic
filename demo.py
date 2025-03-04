@@ -1,12 +1,11 @@
+# pip3 install -U langchain langchain-community langchain-openai langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib crawl4ai ipython faiss-cpu
 import gradio as gr
-from typing import List, Dict, Tuple, Union
 from gradio.themes.utils import sizes
 from demo_utils import (
     LATEX_DELIMITERS,
     get_current_user,
     show_files,
     check_delete,
-    exclusive_switch,
     respond,
     search,
     append_attach_to_msg,
@@ -66,13 +65,12 @@ with gr.Blocks(
                             [msg, chatbot], value="清除", scale=1
                         )
                         attach_button = gr.Button("引用", scale=1)
-                        multimodal_switch = gr.Checkbox(
-                            label="多模态",
-                            scale=1,
-                        )
-                        knowledgeBase_switch = gr.Checkbox(
-                            label="知识库",
-                            scale=1,
+                        chat_mode = gr.Radio(
+                            ["常规", "多模态", "知识库"],
+                            value="常规",
+                            type="index",
+                            label="聊天模式",
+                            scale=2,
                         )
 
                         clear_button.click(
@@ -87,19 +85,6 @@ with gr.Blocks(
                             ],
                             concurrency_limit=28,
                         )
-
-                        multimodal_switch.input(
-                            exclusive_switch,
-                            [multimodal_switch, knowledgeBase_switch],
-                            [knowledgeBase_switch],
-                            concurrency_limit=28,
-                        )
-                        knowledgeBase_switch.input(
-                            exclusive_switch,
-                            [knowledgeBase_switch, multimodal_switch],
-                            [multimodal_switch],
-                            concurrency_limit=28,
-                        )
                         attach_button.click(
                             append_attach_to_msg, msg, msg, concurrency_limit=28
                         )
@@ -109,8 +94,7 @@ with gr.Blocks(
                         [
                             msg,
                             chatbot,
-                            multimodal_switch,
-                            knowledgeBase_switch,
+                            chat_mode,
                             current_user_directory,
                         ],
                         [msg, chatbot],
