@@ -1,4 +1,4 @@
-# pip3 install -U langchain langchain-community langchain-openai langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib crawl4ai ipython faiss-cpu
+# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib crawl4ai ipython faiss-cpu
 import gradio as gr
 from gradio.themes.utils import sizes
 from demo_utils import (
@@ -17,7 +17,10 @@ from demo_utils import (
     _show_repo,
     generate_paper_answer,
     _paper_show_files,
+    solve_respond,
 )
+from auth import check_login
+from llm_ocr import file_ocr
 
 with gr.Blocks(
     fill_height=True,
@@ -50,6 +53,7 @@ with gr.Blocks(
                     type="messages",
                     latex_delimiters=LATEX_DELIMITERS,
                     show_copy_button=True,
+                    show_copy_all_button=True,
                     label="聊天框",
                     scale=8,
                 )
@@ -64,7 +68,6 @@ with gr.Blocks(
                         clear_button = gr.ClearButton(
                             [msg, chatbot], value="清除", scale=1
                         )
-                        attach_button = gr.Button("引用", scale=1)
                         chat_mode = gr.Radio(
                             ["常规", "多模态", "知识库"],
                             value="常规",
@@ -72,6 +75,7 @@ with gr.Blocks(
                             label="聊天模式",
                             scale=2,
                         )
+                        attach_button = gr.Button("引用", scale=1)
 
                         clear_button.click(
                             check_delete,
@@ -270,5 +274,35 @@ with gr.Blocks(
                         current_dir, knowledgeBase_file_list, selected_paper
                     )
 
+    with gr.Tab("解题"):
+        with gr.Tab("常规解题"):
+            solve_chatbot = gr.Chatbot(
+                type="messages",
+                latex_delimiters=LATEX_DELIMITERS,
+                show_copy_button=True,
+                show_copy_all_button=True,
+                label="聊天框",
+                scale=8,
+            )
+            solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
+            with gr.Row():
+                distill = gr.Dropdown(
+                    ["70B蒸馏", "671B满血"],
+                    value="70B蒸馏",
+                    label="模型",
+                    scale=1,
+                    type="index",
+                )
+                solve_clear = gr.ClearButton([solve_msg, solve_chatbot], value="清除")
+                ocr_button = gr.UploadButton("识别题目")
+                wolfram = gr.Checkbox(value=False, label="使用Wolfram")
+                ocr_button.upload(file_ocr, ocr_button, solve_msg)
+            solve_msg.submit(
+                solve_respond,
+                [solve_msg, solve_chatbot, distill, wolfram],
+                [solve_msg, solve_chatbot],
+                concurrency_limit=2,
+            )
 
-demo.launch(auth=[("laowei", "1145141919810"), ("main", "2147483647")])
+
+demo.launch(auth=check_login)
