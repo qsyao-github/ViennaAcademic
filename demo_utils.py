@@ -4,7 +4,7 @@ import glob
 import subprocess
 import gradio as gr
 from typing import Generator, Dict, List, Union, Tuple, Callable
-from chat import ChatManager, ContentProcessor
+from chat import ChatManager, ContentProcessor, SolveManager
 from bce_inference import update, get_response
 import shutil
 from docling_parser import parse_everything
@@ -16,6 +16,7 @@ from paper import (
     translate_paper_to_English,
     read_paper,
 )
+from wolfram import attach_hints
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -108,7 +109,7 @@ def check_delete(
 
 
 def append_attach_to_msg(
-    msg: Dict[str, Union[str, List[str]]]
+    msg: Dict[str, Union[str, List[str]]],
 ) -> Dict[str, Union[str, List[str]]]:
     msg["text"] += "#attach{"
     return msg
@@ -178,7 +179,7 @@ def respond(
         bot_response = ChatManager.stream_response(
             formatted_text, msg["files"], str(chatbot[0]), chat_mode == 1, now_time
         )
-
+        yield {"text": "", "files": []}, chatbot
         for response_chunk in bot_response:
             chatbot[-1]["content"] = response_chunk
             yield {"text": "", "files": []}, chatbot
@@ -342,3 +343,40 @@ def generate_paper_answer(
         yield final_answer, []
     gr.Info("已完成，请刷新")
     yield final_answer, os.listdir(f"{current_dir}/knowledgeBase")
+
+
+def solve_respond(
+    solve_msg: str,
+    solve_chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+    distill: bool,
+    wolfram: bool,
+) -> Generator[
+    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
+]:
+    solve_msg = solve_msg.strip()
+    if not solve_msg:
+        return "", solve_chatbot
+    solve_msg = ContentProcessor.format_formula(solve_msg)
+    solve_chatbot.append(
+        {
+            "role": "user",
+            "metadata": None,
+            "content": f"{solve_msg}\n$$ $$",
+            "options": None,
+        }
+    )
+    yield "", solve_chatbot
+    if wolfram:
+        solve_msg = attach_hints(solve_msg)
+        solve_chatbot[-1]["content"] = f"{solve_msg}\n$$ $$"
+    solve_chatbot.extend(
+        [
+            {"role": "assistant", "content": "", "metadata": {"title": "思考过程"}},
+            {"role": "assistant", "content": ""},
+        ]
+    )
+    answer = SolveManager.stream_response(solve_msg, str(solve_chatbot[0]), distill)
+    yield "", solve_chatbot
+    for chunk in answer:
+        solve_chatbot[-2]["content"], solve_chatbot[-1]["content"] = chunk
+        yield "", solve_chatbot
