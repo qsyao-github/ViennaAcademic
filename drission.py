@@ -19,7 +19,7 @@ def get_wolfram(query: str) -> str:
         for answer in answers:
             if answer.tag == "h2":
                 temp = "# " + answer.ele("xpath:/span").text
-            elif answer.tag == "img":
+            else:
                 temp = answer.attr("alt")
             if temp and "图片" not in temp and "图形" not in temp:
                 finalAnswer.append(temp)
