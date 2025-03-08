@@ -17,6 +17,7 @@ from paper import (
     read_paper,
 )
 from wolfram import attach_hints
+from search import attach_web_result
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -64,7 +65,7 @@ def show_files(
             def append_to_msg(
                 msg: Dict[str, Union[str, List[str]]], file: str = file
             ) -> Dict[str, Union[str, List[str]]]:
-                msg["text"] += file + "}"
+                msg["text"] += "#attach{" + file + "}"
                 return msg
 
             file_button.click(append_to_msg, msg, msg, concurrency_limit=28)
@@ -145,7 +146,7 @@ def append_files(
 def respond(
     msg: Dict[str, Union[str, List[str]]],
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
-    chat_mode: int,
+    chat_mode: str,
     current_user_dir: str,
 ) -> Generator[
     Tuple[
@@ -163,10 +164,14 @@ def respond(
         # Process incoming message
         # A special suffix is added to formatted_text. This is to address gradio issue #10450
         text = msg["text"]
-        if chat_mode == 2:
+        if chat_mode == "知识库":
             knowledgeBase_search = get_response(text, current_user_dir)
             if knowledgeBase_search:
                 text = knowledgeBase_search + "\n\n" + text
+        elif chat_mode == "网页搜索":
+            web_search_result = attach_web_result(text)
+            if web_search_result:
+                text = web_search_result + "\n\n" + text
         formatted_text = ContentProcessor.format_formula(
             ContentProcessor.process_attachments(text, current_user_dir)
         )
