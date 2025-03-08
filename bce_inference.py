@@ -83,6 +83,8 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
             os.path.splitext(file)[0] for file in os.listdir(retriever_directory)
         )
     ]
+    if not retrievers:
+        return None
     base_retriever = retrievers.pop()
     for retriever in retrievers:
         base_retriever.merge_from(retriever)
@@ -98,6 +100,8 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
 
 def get_response(query: str, current_dir: str) -> str:
     compression_retriever = merge_retrievers(current_dir)
+    if compression_retriever is None:
+        return "# 用户请注意，知识库为空。模型请根据自身理解尽量回答"
     response = compression_retriever.invoke(query)
     text_response = []
     for document in response:
