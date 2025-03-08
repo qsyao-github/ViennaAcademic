@@ -5,6 +5,7 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from system_prompt import REGEX_TOOLCALL, WEB_SEARCH, KNOWLEDGEBASE
 from modelclient import (
     gpt_4o_mini,
     glm_4_flash,
@@ -16,21 +17,29 @@ from modelclient import (
 
 
 # Define the prompt template
-chat_prompt_template = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """你是强大的LLM Agent，你可以通过魔术命令上网、制作动画、执行Python代码。命令形如<function_name>params</function_name>。若你需要上网搜索，请在回答中加入"<websearch>关键字</websearch>"；若你需要使用manim制作动画，请在回答中加入"<manim>代码</manim>"。若你需要运行Python代码，请在回答中加入"<python>代码</python>"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至{now_time}.png""",
-        ),
-        MessagesPlaceholder(variable_name="messages"),
-    ]
+regex_toolcall_template = ChatPromptTemplate.from_messages(
+    [("system", REGEX_TOOLCALL), MessagesPlaceholder(variable_name="messages")]
+)
+web_search_template = ChatPromptTemplate.from_messages(
+    [("system", WEB_SEARCH), MessagesPlaceholder(variable_name="messages")]
+)
+knowledgebase_template = ChatPromptTemplate.from_messages(
+    [("system", KNOWLEDGEBASE), MessagesPlaceholder(variable_name="messages")]
 )
 
 
 # State class for managing dynamic messages
 class ChatMessageState(MessagesState):
-    multimodal: bool
+    mode: str
     now_time: str
+
+
+select_template_from_mode = {
+    "常规": regex_toolcall_template,
+    "多模态": None,
+    "知识库": knowledgebase_template,
+    "网页搜索": web_search_template,
+}
 
 
 def chat_call_model(state: ChatMessageState) -> Dict[str, BaseMessage]:
@@ -44,12 +53,13 @@ def chat_call_model(state: ChatMessageState) -> Dict[str, BaseMessage]:
         A dictionary containing the response message.
     """
     message = state["messages"]
+    template = select_template_from_mode[state["mode"]]
 
-    if state["multimodal"]:
-        response = pixtral_large_latest.invoke(message)
-    else:
-        prompted_message = chat_prompt_template.invoke(state)
+    if template is not None:
+        prompted_message = template.invoke(state)
         response = deepseek_v3.invoke(prompted_message)
+    else:
+        response = pixtral_large_latest.invoke(message)
 
     return {"messages": response}
 
@@ -69,7 +79,7 @@ class SolveMessageState(MessagesState):
 
 
 def solve_call_model(state: SolveMessageState) -> Dict[str, BaseMessage]:
-    distill = state['distill']
+    distill = state["distill"]
     if distill == 0:
         response = deepseek_r1_70b.invoke(state["messages"])
     elif distill == 1:
