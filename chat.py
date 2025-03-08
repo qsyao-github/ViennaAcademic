@@ -108,7 +108,7 @@ class ChatManager:
 
     @staticmethod
     def stream_response(
-        text: str, files: List[str], thread_id: str, multimodal: bool, timestamp: str
+        text: str, files: List[str], thread_id: str, mode: str, timestamp: str
     ) -> Generator[str, None, None]:
         """流式处理聊天响应"""
         chat_config = {"configurable": {"thread_id": thread_id}}
@@ -118,7 +118,7 @@ class ChatManager:
         for chunk, _ in chat_app.stream(
             {
                 "messages": [HumanMessage(content=content)],
-                "multimodal": multimodal,
+                "mode": mode,
                 "now_time": timestamp,
             },
             config=chat_config,
