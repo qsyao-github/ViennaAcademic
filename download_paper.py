@@ -1,10 +1,9 @@
-import urllib.request as libreq
-import xml.etree.ElementTree as ET
 from docling_parser import parse_arxiv
-from modelclient import gpt_4o_mini
+from modelclient import deepseek_v3
 from langchain_core.prompts import ChatPromptTemplate
 from typing import Tuple, Optional
 import concurrent.futures
+from academic_search import search_arxiv
 
 translate_template = ChatPromptTemplate.from_messages(
     [
@@ -15,34 +14,25 @@ translate_template = ChatPromptTemplate.from_messages(
 
 
 def get_information(arxiv_id: str) -> Tuple[str, str, str]:
-    with libreq.urlopen(f"http://export.arxiv.org/api/query?id_list={arxiv_id}") as url:
-        r = url.read().decode("utf-8")
-    root = ET.fromstring(r)
-    prefix = "{http://www.w3.org/2005/Atom}"
-    entry = root.find(prefix + "entry")
-    return (
-        entry.find(prefix + "title").text.replace("\n", ""),
-        entry.find(prefix + "summary").text.replace("\n", ""),
-        entry.find(prefix + "link").get("href").replace("abs", "html"),
-    )
+    return search_arxiv(arxiv_id)[0]
 
 
-def _get_translation(title: str, abstract: str) -> Tuple[str, str]:
-    translate_title_prompt = translate_template.invoke(
-        {"type": "标题", "content": title}
-    )
-    translate_abstract_prompt = translate_template.invoke(
-        {"type": "摘要", "content": abstract}
-    )
-    translated_title = gpt_4o_mini.invoke(translate_title_prompt).content
-    translated_abstract = gpt_4o_mini.invoke(translate_abstract_prompt).content
-    return translated_title, translated_abstract
-
-
-def get_translation(title: str, abstract: str, storm: bool = False) -> Tuple[str, str]:
+def translate_title(title: str, storm: bool = False) -> str:
     if not storm:
-        return _get_translation(title, abstract)
-    return title, abstract
+        translate_title_prompt = translate_template.invoke(
+            {"type": "标题", "content": title}
+        )
+        return deepseek_v3.invoke(translate_title_prompt).content
+    return title
+
+
+def translate_abstract(abstract: str, storm: bool = False) -> str:
+    if not storm:
+        translate_abstract_prompt = translate_template.invoke(
+            {"type": "摘要", "content": abstract}
+        )
+        return deepseek_v3.invoke(translate_abstract_prompt).content
+    return abstract
 
 
 def download_arxiv_paper(
@@ -52,10 +42,14 @@ def download_arxiv_paper(
         title, abstract, link = get_information(arxiv_id)
     except:
         return "ID可能错误"
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_translation = executor.submit(get_translation, title, abstract, False)
-        future_parse = executor.submit(parse_arxiv, link)
-        translated_title, translated_abstract = future_translation.result()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        future_translatied_title = executor.submit(translate_title, title, storm)
+        future_translated_abstract = executor.submit(
+            translate_abstract, abstract, storm
+        )
+        future_parse = executor.submit(parse_arxiv, link.replace('abs', 'html'))
+        translated_title = future_translatied_title.result()
+        translated_abstract = future_translated_abstract.result()
         result = future_parse.result()
     title = f"STORMtemp{index}" if storm else title
     with open(f"{current_dir}/knowledgeBase/{title}.md", "w", encoding="utf-8") as f:
