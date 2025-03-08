@@ -182,7 +182,7 @@ def respond(
 
         # Generate and stream responses
         bot_response = ChatManager.stream_response(
-            formatted_text, msg["files"], str(chatbot[0]), chat_mode == 1, now_time
+            formatted_text, msg["files"], str(chatbot[0]), chat_mode, now_time
         )
         yield {"text": "", "files": []}, chatbot
         for response_chunk in bot_response:
