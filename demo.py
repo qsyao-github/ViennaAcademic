@@ -69,13 +69,11 @@ with gr.Blocks(
                             [msg, chatbot], value="清除", scale=1
                         )
                         chat_mode = gr.Radio(
-                            ["常规", "多模态", "知识库"],
+                            ["常规", "多模态", "知识库", "网页搜索"],
                             value="常规",
-                            type="index",
                             label="聊天模式",
                             scale=2,
                         )
-                        attach_button = gr.Button("引用", scale=1)
 
                         clear_button.click(
                             check_delete,
@@ -88,9 +86,6 @@ with gr.Blocks(
                                 tempest_file_list,
                             ],
                             concurrency_limit=28,
-                        )
-                        attach_button.click(
-                            append_attach_to_msg, msg, msg, concurrency_limit=28
                         )
 
                     msg.submit(
@@ -107,16 +102,8 @@ with gr.Blocks(
                 with gr.Tab("搜索"):
                     search_box = gr.Textbox(label="搜索框", scale=1)
                     with gr.Row():
-                        webSearch_button = gr.Button("网页搜索", scale=1, min_width=64)
                         academicSearch_button = gr.Button(
                             "论文搜索", scale=1, min_width=64
-                        )
-                        webSearch_button.click(
-                            search("webSearch"),
-                            [search_box, chatbot],
-                            [search_box, chatbot],
-                            concurrency_id="chat related",
-                            concurrency_limit=1,
                         )
                         academicSearch_button.click(
                             search("academicSearch"),
