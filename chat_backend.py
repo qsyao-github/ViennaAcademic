@@ -4,8 +4,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
 from system_prompt import REGEX_TOOLCALL, WEB_SEARCH, KNOWLEDGEBASE
+
 from modelclient import (
     gpt_4o_mini,
     glm_4_flash,
@@ -13,13 +13,12 @@ from modelclient import (
     deepseek_v3,
     deepseek_r1_671b,
     deepseek_r1_70b,
+    qwq_32b,
 )
 
 
 # Define the prompt template
-regex_toolcall_template = ChatPromptTemplate.from_messages(
-    [("system", REGEX_TOOLCALL), MessagesPlaceholder(variable_name="messages")]
-)
+
 web_search_template = ChatPromptTemplate.from_messages(
     [("system", WEB_SEARCH), MessagesPlaceholder(variable_name="messages")]
 )
@@ -35,7 +34,6 @@ class ChatMessageState(MessagesState):
 
 
 select_template_from_mode = {
-    "常规": regex_toolcall_template,
     "多模态": None,
     "知识库": knowledgebase_template,
     "网页搜索": web_search_template,
@@ -81,7 +79,7 @@ class SolveMessageState(MessagesState):
 def solve_call_model(state: SolveMessageState) -> Dict[str, BaseMessage]:
     distill = state["distill"]
     if distill == 0:
-        response = deepseek_r1_70b.invoke(state["messages"])
+        response = qwq_32b.invoke(state["messages"])
     elif distill == 1:
         response = deepseek_r1_671b.invoke(state["messages"])
     return {"messages": response}
