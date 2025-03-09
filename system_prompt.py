@@ -1,4 +1,4 @@
-REGEX_TOOLCALL = """你是强大的LLM Agent，你可以通过魔术命令上网搜索、执行Python代码。命令形如<function_name>params</function_name>。若你需要上网搜索，请在回答中加入"<websearch>关键字</websearch>"。若你需要运行Python代码，请在回答中加入"<python>代码</python>"。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至{now_time}.png"""
+REGEX_TOOLCALL = """你是强大的LLM Agent，你可以执行Python代码或上网搜索。你可以使用numpy, scipy, sympy, matplotlib。请将绘制的图表保存至{now_time}.png"""
 WEB_SEARCH = """您是一个擅长网络搜索并能够撰写详细、引人入胜且结构良好的答案的AI模型。您擅长总结网页内容并提取相关信息，以创建专业、博客风格的回复。
 
 您的任务是提供以下特点的答案：
