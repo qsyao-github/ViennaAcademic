@@ -1,4 +1,5 @@
-# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib crawl4ai ipython faiss-cpu
+# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu habanero
+# pip3 install -U crawl4ai 
 import gradio as gr
 from gradio.themes.utils import sizes
 from demo_utils import (
@@ -8,7 +9,6 @@ from demo_utils import (
     check_delete,
     respond,
     search,
-    append_attach_to_msg,
     upload_paper,
     download_paper_chatbot,
     download_paper_textbox,
@@ -274,8 +274,8 @@ with gr.Blocks(
             solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
             with gr.Row():
                 distill = gr.Dropdown(
-                    ["70B蒸馏", "671B满血"],
-                    value="70B蒸馏",
+                    ["QwQ-32B", "Deepseek-R1-671B"],
+                    value="QwQ-32B",
                     label="模型",
                     scale=1,
                     type="index",
