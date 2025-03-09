@@ -27,7 +27,6 @@ async def get_wolfram(query: str) -> str:
         result = await crawler.arun(url, config)
         if not result.success:
             return
-        print(result.extracted_content)
         data = json.loads(result.extracted_content)
         chunk_result = []
         for item in data:
