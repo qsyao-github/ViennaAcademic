@@ -136,7 +136,7 @@ class ChatManager:
             yield buffer.getvalue()
 
         final_response = ToolExecutor.execute_tools(buffer.getvalue())
-        final_response = ContentProcessor.format_formula(final_response)
+        # final_response = ContentProcessor.format_formula(final_response)
         # state_before_answer = list(streamer.get_state_history(chat_config))[-2]
         # chat_app.update_state(state_before_answer.config, {"messages": [AIMessage(final_response)]})
         ChatManager.handle_generated_image(timestamp, chat_config)
@@ -175,13 +175,9 @@ class SolveManager:
             for chunk, _ in answer:
                 content_buffer.write(chunk.content)
                 yield "", content_buffer.getvalue()
-            final_response = ContentProcessor.format_formula(
-                content_buffer.getvalue()
-            ).rsplit(r"</think>", 1)
-            state_before_answer = list(solve_app.get_state_history(chat_config))[-2]
-            solve_app.update_state(
-                state_before_answer.config, {"messages": [AIMessage(final_response[1])]}
-            )
+            final_response = content_buffer.getvalue().rsplit(r"</think>", 1)
+            final_response[1] = rf"""{final_response[1]}
+$$ $$\( \)\[ \]"""
             yield tuple(final_response)
         elif distill == 1:
             reasoning_buffer = StringIO()
@@ -191,6 +187,5 @@ class SolveManager:
                 )
                 content_buffer.write(chunk.content)
                 yield reasoning_buffer.getvalue(), content_buffer.getvalue()
-            yield ContentProcessor.format_formula(
-                reasoning_buffer.getvalue()
-            ), f"{ContentProcessor.format_formula(content_buffer.getvalue())}\n$$ $$"
+            yield reasoning_buffer.getvalue(), rf"""{content_buffer.getvalue()}
+$$ $$\( \)\[ \]"""
