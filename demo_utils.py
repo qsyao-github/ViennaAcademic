@@ -22,6 +22,8 @@ from search import attach_web_result
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
     {"left": "$", "right": "$", "display": False},
+    {"left": r"\(", "right": r"\)", "display": False},
+    {"left": r"\[", "right": r"\]", "display": True},
 ]
 
 
@@ -168,7 +170,12 @@ def respond(
         formatted_text = ContentProcessor.format_formula(
             ContentProcessor.process_attachments(text, current_user_dir)
         )
-        append_text(chatbot, f"{formatted_text}\n$$ $$", "user")
+        append_text(
+            chatbot,
+            rf"""{formatted_text}
+$$ $$\( \)\[ \]""",
+            "user",
+        )
         append_files(chatbot, msg["files"], "user")
 
         append_text(chatbot, "", "assistant")
@@ -182,7 +189,10 @@ def respond(
             chatbot[-1]["content"] = response_chunk
             yield {"text": "", "files": []}, chatbot
         # same suffix for #10450
-        chatbot[-1]["content"] += "\n$$ $$"
+        chatbot[-1][
+            "content"
+        ] += r"""
+$$ $$\( \)\[ \]"""
 
         # Handle generated media file if exists
         if os.path.exists(possible_media_filename):
@@ -359,14 +369,16 @@ def solve_respond(
         {
             "role": "user",
             "metadata": None,
-            "content": f"{solve_msg}\n$$ $$",
+            "content": rf"""{solve_msg}
+$$ $$\( \)\[ \]""",
             "options": None,
         }
     )
     yield "", solve_chatbot
     if wolfram:
         solve_msg = attach_hints(solve_msg)
-        solve_chatbot[-1]["content"] = f"{solve_msg}\n$$ $$"
+        solve_chatbot[-1]["content"] = rf"""{solve_msg}
+$$ $$\( \)\[ \]"""
     solve_chatbot.extend(
         [
             {"role": "assistant", "content": "", "metadata": {"title": "思考过程"}},
