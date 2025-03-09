@@ -5,7 +5,7 @@ from io import StringIO
 from typing import Dict, Generator, List, Union, Optional, Tuple
 from langchain_core.messages import HumanMessage, AIMessage
 from chat_backend import chat_app, solve_app
-from execute_code import execute_code
+from agent import chat_agent_executor
 from paper import attach
 from perplexica import execute_search
 
@@ -17,8 +17,8 @@ class ContentProcessor:
     FORMULA_INLINE_PATTERN = re.compile(r"\\\((.*?)\\\)", re.DOTALL)
     FORMULA_BLOCK_PATTERN = re.compile(r"\\\[(.*?)\\\]", re.DOTALL)
     FORMULA_CLEAN_PATTERN = re.compile(r"\$\$\s*(.*?)\s*\$\$", re.DOTALL)
-    XML_TAG_PATTERN = re.compile(r"<(\w+)>(.*?)</\1>", re.DOTALL)
     ATTACH_PATTERN = re.compile(r"#attach\{([^}]+)\}")
+    TOOL_CALL_PATTERN = re.compile(r'\{\s*\n*("[^"]+"):\s*\n*("[^"]+")\s*\n*\}', re.DOTALL)
 
     @staticmethod
     def format_formula(text: str) -> str:
@@ -43,20 +43,22 @@ class ContentProcessor:
 class ToolExecutor:
     """工具调用执行器"""
 
-    TOOLS = {"python": execute_code}
+    TOOLS = {
+        '"query"': lambda x: f"\n```\n{x.strip('"').replace(r'\n', '\n')}\n```\n",
+        '"code"': lambda x: f"\n```python\n{x.strip('"').replace(r'\n', '\n')}\n```\n",
+    }
 
     @classmethod
     def execute_tools(cls, text: str) -> str:
         """执行文本中的工具调用"""
-
         def replace_tag(match: re.Match) -> str:
-            tag, param = match.groups()
-            param = param.strip()
-            if not param or tag not in cls.TOOLS:
+            arg_name = match.group(1)
+            arg_value = match.group(2)
+            if not arg_value or arg_name not in cls.TOOLS:
                 return match.group(0)
-            return cls.TOOLS[tag](param)
+            return cls.TOOLS[arg_name](arg_value)
 
-        return ContentProcessor.XML_TAG_PATTERN.sub(replace_tag, text)
+        return ContentProcessor.TOOL_CALL_PATTERN.sub(replace_tag, text)
 
 
 class MediaHandler:
@@ -114,8 +116,9 @@ class ChatManager:
         chat_config = {"configurable": {"thread_id": thread_id}}
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
+        streamer = chat_agent_executor if mode == "常规" else chat_app
 
-        for chunk, _ in chat_app.stream(
+        for chunk, _ in streamer.stream(
             {
                 "messages": [HumanMessage(content=content)],
                 "mode": mode,
@@ -124,15 +127,18 @@ class ChatManager:
             config=chat_config,
             stream_mode="messages",
         ):
-            buffer.write(chunk.content)
+            buffer.write(
+                chunk.content
+                or chunk.additional_kwargs.get(
+                    "tool_calls", [{"function": {"arguments": ""}}]
+                )[0]["function"]["arguments"]
+            )
             yield buffer.getvalue()
 
         final_response = ToolExecutor.execute_tools(buffer.getvalue())
         final_response = ContentProcessor.format_formula(final_response)
-        state_before_answer = list(chat_app.get_state_history(chat_config))[-2]
-        chat_app.update_state(
-            state_before_answer.config, {"messages": [AIMessage(final_response)]}
-        )
+        # state_before_answer = list(streamer.get_state_history(chat_config))[-2]
+        # chat_app.update_state(state_before_answer.config, {"messages": [AIMessage(final_response)]})
         ChatManager.handle_generated_image(timestamp, chat_config)
         yield final_response
 
