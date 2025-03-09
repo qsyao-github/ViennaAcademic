@@ -109,13 +109,6 @@ def check_delete(
     )
 
 
-def append_attach_to_msg(
-    msg: Dict[str, Union[str, List[str]]],
-) -> Dict[str, Union[str, List[str]]]:
-    msg["text"] += "#attach{"
-    return msg
-
-
 def append_text(
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     text: str,
