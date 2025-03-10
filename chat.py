@@ -5,30 +5,17 @@ from io import StringIO
 from typing import Dict, Generator, List, Union, Optional, Tuple
 from langchain_core.messages import HumanMessage, AIMessage
 from chat_backend import chat_app, solve_app
-from agent import chat_agent_executor
+from agent import chat_agent_executor, solve_agent_executor
 from paper import attach
 from perplexica import execute_search
 
 
 class ContentProcessor:
     """处理内容相关的正则表达式模式"""
-
-    # 修正后的行内公式正则表达式，正确转义反斜杠和括号
-    FORMULA_INLINE_PATTERN = re.compile(r"\\\((.*?)\\\)", re.DOTALL)
-    FORMULA_BLOCK_PATTERN = re.compile(r"\\\[(.*?)\\\]", re.DOTALL)
-    FORMULA_CLEAN_PATTERN = re.compile(r"\$\$\s*(.*?)\s*\$\$", re.DOTALL)
     ATTACH_PATTERN = re.compile(r"#attach\{([^}]+)\}")
-    TOOL_CALL_PATTERN = re.compile(r'\{\s*\n*("[^"]+"):\s*\n*("[^"]+")\s*\n*\}', re.DOTALL)
-
-    @staticmethod
-    def format_formula(text: str) -> str:
-        """统一格式化各种LaTeX公式表示形式"""
-        # 处理行内公式：使用正确的捕获组引用\1
-        text = ContentProcessor.FORMULA_INLINE_PATTERN.sub(r"$\1$", text)
-        # 处理行间公式
-        text = ContentProcessor.FORMULA_BLOCK_PATTERN.sub(r"$$\1$$", text)
-        # 标准化现有公式格式
-        return ContentProcessor.FORMULA_CLEAN_PATTERN.sub(r"$$\1$$", text)
+    TOOL_CALL_PATTERN = re.compile(
+        r'\{\s*\n*("[^"]+"):\s*\n*("[^"]+")\s*\n*\}', re.DOTALL
+    )
 
     @staticmethod
     def process_attachments(text: str, current_dir: str) -> str:
@@ -51,6 +38,7 @@ class ToolExecutor:
     @classmethod
     def execute_tools(cls, text: str) -> str:
         """执行文本中的工具调用"""
+
         def replace_tag(match: re.Match) -> str:
             arg_name = match.group(1)
             arg_value = match.group(2)
@@ -160,7 +148,10 @@ class SolveManager:
     ) -> Generator[Tuple[str, str], None, None]:
         chat_config = {"configurable": {"thread_id": thread_id}}
         content_buffer = StringIO()
-        answer = solve_app.stream(
+        # attempt to use tool call for qwq failed
+        # streamer = solve_app if distill == 1 else solve_agent_executor
+        streamer = solve_app
+        answer = streamer.stream(
             {"messages": [HumanMessage(text)], "distill": distill},
             config=chat_config,
             stream_mode="messages",
@@ -169,14 +160,29 @@ class SolveManager:
             temp_string = ""
             for _ in range(8):
                 chunk, _ = next(answer)
-                temp_string += chunk.content
-            temp_string = temp_string[8:]
+                temp_string += (
+                    chunk.content
+                    or chunk.additional_kwargs.get(
+                        "tool_calls", [{"function": {"arguments": ""}}]
+                    )[0]["function"]["arguments"]
+                )
+            temp_string = temp_string[8:].strip() if temp_string.strip().startswith('<think>') else temp_string
             content_buffer.write(temp_string)
             for chunk, _ in answer:
-                content_buffer.write(chunk.content)
+                content_buffer.write(
+                    chunk.content
+                    or chunk.additional_kwargs.get(
+                        "tool_calls", [{"function": {"arguments": ""}}]
+                    )[0]["function"]["arguments"]
+                )
                 yield "", content_buffer.getvalue()
-            final_response = content_buffer.getvalue().rsplit(r"</think>", 1)
-            final_response[1] = rf"""{final_response[1]}
+            final_response = ToolExecutor.execute_tools(
+                content_buffer.getvalue()
+            ).rsplit(r"</think>", 1)
+            if len(final_response) > 1:
+                final_response[
+                    1
+                ] = rf"""{final_response[1]}
 $$ $$\( \)\[ \]"""
             yield tuple(final_response)
         elif distill == 1:
