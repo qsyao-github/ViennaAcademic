@@ -1,5 +1,5 @@
 # pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu habanero
-# pip3 install -U crawl4ai 
+# pip3 install -U crawl4ai
 import gradio as gr
 from gradio.themes.utils import sizes
 from demo_utils import (
@@ -16,7 +16,6 @@ from demo_utils import (
     clone_repo,
     _show_repo,
     generate_paper_answer,
-    _paper_show_files,
     solve_respond,
 )
 from auth import check_login
@@ -135,7 +134,9 @@ with gr.Blocks(
                         inputs=[current_user_directory],
                     )
                     def show_paper(current_dir: str) -> None:
-                        show_files("paper", current_dir, paper_file_list, msg)
+                        show_files(
+                            "paper", current_dir, paper_file_list, msg, append=True
+                        )
 
                 with gr.Tab("已解析文件"):
                     with gr.Row():
@@ -162,7 +163,11 @@ with gr.Blocks(
                     )
                     def show_knowledgeBase(current_dir: str) -> None:
                         show_files(
-                            "knowledgeBase", current_dir, knowledgeBase_file_list, msg
+                            "knowledgeBase",
+                            current_dir,
+                            knowledgeBase_file_list,
+                            msg,
+                            append=True,
                         )
 
                 with gr.Tab("代码"):
@@ -186,7 +191,9 @@ with gr.Blocks(
                         inputs=[current_user_directory],
                     )
                     def show_code(current_dir: str) -> None:
-                        show_files("code", current_dir, code_file_list, msg)
+                        show_files(
+                            "code", current_dir, code_file_list, msg, append=True
+                        )
 
                 with gr.Tab("Github仓库"):
                     with gr.Row():
@@ -234,6 +241,13 @@ with gr.Blocks(
                     [paper_answer, knowledgeBase_file_list],
                 )
             with gr.Column(scale=1, min_width=384):
+                upload_paper_button = gr.UploadButton("上传论文", scale=1, min_width=64)
+                upload_paper_button.upload(
+                    upload_paper,
+                    [upload_paper_button, current_user_directory],
+                    [paper_file_list, knowledgeBase_file_list],
+                    concurrency_limit=1,
+                )
                 with gr.Row():
                     paper_refresh = gr.Button("刷新", scale=1, min_width=32)
                     paper_download_arxiv = gr.Button(
@@ -257,39 +271,79 @@ with gr.Blocks(
                     inputs=[current_user_directory],
                 )
                 def paper_show_knowledgeBase(current_dir: str):
-                    _paper_show_files(
-                        current_dir, knowledgeBase_file_list, selected_paper
+                    show_files(
+                        "paper",
+                        current_dir,
+                        knowledgeBase_file_list,
+                        selected_paper,
+                        append=False,
                     )
 
-    with gr.Tab("解题"):
-        with gr.Tab("常规解题"):
-            solve_chatbot = gr.Chatbot(
-                type="messages",
-                latex_delimiters=LATEX_DELIMITERS,
-                show_copy_button=True,
-                show_copy_all_button=True,
-                label="聊天框",
-                scale=8,
-            )
-            solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
+    with gr.Tab("解题/代码"):
+        with gr.Tab("常规解题/代码"):
             with gr.Row():
-                distill = gr.Dropdown(
-                    ["QwQ-32B", "Deepseek-R1-671B"],
-                    value="QwQ-32B",
-                    label="模型",
-                    scale=1,
-                    type="index",
-                )
-                solve_clear = gr.ClearButton([solve_msg, solve_chatbot], value="清除")
-                ocr_button = gr.UploadButton("识别题目")
-                wolfram = gr.Checkbox(value=False, label="使用Wolfram")
-                ocr_button.upload(file_ocr, ocr_button, solve_msg)
-            solve_msg.submit(
-                solve_respond,
-                [solve_msg, solve_chatbot, distill, wolfram],
-                [solve_msg, solve_chatbot],
-                concurrency_limit=2,
-            )
+                with gr.Column(scale=8):
+                    solve_chatbot = gr.Chatbot(
+                        type="messages",
+                        latex_delimiters=LATEX_DELIMITERS,
+                        show_copy_button=True,
+                        show_copy_all_button=True,
+                        label="聊天框",
+                        scale=8,
+                    )
+                    solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
+                    with gr.Tab("解题"):
+                        with gr.Row():
+                            distill = gr.Dropdown(
+                                ["QwQ-32B", "Deepseek-R1-671B"],
+                                value="QwQ-32B",
+                                label="模型",
+                                scale=1,
+                                type="index",
+                            )
+                            solve_clear = gr.ClearButton(
+                                [solve_msg, solve_chatbot], value="清除"
+                            )
+                            ocr_button = gr.UploadButton("识别题目")
+                            wolfram = gr.Checkbox(value=False, label="使用Wolfram")
+                            ocr_button.upload(file_ocr, ocr_button, solve_msg)
+                        solve_msg.submit(
+                            solve_respond,
+                            [solve_msg, solve_chatbot,current_user_directory, distill, wolfram],
+                            [solve_msg, solve_chatbot],
+                            concurrency_limit=2,
+                        )
+                    with gr.Tab("代码"):
+                        with gr.Row():
+                            readability = gr.Button("可读性优化")
+                            readability.click(lambda x: f'{x}\n对代码进行可读性优化', solve_msg, solve_msg)
+                            performance = gr.Button("性能优化")
+                            performance.click(lambda x: f'{x}\n对代码进行性能优化', solve_msg, solve_msg)
+                            safety = gr.Button("安全性优化")
+                            safety.click(lambda x: f'{x}\n对代码进行安全性优化', solve_msg, solve_msg)
+                with gr.Column(scale=1, min_width=384):
+                    with gr.Row():
+                        solve_upload_code_button = gr.UploadButton(
+                            "上传代码", scale=1, min_width=64
+                        )
+                        solve_upload_code_button.upload(
+                            upload_code,
+                            [solve_upload_code_button, current_user_directory],
+                            code_file_list,
+                        )
+                        refresh = gr.Button("刷新", scale=1, min_width=32)
+                    @gr.render(
+                        triggers=[
+                            refresh.click,
+                            current_user_directory.change,
+                            code_file_list.change,
+                        ],
+                        inputs=[current_user_directory],
+                    )
+                    def solve_show_code(current_dir: str) -> None:
+                        show_files(
+                            "code", current_dir, code_file_list, solve_msg, append=True
+                        )
 
 
 demo.launch(auth=check_login)
