@@ -45,7 +45,8 @@ def show_files(
     folder: str,
     current_dir: str,
     file_list: gr.State,
-    msg: gr.MultimodalTextbox,
+    msg: Union[gr.MultimodalTextbox, gr.Textbox],
+    append: bool = True
 ) -> None:
     folder_path = f"{current_dir}/{folder}"
     for file in os.listdir(folder_path):
@@ -65,9 +66,14 @@ def show_files(
             delete_file_button.click(delete_file, None, file_list, concurrency_limit=28)
 
             def append_to_msg(
-                msg: Dict[str, Union[str, List[str]]], file: str = file
+                msg: Union[Dict[str, Union[str, List[str]]], str], file: str = file
             ) -> Dict[str, Union[str, List[str]]]:
-                msg["text"] += "#attach{" + file + "}"
+                if isinstance(msg, dict):
+                    msg["text"] += "#attach{" + file + "}"
+                elif append:
+                    msg += "#attach{" + file + "}"
+                else:
+                    msg = file
                 return msg
 
             file_button.click(append_to_msg, msg, msg, concurrency_limit=28)
@@ -167,9 +173,7 @@ def respond(
             web_search_result = attach_web_result(text)
             if web_search_result:
                 text = web_search_result + "\n\n" + text
-        formatted_text = ContentProcessor.format_formula(
-            ContentProcessor.process_attachments(text, current_user_dir)
-        )
+        formatted_text = ContentProcessor.process_attachments(text, current_user_dir)
         append_text(
             chatbot,
             rf"""{formatted_text}
@@ -356,15 +360,15 @@ def generate_paper_answer(
 def solve_respond(
     solve_msg: str,
     solve_chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+    current_dir: str,
     distill: bool,
     wolfram: bool,
 ) -> Generator[
     Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
 ]:
-    solve_msg = solve_msg.strip()
+    solve_msg = ContentProcessor.process_attachments(solve_msg.strip(), current_dir)
     if not solve_msg:
         return "", solve_chatbot
-    solve_msg = ContentProcessor.format_formula(solve_msg)
     solve_chatbot.append(
         {
             "role": "user",
