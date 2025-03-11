@@ -1,4 +1,4 @@
-# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu habanero
+# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu
 # pip3 install -U crawl4ai
 import gradio as gr
 from gradio.themes.utils import sizes
@@ -8,7 +8,7 @@ from demo_utils import (
     show_files,
     check_delete,
     respond,
-    search,
+    academic_search,
     upload_paper,
     download_paper_chatbot,
     download_paper_textbox,
@@ -18,6 +18,7 @@ from demo_utils import (
     generate_paper_answer,
     solve_respond,
 )
+from search import attach_web_result, attach_academic_result
 from auth import check_login
 from llm_ocr import file_ocr
 
@@ -105,11 +106,11 @@ with gr.Blocks(
                             "论文搜索", scale=1, min_width=64
                         )
                         academicSearch_button.click(
-                            search("academicSearch"),
+                            academic_search,
                             [search_box, chatbot],
                             [search_box, chatbot],
                             concurrency_id="chat related",
-                            concurrency_limit=1,
+                            concurrency_limit=28,
                         )
             with gr.Column(scale=0, min_width=384):
                 with gr.Tab("论文"):
