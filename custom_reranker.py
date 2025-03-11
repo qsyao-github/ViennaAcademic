@@ -74,6 +74,7 @@ class CustomCompressor(BaseDocumentCompressor):
             doc_id = item["index"]
             doc = valid_doc_list[doc_id]
             doc.metadata["relevance_score"] = score
+            doc.metadata["index"] = doc_id
             final_results.append(doc)
         for doc in invalid_doc_list:
             doc.metadata["relevance_score"] = 0
