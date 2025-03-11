@@ -136,7 +136,7 @@ class ChatManager:
             yield final_result
         agent_app.update_state(
             {"configurable": {"thread_id": thread_id}},
-            {"messages": [HumanMessage(f"请搜索{query}"), AIMessage(final_result)]},
+            {"messages": [HumanMessage([{"type":"text","text":f"请搜索{query}"}]), AIMessage(final_result)]},
         )
         yield final_result
 
