@@ -273,7 +273,7 @@ with gr.Blocks(
                 )
                 def paper_show_knowledgeBase(current_dir: str):
                     show_files(
-                        "paper",
+                        "knowledgeBase",
                         current_dir,
                         knowledgeBase_file_list,
                         selected_paper,
@@ -317,7 +317,7 @@ with gr.Blocks(
                     with gr.Tab("代码"):
                         with gr.Row():
                             readability = gr.Button("可读性优化")
-                            readability.click(lambda x: f'{x}\n对代码进行可读性优化', solve_msg, solve_msg)
+                            readability.click(lambda x: f'{x}\n重构代码、进行可读性优化', solve_msg, solve_msg)
                             performance = gr.Button("性能优化")
                             performance.click(lambda x: f'{x}\n对代码进行性能优化', solve_msg, solve_msg)
                             safety = gr.Button("安全性优化")
