@@ -5,13 +5,14 @@ from io import StringIO
 from typing import Dict, Generator, List, Union, Optional, Tuple
 from langchain_core.messages import HumanMessage, AIMessage
 from chat_backend import chat_app, solve_app
-from agent import chat_agent_executor, solve_agent_executor
+from agent_backend import agent_app
 from paper import attach
-from perplexica import execute_search
+from search import generate_summary
 
 
 class ContentProcessor:
     """处理内容相关的正则表达式模式"""
+
     ATTACH_PATTERN = re.compile(r"#attach\{([^}]+)\}")
     TOOL_CALL_PATTERN = re.compile(
         r'\{\s*\n*("[^"]+"):\s*\n*("[^"]+")\s*\n*\}', re.DOTALL
@@ -92,7 +93,7 @@ class ChatManager:
         if os.path.exists(image_path):
             image_component = MediaHandler.create_image_component(image_path)
             if image_component:
-                chat_app.update_state(
+                agent_app.update_state(
                     chat_config, {"messages": HumanMessage([image_component])}
                 )
 
@@ -104,9 +105,7 @@ class ChatManager:
         chat_config = {"configurable": {"thread_id": thread_id}}
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
-        streamer = chat_agent_executor if mode == "常规" else chat_app
-
-        for chunk, _ in streamer.stream(
+        for chunk, _ in agent_app.stream(
             {
                 "messages": [HumanMessage(content=content)],
                 "mode": mode,
@@ -124,21 +123,22 @@ class ChatManager:
             yield buffer.getvalue()
 
         final_response = ToolExecutor.execute_tools(buffer.getvalue())
-        # final_response = ContentProcessor.format_formula(final_response)
-        # state_before_answer = list(streamer.get_state_history(chat_config))[-2]
-        # chat_app.update_state(state_before_answer.config, {"messages": [AIMessage(final_response)]})
         ChatManager.handle_generated_image(timestamp, chat_config)
         yield final_response
 
     @staticmethod
-    def append_search_result(query: str, focus_mode: str, thread_id: str) -> str:
+    def append_search_result(query: str, thread_id: str) -> Generator[str, None, None]:
         """追加搜索结果到消息"""
-        search_result = execute_search(query, focus_mode)
-        chat_app.update_state(
+        final_result = ""
+        search_result = generate_summary(query)
+        for chunk_result in search_result:
+            final_result = chunk_result
+            yield final_result
+        agent_app.update_state(
             {"configurable": {"thread_id": thread_id}},
-            {"messages": [HumanMessage(f"请搜索{query}"), AIMessage(search_result)]},
+            {"messages": [HumanMessage(f"请搜索{query}"), AIMessage(final_result)]},
         )
-        return search_result
+        yield final_result
 
 
 class SolveManager:
@@ -166,7 +166,11 @@ class SolveManager:
                         "tool_calls", [{"function": {"arguments": ""}}]
                     )[0]["function"]["arguments"]
                 )
-            temp_string = temp_string[8:].strip() if temp_string.strip().startswith('<think>') else temp_string
+            temp_string = (
+                temp_string[8:].strip()
+                if temp_string.strip().startswith("<think>")
+                else temp_string
+            )
             content_buffer.write(temp_string)
             for chunk, _ in answer:
                 content_buffer.write(
