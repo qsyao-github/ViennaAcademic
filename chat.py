@@ -3,7 +3,7 @@ import os
 import re
 from io import StringIO
 from typing import Dict, Generator, List, Union, Optional, Tuple
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
 from chat_backend import chat_app, solve_app
 from agent_backend import agent_app
 from paper import attach
@@ -148,10 +148,7 @@ class SolveManager:
     ) -> Generator[Tuple[str, str], None, None]:
         chat_config = {"configurable": {"thread_id": thread_id}}
         content_buffer = StringIO()
-        # attempt to use tool call for qwq failed
-        # streamer = solve_app if distill == 1 else solve_agent_executor
-        streamer = solve_app
-        answer = streamer.stream(
+        answer = solve_app.stream(
             {"messages": [HumanMessage(text)], "distill": distill},
             config=chat_config,
             stream_mode="messages",
@@ -160,12 +157,7 @@ class SolveManager:
             temp_string = ""
             for _ in range(8):
                 chunk, _ = next(answer)
-                temp_string += (
-                    chunk.content
-                    or chunk.additional_kwargs.get(
-                        "tool_calls", [{"function": {"arguments": ""}}]
-                    )[0]["function"]["arguments"]
-                )
+                temp_string += chunk.content
             temp_string = (
                 temp_string[8:].strip()
                 if temp_string.strip().startswith("<think>")
@@ -173,21 +165,17 @@ class SolveManager:
             )
             content_buffer.write(temp_string)
             for chunk, _ in answer:
-                content_buffer.write(
-                    chunk.content
-                    or chunk.additional_kwargs.get(
-                        "tool_calls", [{"function": {"arguments": ""}}]
-                    )[0]["function"]["arguments"]
-                )
+                content_buffer.write(chunk.content)
                 yield "", content_buffer.getvalue()
-            final_response = ToolExecutor.execute_tools(
-                content_buffer.getvalue()
-            ).rsplit(r"</think>", 1)
+            final_response = content_buffer.getvalue().rsplit(r"</think>", 1)
             if len(final_response) > 1:
                 final_response[
                     1
                 ] = rf"""{final_response[1]}
 $$ $$\( \)\[ \]"""
+            messages = solve_app.get_state(chat_config).values["messages"]
+            solve_app.update_state(chat_config, {"messages": RemoveMessage(id=messages[-1].id)})
+            solve_app.update_state(chat_config, {"messages": AIMessage(content=final_response[1])})
             yield tuple(final_response)
         elif distill == 1:
             reasoning_buffer = StringIO()
