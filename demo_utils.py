@@ -325,7 +325,7 @@ def _show_repo(
 
             def delete_folder(folder_directory: str = folder_directory) -> List[str]:
                 shutil.rmtree(folder_directory)
-                return os.listdir("repositry")
+                return os.listdir(f"{current_dir}/repositry")
 
             delete_folder_button.click(
                 delete_folder, [], [repositry_file_list], concurrency_limit=28
