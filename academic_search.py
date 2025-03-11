@@ -1,11 +1,8 @@
 from langchain_community.retrievers import ArxivRetriever
-from habanero import Crossref
 from typing import Tuple, List
-import re
+from searXNG import searxng_academic_search
 
 retriever = ArxivRetriever()
-cr = Crossref(timeout=30)
-CROSSREF_ABSTRACT_PATTERN = re.compile(r"<jats:p>(.*?)</jats:p>")
 
 
 def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
@@ -20,15 +17,30 @@ def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
     ]
 
 
-def search_crossref(query: str) -> List[Tuple[str, str, str]]:
-    x = cr.works(query=query)
-    return [
-        (
-            item.get("title", "")[0],
-            CROSSREF_ABSTRACT_PATTERN.search(
-                item.get("abstract", "<jats:p></jats:p>")
-            ).group(1),
-            item.get("URL", ""),
-        )
-        for item in x["message"]["items"]
-    ]
+from modelclient import bce_embedding_base
+from typing import List
+from custom_reranker import CustomCompressor
+from langchain_community.vectorstores.faiss import FAISS
+from langchain_community.vectorstores.utils import DistanceStrategy
+from langchain.retrievers import ContextualCompressionRetriever
+
+reranker = CustomCompressor(10)
+
+
+def select_best_results(query: str) -> List[Tuple[str, str, str]]:
+    results = searxng_academic_search(query)
+    texts = [f"{item[0]}\n{item[1]}"[:512] for item in results]
+    retriever = FAISS.from_texts(
+        texts,
+        bce_embedding_base,
+        distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+    ).as_retriever(
+        search_type="similarity",
+        search_kwargs={"score_threshold": 0.35, "k": 100},
+    )
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=reranker, base_retriever=retriever
+    )
+    response = compression_retriever.invoke(query)
+    indicies = [int(item.metadata["index"]) for item in response]
+    return [results[i] for i in indicies]
