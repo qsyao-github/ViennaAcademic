@@ -27,7 +27,7 @@ def attach_academic_result(query: str) -> str:
     return f'{"\n\n".join(
         f"# {i}. {title}\n{snippet}"
         for i, (title, snippet, _) in enumerate(results, start=1)
-    )}'
+    )}\n\n{"\n\n".join(f"[{i}] [{title}]({link})" for i, (title, _, link) in enumerate(results, start=1))}'
 
 
 def generate_summary(query: str) -> Generator[str, None, None]:
