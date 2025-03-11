@@ -111,13 +111,10 @@ def chatbot(state: ChatMessageState):
     model = select_model_from_mode[mode]
     prompted_message = template.invoke(state)
     if mode != "多模态":
-        print("filtering multimodal")
         prompted_message = filter_multimodal(prompted_message)
     if mode != "常规":
-        print('filtering tools')
         prompted_message = filter_tools(prompted_message)
     merged = merge_message_runs(prompted_message)
-    print(merged)
     response = model.invoke(merged)
     return {"messages": response}
 
