@@ -17,7 +17,7 @@ from paper import (
     read_paper,
 )
 from wolfram import attach_hints
-from search import attach_web_result
+from search import attach_web_result, attach_academic_result
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -46,7 +46,7 @@ def show_files(
     current_dir: str,
     file_list: gr.State,
     msg: Union[gr.MultimodalTextbox, gr.Textbox],
-    append: bool = True
+    append: bool = True,
 ) -> None:
     folder_path = f"{current_dir}/{folder}"
     for file in os.listdir(folder_path):
@@ -116,7 +116,6 @@ def check_delete(
         os.listdir(f"{current_user}/tempest"),
     )
 
-
 def append_text(
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     text: str,
@@ -161,7 +160,6 @@ def respond(
         # Main processing logic
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
         possible_media_filename = f"{now_time}.png"
-
         # Process incoming message
         # A special suffix is added to formatted_text. This is to address gradio issue #10450
         text = msg["text"]
@@ -172,7 +170,7 @@ def respond(
         elif chat_mode == "网页搜索":
             web_search_result = attach_web_result(text)
             if web_search_result:
-                text = web_search_result + "\n\n" + text
+                text = web_search_result + "\n\n---\n\n" + text
         formatted_text = ContentProcessor.process_attachments(text, current_user_dir)
         append_text(
             chatbot,
@@ -203,6 +201,23 @@ $$ $$\( \)\[ \]"""
             append_file(chatbot, possible_media_filename, "assistant")
 
     yield {"text": "", "files": []}, chatbot
+
+
+def academic_search(
+    query: str, chatbot: List[Dict[str, Union[str, Dict[str, str], None]]]
+) -> Generator[
+    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
+]:
+    if query:
+        append_text(chatbot, f"搜索{query}相关论文", "user")
+        yield "", chatbot
+        academic_search_result = ChatManager.append_search_result(
+            query, str(chatbot[0])
+        )
+        append_text(chatbot, "", "assistant")
+        for chunk_result in academic_search_result:
+            chatbot[-1]["content"] = chunk_result
+            yield "", chatbot
 
 
 def search(
@@ -381,7 +396,9 @@ $$ $$\( \)\[ \]""",
     yield "", solve_chatbot
     if wolfram:
         solve_msg = attach_hints(solve_msg)
-        solve_chatbot[-1]["content"] = rf"""{solve_msg}
+        solve_chatbot[-1][
+            "content"
+        ] = rf"""{solve_msg}
 $$ $$\( \)\[ \]"""
     solve_chatbot.extend(
         [
