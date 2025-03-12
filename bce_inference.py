@@ -40,12 +40,12 @@ def get_retriever(file: str) -> FAISS:
 
 
 def save_retriever(file: str, current_dir: str) -> None:
-    # try:
-    retriever = get_retriever(f"{current_dir}/knowledgeBase/{file}.md")
-    if retriever is not None:
-        retriever.save_local(f"{current_dir}/retrievers", file)
-    # except:
-        # pass
+    try:
+        retriever = get_retriever(f"{current_dir}/knowledgeBase/{file}.md")
+        if retriever is not None:
+            retriever.save_local(f"{current_dir}/retrievers", file)
+    except:
+        pass
 
 
 def remove_retriever(file: str, current_dir: str) -> None:
@@ -90,7 +90,7 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
         base_retriever.merge_from(retriever)
     base_retriever = base_retriever.as_retriever(
         search_type="similarity",
-        search_kwargs={"score_threshold": 0.35, "k": 100, "fetch-k": 100},
+        search_kwargs={"score_threshold": 0.35, "k": 100},
     )
     compression_retriever = ContextualCompressionRetriever(
         base_compressor=reranker, base_retriever=base_retriever
