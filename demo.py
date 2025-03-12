@@ -18,7 +18,6 @@ from demo_utils import (
     generate_paper_answer,
     solve_respond,
 )
-from search import attach_web_result, attach_academic_result
 from auth import check_login
 from llm_ocr import file_ocr
 
@@ -62,7 +61,7 @@ with gr.Blocks(
                         label="输入框",
                         placeholder="输入文字，可点左侧按钮上传图片",
                         scale=1,
-                        file_types=["image"],
+                        file_types=["image", "text"],
                     )
                     with gr.Row():
                         clear_button = gr.ClearButton(
@@ -310,18 +309,36 @@ with gr.Blocks(
                             ocr_button.upload(file_ocr, ocr_button, solve_msg)
                         solve_msg.submit(
                             solve_respond,
-                            [solve_msg, solve_chatbot,current_user_directory, distill, wolfram],
+                            [
+                                solve_msg,
+                                solve_chatbot,
+                                current_user_directory,
+                                distill,
+                                wolfram,
+                            ],
                             [solve_msg, solve_chatbot],
                             concurrency_limit=2,
                         )
                     with gr.Tab("代码"):
                         with gr.Row():
                             readability = gr.Button("可读性优化")
-                            readability.click(lambda x: f'{x}\n重构代码、进行可读性优化', solve_msg, solve_msg)
+                            readability.click(
+                                lambda x: f"{x}\n重构代码、进行可读性优化",
+                                solve_msg,
+                                solve_msg,
+                            )
                             performance = gr.Button("性能优化")
-                            performance.click(lambda x: f'{x}\n对代码进行性能优化', solve_msg, solve_msg)
+                            performance.click(
+                                lambda x: f"{x}\n对代码进行性能优化",
+                                solve_msg,
+                                solve_msg,
+                            )
                             safety = gr.Button("安全性优化")
-                            safety.click(lambda x: f'{x}\n对代码进行安全性优化', solve_msg, solve_msg)
+                            safety.click(
+                                lambda x: f"{x}\n对代码进行安全性优化",
+                                solve_msg,
+                                solve_msg,
+                            )
                 with gr.Column(scale=1, min_width=384):
                     with gr.Row():
                         solve_upload_code_button = gr.UploadButton(
@@ -333,6 +350,7 @@ with gr.Blocks(
                             code_file_list,
                         )
                         refresh = gr.Button("刷新", scale=1, min_width=32)
+
                     @gr.render(
                         triggers=[
                             refresh.click,
