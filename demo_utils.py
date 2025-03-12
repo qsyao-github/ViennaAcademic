@@ -17,7 +17,7 @@ from paper import (
     read_paper,
 )
 from wolfram import attach_hints
-from search import attach_web_result, attach_academic_result
+from search import attach_web_result
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -163,14 +163,15 @@ def respond(
         # Process incoming message
         # A special suffix is added to formatted_text. This is to address gradio issue #10450
         text = msg["text"]
+        web_search_result, reference = "", ""
         if chat_mode == "知识库":
             knowledgeBase_search = get_response(text, current_user_dir)
             if knowledgeBase_search:
                 text = knowledgeBase_search + "\n\n" + text
         elif chat_mode == "网页搜索":
-            web_search_result = attach_web_result(text)
-            if web_search_result:
-                text = web_search_result + "\n\n---\n\n" + text
+            web_search_result, reference = attach_web_result(text)
+            web_search_result = f'\n{web_search_result}\n\n'
+            reference = f'\n\n参考文献\n\n{reference}'
         formatted_text = ContentProcessor.process_attachments(text, current_user_dir)
         append_text(
             chatbot,
@@ -184,7 +185,7 @@ $$ $$\( \)\[ \]""",
 
         # Generate and stream responses
         bot_response = ChatManager.stream_response(
-            formatted_text, msg["files"], str(chatbot[0]), chat_mode, now_time
+            f'{web_search_result}{formatted_text}', msg["files"], str(chatbot[0]), chat_mode, now_time
         )
         yield {"text": "", "files": []}, chatbot
         for response_chunk in bot_response:
@@ -193,7 +194,7 @@ $$ $$\( \)\[ \]""",
         # same suffix for #10450
         chatbot[-1][
             "content"
-        ] += r"""
+        ] += rf"""{reference}
 $$ $$\( \)\[ \]"""
 
         # Handle generated media file if exists
