@@ -1,17 +1,21 @@
-import os
-from typing import List
+"""
+本地知识库实现
 
-from langchain_community.vectorstores.faiss import FAISS
-from langchain_community.vectorstores.utils import DistanceStrategy
-from langchain_community.document_loaders import TextLoader
-from langchain_core.documents import Document
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+包括对上传、生成文件的分割向量化，embedding数据的本地储存，以及知识库文本召回
+"""
+import os
+from typing import List, Union
 
 from custom_reranker import CustomCompressor
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import TextLoader
+from langchain_community.vectorstores.faiss import FAISS
+from langchain_community.vectorstores.utils import DistanceStrategy
+from langchain_core.documents import Document
 from modelclient import bce_embedding_base
 
-reranker = CustomCompressor(10)
+reranker = CustomCompressor()
 text_splitter = RecursiveCharacterTextSplitter(
     separators=[
         r"\n{2,}",
@@ -29,81 +33,98 @@ check_chars = ["。", "！", "？", ".", "!", "?"]
 
 
 def get_document(file: str) -> List[Document]:
-    """读取文档，按正则表达式分割为<=512字符的片段，避免超过bce-embedding上下文限制
+    """读取并分割文档
 
-    Args:
-        file: 文件路径
+    按正则表达式分割为<=512字符的片段，避免超过bce-embedding上下文限制
 
-    Returns:
+    Parameters
+    ----------
+    file: str
+        文件路径
+
+    Returns
+    ----------
+    List[Document]
         文档片段列表
     """
     documents = TextLoader(file).load()
-    texts = text_splitter.split_documents(documents)
-    return texts
+    return text_splitter.split_documents(documents)
 
 
-def get_retriever(file: str) -> FAISS:
+def get_retriever(file: str) -> Union[FAISS, None]:
     """将本地文件向量化，返回召回器
 
-    Args:
-        file: 文件路径
+    Parameters
+    ----------
+    file: str
+        文件路径
 
-    Returns:
-        召回器
+    Returns
+    ----------
+    Union[FAISS, None]
+        召回器。若文件为空，则返回None
     """
-    total_texts = get_document(file)
-    if total_texts:
-        retriever = FAISS.from_documents(
+    if total_texts := get_document(file):
+        return FAISS.from_documents(
             total_texts,
             bce_embedding_base,
             distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
         )
-        return retriever
 
 
 def save_retriever(file: str, current_dir: str) -> None:
     """将召回器保存至本地
 
-    Args:
-        file: 文件名
-        current_dir: 当前用户根目录
+    Parameters
+    ----------
+    file: str
+        文件名
+    current_dir: str
+        当前用户根目录
     """
-    # 当文件为空将会产生报错，忽略
+    # 处理未知错误
     try:
         retriever = get_retriever(f"{current_dir}/knowledgeBase/{file}.md")
         if retriever is not None:
             retriever.save_local(f"{current_dir}/retrievers", file)
-    except:
-        pass
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 def remove_retriever(file: str, current_dir: str) -> None:
     """删除本地指定召回器
 
-    Args:
-        file: 文件名
-        current_dir: 当前用户根目录
+    Parameters
+    ----------
+    file: str
+        文件名
+    current_dir: str
+        当前用户根目录
     """
     # 在demo.py中，由于文件删除键的渲染慢于IO，用户重复点击可导致报错，忽略
     try:
         os.remove(f"{current_dir}/retrievers/{file}.pkl")
         os.remove(f"{current_dir}/retrievers/{file}.faiss")
-    except:
-        pass
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 def update(current_dir: str) -> None:
-    """当上传、删除或程序生成文件后，更新知识库
+    """更新知识库
 
-    Args:
-        current_dir: 当前用户根目录
+    在上传、删除或程序生成文件后调用
+
+    Parameters
+    ----------
+    current_dir: str
+        当前用户根目录
     """
-    knowledgeBase = set(
+    knowledgeBase = {
         os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/knowledgeBase")
-    )
-    retrievers = set(
+    }
+    retrievers = {
         os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/retrievers")
-    )
+    }
     # 保存上传、生成的文件
     for file in knowledgeBase - retrievers:
         save_retriever(file, current_dir)
@@ -115,10 +136,14 @@ def update(current_dir: str) -> None:
 def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
     """合并所有本地的召回器，并加入reranker精排，返回压缩召回器
 
-    Args:
-        current_dir: 当前用户根目录
+    Parameters
+    ----------
+    current_dir: str
+        当前用户根目录
 
-    Returns:
+    Returns
+    ----------
+    ContextualCompressionRetriever
         所有文件的压缩召回器
     """
     retriever_directory = f"{current_dir}/retrievers"
@@ -130,9 +155,9 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
             distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
             allow_dangerous_deserialization=True,
         )
-        for file in set(
+        for file in {
             os.path.splitext(file)[0] for file in os.listdir(retriever_directory)
-        )
+        }
     ]
     # 知识库为空的情况，将会在get_response处理
     if not retrievers:
@@ -144,20 +169,47 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
         search_type="similarity",
         search_kwargs={"score_threshold": 0.35, "k": 100},
     )
-    compression_retriever = ContextualCompressionRetriever(
+    return ContextualCompressionRetriever(
         base_compressor=reranker, base_retriever=base_retriever
     )
-    return compression_retriever
+
+
+def is_valid_content(content: str) -> bool:
+    """判断文段是否满足要求
+
+    Parameters
+    ----------
+    content: str
+        文段
+    
+    Returns
+    ----------
+    bool
+        非空，非标题，不含换行符且含句号，叹号，问号
+    """
+    return (
+        content
+        and "#" not in content
+        and "\n" not in content
+        and any(char in content for char in check_chars)
+    )
 
 
 def get_response(query: str, current_dir: str) -> str:
     """根据用户输入召回相关文段
 
-    Args:
-        query: 用户输入
-        current_dir: 当前用户根目录
+    仅召回满足条件的前十，并进行排版
 
-    Returns:
+    Parameters
+    ----------
+    query: str
+        用户输入
+    current_dir: str
+        当前用户根目录
+
+    Returns
+    ----------
+    str
         相关文段
     """
     compression_retriever = merge_retrievers(current_dir)
@@ -167,19 +219,12 @@ def get_response(query: str, current_dir: str) -> str:
     response = compression_retriever.invoke(query)
     text_response = []
     for document in response:
-        indicator = "Source: "
         content = document.page_content.strip()
-        if (
-            content
-            and "#" not in content
-            and "\n" not in content
-            and any(char in content for char in check_chars)
-            and document.metadata["relevance_score"] >= 0.35
-        ):
-            source = os.path.basename(document.metadata["source"])
-            if source.startswith("STORMtemp"):
-                source = source[9:]
-                indicator = "Number: "
-            source = os.path.splitext(source)[0]
-            text_response.append(f"{content} [{indicator}{source}]")
+        if not is_valid_content(content):
+            continue
+        source = os.path.basename(document.metadata["source"])
+        source = os.path.splitext(source)[0]
+        text_response.append(f"{content} [Source: {source}]")
+        if len(text_response) > 10:
+            break
     return "\n\n".join(text_response)
