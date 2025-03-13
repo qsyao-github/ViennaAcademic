@@ -1,25 +1,31 @@
-from typing import Tuple, List
+"""
+提供Arxiv和SearXNG学术搜索的最高级API
+"""
+from typing import List, Tuple
 
+from custom_reranker import CustomCompressor
+from langchain.retrievers import ContextualCompressionRetriever
 from langchain_community.retrievers import ArxivRetriever
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
-from langchain.retrievers import ContextualCompressionRetriever
-
-from custom_reranker import CustomCompressor
 from modelclient import bce_embedding_base
 from searXNG import searxng_academic_search
 
 retriever = ArxivRetriever()
-reranker = CustomCompressor(10)
+reranker = CustomCompressor()
 
 
 def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
-    """搜索arxiv论文，返回标题、摘要和链接
+    """搜索arxiv论文
 
-    Args:
-        query: Arxiv ID或搜索关键词
+    Parameters
+    ----------
+    query: str
+        Arxiv ID或搜索关键词
 
-    Returns:
+    Returns
+    ----------
+    List[Tuple[str, str, str]]
         (标题, 摘要, 链接)元组组成的列表
     """
     docs = retriever.invoke(query)
@@ -34,16 +40,24 @@ def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
 
 
 def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
-    """使用searxng获取学术搜索结果，并使用bce embedding+rerank召回相关性>=0.35的前十结果
+    """使用searxng获取学术搜索结果
 
-    Args:
-        query: 搜索关键词
+    bce embedding+rerank召回相关性>=0.35的且有摘要的前十结果
 
-    Returns:
+    Parameters
+    ----------
+    query: str
+        搜索关键词
+
+    Returns
+    ----------
+    List[Tuple[str, str, str]]
         (标题, 摘要, 链接)元组组成的列表
     """
     results = searxng_academic_search(query)
+    # 截取前512字符，防止超过bce-embedding上下文限制
     texts = [f"{item[0]}\n{item[1]}"[:512] for item in results]
+    # 召回100个文段，要求相关分数大于0.35
     retriever = FAISS.from_texts(
         texts,
         bce_embedding_base,
@@ -57,4 +71,5 @@ def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
     )
     response = compression_retriever.invoke(query)
     indicies = [int(item.metadata["index"]) for item in response]
-    return [results[i] for i in indicies]
+    # 只筛选有摘要的，保留前10
+    return [results[i] for i in indicies if results[i][1]][:10]
