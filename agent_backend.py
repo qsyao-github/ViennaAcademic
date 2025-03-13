@@ -1,5 +1,10 @@
+"""
+React Agent后端，处理ViennaAcademic中的主页面聊天部分
+"""
+
 from typing import Dict, List
 
+from execute_code import python_tool
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -8,19 +13,16 @@ from langchain_core.messages import (
     convert_to_messages,
     merge_message_runs,
 )
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.prompt_values import PromptValue
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
-from langgraph.graph.message import BaseMessage
-from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent
+from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
-
-from execute_code import python_tool
-from modelclient import pixtral_large_latest, deepseek_v3
+from modelclient import deepseek_v3, pixtral_large_latest
 from search import attach_web_result
-from system_prompt import REGEX_TOOLCALL, WEB_SEARCH, KNOWLEDGEBASE
+from system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
 
 regex_toolcall_template = ChatPromptTemplate.from_messages(
     [("system", REGEX_TOOLCALL), MessagesPlaceholder(variable_name="messages")]
@@ -43,13 +45,17 @@ select_template_from_mode = {
 
 
 class ChatAgentState(AgentState):
-    """聊天React Agent状态"""
-
+    """聊天React Agent状态
+    
+    Attributes
+    ----------
     mode: str
-    """聊天模式：常规，多模态，知识库，网页搜索"""
-
+        聊天模式：常规，多模态，知识库，网页搜索
     now_time: str
-    """当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片"""
+        当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
+    """
+    mode: str
+    now_time: str
 
 
 @tool
@@ -78,18 +84,24 @@ select_model_from_mode = {
 
 # 以下两个函数参考langchain_core.messages.filter_messages
 def filter_tools(messages: PromptValue) -> List[BaseMessage]:
-    """过滤messages中的工具调用部分，包括AIMessage的工具调用信息和ToolMessage
+    """过滤messages中的工具调用
+    
+    滤去AIMessage的工具调用信息和ToolMessage
 
-    Args:
-        messages: 待过滤的消息列表，由ChatPromptTemplate生成
+    Parameters
+    ----------
+    messages: PromptValue
+        待过滤的消息列表，由ChatPromptTemplate生成
 
-    Returns:
+    Returns
+    ----------
+    filtered: List[BaseMessage]
         过滤后的消息列表
     """
     messages = convert_to_messages(messages)
     filtered: list[BaseMessage] = []
     for message in messages:
-        if isinstance(message, HumanMessage) or isinstance(message, SystemMessage):
+        if isinstance(message, (HumanMessage, SystemMessage)):
             filtered.append(message)
         elif isinstance(message, AIMessage):
             message.additional_kwargs = {}
@@ -100,13 +112,21 @@ def filter_tools(messages: PromptValue) -> List[BaseMessage]:
 
 
 def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
-    """过滤messages中的多模态部分，目前只有HumanMessage有可能出现多模态内容
+    """过滤messages中的多模态部分
 
-    Args:
-        messages: 待过滤的消息列表，由ChatPromptTemplate生成
+    Parameters
+    ----------
+    messages: PromptValue
+        待过滤的消息列表，由ChatPromptTemplate生成
 
-    Returns:
+    Returns
+    ----------
+    filtered: List[BaseMessage]
         过滤后的消息列表
+    
+    Notes
+    ----------
+    目前只有HumanMessage有可能出现多模态内容
     """
     messages = convert_to_messages(messages)
     filtered: list[BaseMessage] = []
@@ -134,11 +154,19 @@ def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
 def chatbot(state: ChatAgentState) -> Dict[str, List[BaseMessage]]:
     """进行一轮React Agent推理
 
-    Args:
-        state: 当前状态
+    Parameters
+    ----------
+    state: ChatAgentState
+        当前状态
 
-    Returns:
-        一轮推理后的状态。对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
+    Returns
+    ----------
+    Dict[str, List[BaseMessage]]
+        一轮推理后的状态
+        
+    Notes
+    ----------
+    对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     """
     mode = state["mode"]
     template = select_template_from_mode[mode]
