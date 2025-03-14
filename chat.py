@@ -1,5 +1,8 @@
+"""
+主页面聊天和解题/代码聊天后端
+"""
 from io import StringIO
-from typing import Dict, Generator, List, Tuple, Union, Iterator, Any
+from typing import Any, Dict, Generator, Iterator, List, Tuple, Union
 
 from agent_backend import agent_app
 from chat_backend import solve_app
