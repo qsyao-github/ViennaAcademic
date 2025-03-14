@@ -1,107 +1,89 @@
-import base64
-import os
-import re
 from io import StringIO
-from typing import Dict, Generator, List, Optional, Tuple
-from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
-from chat_backend import solve_app
+from typing import Dict, Generator, List, Tuple, Union, Iterator, Any
+
 from agent_backend import agent_app
-from paper import attach
-from search import generate_summary
-
-
-class ContentProcessor:
-    """处理内容相关的正则表达式模式"""
-
-    ATTACH_PATTERN = re.compile(r"#attach\{([^}]+)\}")
-    TOOL_CALL_PATTERN = re.compile(
-        r'\{\s*\n*("[^"]+"):\s*\n*("[^"]+")\s*\n*\}', re.DOTALL
-    )
-
-    @staticmethod
-    def process_attachments(text: str, current_dir: str) -> str:
-        """处理附件标记替换"""
-
-        def replace_attach(match: re.Match) -> str:
-            return attach(match.group(1), current_dir)
-
-        return ContentProcessor.ATTACH_PATTERN.sub(replace_attach, text)
-
-
-class ToolExecutor:
-    """工具调用执行器"""
-
-    TOOLS = {
-        '"query"': lambda x: f"\n```\n{x.strip('"').replace(r'\n', '\n')}\n```\n",
-        '"code"': lambda x: f"\n```python\n{x.strip('"').replace(r'\n', '\n')}\n```\n",
-    }
-
-    @classmethod
-    def execute_tools(cls, text: str) -> str:
-        """执行文本中的工具调用"""
-
-        def replace_tag(match: re.Match) -> str:
-            arg_name = match.group(1)
-            arg_value = match.group(2)
-            if not arg_value or arg_name not in cls.TOOLS:
-                return match.group(0)
-            return cls.TOOLS[arg_name](arg_value)
-
-        return ContentProcessor.TOOL_CALL_PATTERN.sub(replace_tag, text)
-
-
-class MediaHandler:
-    """多媒体内容处理器"""
-
-    @staticmethod
-    def encode_image(image_path: str) -> str:
-        """Base64编码图像文件"""
-        try:
-            with open(image_path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
-        except FileNotFoundError:
-            return ""
-
-    @staticmethod
-    def create_image_component(image_path: str) -> Optional[Dict]:
-        """创建图像消息组件"""
-        encoded = MediaHandler.encode_image(image_path)
-        if not encoded:
-            return None
-        return {
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{encoded}", "detail": "auto"},
-        }
+from chat_backend import solve_app
+from chat_utils.media_handler import create_image_component
+from chat_utils.tool_formatter import format_tools
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from search import generate_academic_search_summary
 
 
 class ChatManager:
-    """聊天会话管理类"""
+    """主页面聊天管理"""
 
     @staticmethod
-    def build_message_content(text: str, files: List[str]) -> List[Dict]:
-        """构建消息内容结构"""
+    def build_message_content(
+        text: str, files: List[str]
+    ) -> List[Dict[str, Union[str, Dict[str, str]]]]:
+        """构建消息内容
+
+        Parameters
+        ----------
+        text : str
+            聊天文本
+        files : List[str]
+            文件路径列表
+
+        Returns
+        ----------
+        content: List[Dict]
+            消息内容
+        """
         content = [{"type": "text", "text": text}]
         for f in files:
-            if component := MediaHandler.create_image_component(f):
+            if component := create_image_component(f):
                 content.append(component)
         return content
 
     @staticmethod
-    def handle_generated_image(timestamp: str, chat_config: Dict) -> None:
-        """处理生成的图片并更新会话状态"""
-        image_path = f"{timestamp}.png"
-        if os.path.exists(image_path):
-            image_component = MediaHandler.create_image_component(image_path)
-            if image_component:
-                agent_app.update_state(
-                    chat_config, {"messages": HumanMessage([image_component])}
-                )
+    def handle_generated_image(
+        timestamp: str, chat_config: Dict[str, Dict[str, str]]
+    ) -> None:
+        """处理生成的图片并更新状态
+
+        Parameters
+        ----------
+        timestamp : str
+            当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
+        chat_config : Dict
+            聊天配置，包含线程id。对指定线程的状态进行更新
+
+        Notes
+        ----------
+        1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
+        2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
+        """
+        image_path = f"media/{timestamp}.png"
+        if image_component := create_image_component(image_path):
+            agent_app.update_state(
+                chat_config, {"messages": HumanMessage([image_component])}
+            )
 
     @staticmethod
     def stream_response(
         text: str, files: List[str], thread_id: str, mode: str, timestamp: str
     ) -> Generator[str, None, None]:
-        """流式处理聊天响应"""
+        """流式处理聊天响应
+
+        Parameters
+        ----------
+        text: str
+            聊天文本
+        files: List[str]
+            文件路径列表
+        thread_id: str
+            线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
+        mode: str
+            聊天模式：常规，多模态，知识库，网页搜索
+        timestamp: str
+            当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
+
+        Yields
+        ----------
+        str
+            模型返回内容->工具调用排版。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
+        """
         chat_config = {"configurable": {"thread_id": thread_id}}
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
@@ -122,15 +104,30 @@ class ChatManager:
             )
             yield buffer.getvalue()
 
-        final_response = ToolExecutor.execute_tools(buffer.getvalue())
+        final_response = format_tools(buffer.getvalue())
         ChatManager.handle_generated_image(timestamp, chat_config)
         yield final_response
 
     @staticmethod
     def append_search_result(query: str, thread_id: str) -> Generator[str, None, None]:
-        """追加搜索结果到消息"""
+        """处理学术搜索结果
+
+        将模型生成的概述和参考文献返回Gradio，在完成恢复后将回复并入状态中
+
+        Parameters
+        ----------
+        query: str
+            搜索关键词
+        thread_id: str
+            线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
+
+        Yields
+        ----------
+        final_result: str
+            模型生成概述。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
+        """
         final_result = ""
-        search_result = generate_summary(query)
+        search_result = generate_academic_search_summary(query)
         for chunk_result in search_result:
             final_result = chunk_result
             yield final_result
@@ -147,51 +144,131 @@ class ChatManager:
 
 
 class SolveManager:
-    @staticmethod
-    def stream_response(
-        text: str, thread_id: str, distill: int
+    """解题/代码功能管理
+
+    Attributes
+    ----------
+    LENGTH_OF_THINK_TAG: int
+        len('<think>') + 1 = 8，去除模型回复的<think>标签
+    TAG_MODEL_INDEXES: frozenset[int]
+        储存使用<think>标签的模型索引。目前只有0号模型qwq-32b。
+    """
+
+    LENGTH_OF_THINK_TAG = 8
+    TAG_MODEL_INDEXES = frozenset({0})
+
+    @classmethod
+    def split_final_response(cls, content: str) -> Tuple[str, str]:
+        """分割思考和回答部分，去除<think>标签
+        
+        Parameters
+        ----------
+        content: str
+            模型返回内容
+        
+        Returns
+        ----------
+        Tuple[str, str]
+            思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
+        """
+        split_result = content.rsplit("</think>", 1)
+        if len(split_result) > 1:
+            return split_result[0][cls.LENGTH_OF_THINK_TAG:].strip(), split_result[-1]
+        return "", content
+
+    @classmethod
+    def handle_tag_model(
+        cls,
+        chat_config: dict,
+        content_buffer: StringIO,
+        answer: Iterator[Union[dict[str, Any], Any]],
     ) -> Generator[Tuple[str, str], None, None]:
+        """处理使用<think>标签的模型
+        
+        涉及分割思考和回答部分，去除<think>标签，以及去除状态中的思考部分
+
+        Parameters
+        ----------
+        chat_config: dict
+            线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
+        content_buffer: StringIO
+            储存模型返回字符串。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
+        answer: Iterator[Union[dict[str, Any], Any]]
+            模型返回内容
+        
+        Yields
+        ----------
+        Generator[Tuple[str, str], None, None]
+            思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
+        """
+        for chunk, _ in answer:
+            content_buffer.write(chunk.content)
+            yield "", content_buffer.getvalue()
+        full_response = content_buffer.getvalue()
+        final_reasoning, final_answer = cls.split_final_response(full_response)
+        messages = solve_app.get_state(chat_config).values["messages"]
+        solve_app.update_state(
+            chat_config, {"messages": RemoveMessage(id=messages[-1].id)}
+        )
+        solve_app.update_state(
+            chat_config, {"messages": AIMessage(content=final_answer)}
+        )
+        yield final_reasoning, final_answer
+
+    @classmethod
+    def handle_reasoning_model(
+        cls,
+        content_buffer: StringIO,
+        answer: Iterator[Union[dict[str, Any], Any]],
+    ) -> Generator[Tuple[str, str], None, None]:
+        """处理使用标准的reasoning_content的模型
+        
+        Parameters
+        ----------
+        content_buffer: StringIO
+            储存模型返回字符串。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
+        answer: Iterator[Union[dict[str, Any], Any]]
+            模型返回内容
+
+        Yields
+        ----------
+        Generator[Tuple[str, str], None, None]
+            思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
+        """
+        reasoning_buffer = StringIO()
+        for chunk, _ in answer:
+            reasoning_buffer.write(chunk.additional_kwargs.get("reasoning_content", ""))
+            content_buffer.write(chunk.content)
+            yield reasoning_buffer.getvalue(), content_buffer.getvalue()
+
+    @classmethod
+    def stream_response(
+        cls, text: str, thread_id: str, model_num: int
+    ) -> Generator[Tuple[str, str], None, None]:
+        """根据用户提问，流式返回模型回答
+        
+        Parameters
+        ----------
+        text: str
+            用户提问
+        thread_id: str
+            线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
+        model_num: int
+            模型索引
+
+        Yields
+        ----------
+        Generator[Tuple[str, str], None, None]
+            思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
+        """
         chat_config = {"configurable": {"thread_id": thread_id}}
         content_buffer = StringIO()
         answer = solve_app.stream(
-            {"messages": [HumanMessage(text)], "distill": distill},
+            {"messages": [HumanMessage(text)], "model_num": model_num},
             config=chat_config,
             stream_mode="messages",
         )
-        if distill == 0:
-            temp_string = ""
-            for _ in range(8):
-                chunk, _ = next(answer)
-                temp_string += chunk.content
-            temp_string = (
-                temp_string[8:].strip()
-                if temp_string.strip().startswith("<think>")
-                else temp_string
-            )
-            content_buffer.write(temp_string)
-            for chunk, _ in answer:
-                content_buffer.write(chunk.content)
-                yield "", content_buffer.getvalue()
-            final_response = content_buffer.getvalue().rsplit(r"</think>", 1)
-            final_response[
-                -1
-            ] = rf"""{final_response[-1]}
-$$ $$\( \)\[ \]"""
-            messages = solve_app.get_state(chat_config).values["messages"]
-            solve_app.update_state(
-                chat_config, {"messages": RemoveMessage(id=messages[-1].id)}
-            )
-            solve_app.update_state(
-                chat_config, {"messages": AIMessage(content=final_response[-1])}
-            )
-            yield tuple(final_response)
-        elif distill == 1:
-            reasoning_buffer = StringIO()
-            for chunk, _ in answer:
-                reasoning_buffer.write(
-                    chunk.additional_kwargs.get("reasoning_content", "")
-                )
-                content_buffer.write(chunk.content)
-                yield reasoning_buffer.getvalue(), content_buffer.getvalue()
-            yield reasoning_buffer.getvalue(), rf"""{content_buffer.getvalue()}
-$$ $$\( \)\[ \]"""
+        if model_num in cls.TAG_MODEL_INDEXES:
+            yield from cls.handle_tag_model(chat_config, content_buffer, answer)
+        else:
+            yield from cls.handle_reasoning_model(content_buffer, answer)
