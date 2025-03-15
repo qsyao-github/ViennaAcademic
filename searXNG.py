@@ -3,7 +3,7 @@ SearXNG搜索引擎接口
 """
 
 import re
-from typing import List, Tuple
+from typing import Generator, List, Tuple
 
 from langchain_community.utilities import SearxSearchWrapper
 
@@ -16,7 +16,7 @@ academic_search_wrapper = SearxSearchWrapper(
 )
 
 
-def searxng_websearch(query: str) -> List[Tuple[str, str, str]]:
+def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]:
     """SearXNG网页搜索
 
     仅返回前10结果
@@ -28,8 +28,8 @@ def searxng_websearch(query: str) -> List[Tuple[str, str, str]]:
 
     Returns
     ----------
-    List[Tuple[str, str, str]]
-        搜索结果，标题、摘要和链接的元组
+    Generator[Tuple[str, str, str], None, None]
+        搜索结果，标题、摘要和链接生成器
     """
     results = academic_search_wrapper.results(
         query,
@@ -37,7 +37,7 @@ def searxng_websearch(query: str) -> List[Tuple[str, str, str]]:
         num_results=10,
         language="all",
     )
-    return [(result["title"], result["snippet"], result["link"]) for result in results]
+    return ((result["title"], result["snippet"], result["link"]) for result in results)
 
 
 def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
@@ -53,7 +53,7 @@ def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
     Returns
     ----------
     List[Tuple[str, str, str]]
-        搜索结果，标题、摘要和链接的元组
+        搜索结果，标题、摘要和链接列表。因后续需要按元素访问，不能使用生成器
     """
     results = academic_search_wrapper.results(
         query,
