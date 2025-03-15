@@ -19,7 +19,7 @@ generate_summary_prompt_tempate = ChatPromptTemplate.from_messages(
 
 
 SearchResult = Tuple[str, str, str]  # (title, snippet, link)
-SearchFunction = Callable[[str], List[SearchResult]]
+SearchFunction = Callable[[str], Generator[SearchResult, None, None]]
 
 # 格式字符串常量
 RESULT_TEMPLATE = "# {index}. {title}\n{snippet}"
