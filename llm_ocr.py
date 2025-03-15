@@ -1,7 +1,7 @@
-from modelclient import glm_4v_flash
-from chat import MediaHandler, ContentProcessor
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from chat_utils.media_handler import create_image_component
 from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from modelclient import glm_4v_flash
 
 ocr_prompt_template = ChatPromptTemplate(
     [
@@ -12,8 +12,20 @@ ocr_prompt_template = ChatPromptTemplate(
 
 
 def file_ocr(file: str) -> str:
+    """识别图片中的文字和公式
+    
+    Parameters
+    ----------
+    file : str
+        图片文件路径
+    
+    Returns
+    ----------
+    str
+        识别结果
+    """
     ocr_prompt = ocr_prompt_template.invoke(
-        {"messages": [HumanMessage(content=[MediaHandler.create_image_component(file)])]}
+        {"messages": [HumanMessage(content=[create_image_component(file)])]}
     )
     response = glm_4v_flash.invoke(ocr_prompt)
-    return ContentProcessor.format_formula(response.content)
+    return response.content
