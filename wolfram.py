@@ -1,25 +1,32 @@
-import json
+"""
+WolframAlpha爬虫
+"""
+
 import asyncio
+import orjson
+
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.extraction_strategy import JsonXPathExtractionStrategy
 
+"""WolframAlpha的爬虫规则"""
+WOLFRAM_SCHEMA = {
+    "name": "wolfram",
+    "baseSelector": '//section[@tabindex="0"]',
+    "fields": [
+        {"name": "title", "selector": ".//span", "type": "text"},
+        {
+            "name": "content",
+            "selector": ".//img[@alt]",
+            "type": "attribute",
+            "attribute": "alt",
+        },
+    ],
+}
+
 
 async def get_wolfram(query: str) -> str:
-    schema = {
-        "name": "wolfram",
-        "baseSelector": '//section[@tabindex="0"]',
-        "fields": [
-            {"name": "title", "selector": ".//span", "type": "text"},
-            {
-                "name": "content",
-                "selector": ".//img[@alt]",
-                "type": "attribute",
-                "attribute": "alt",
-            },
-        ],
-    }
     config = CrawlerRunConfig(
-        extraction_strategy=JsonXPathExtractionStrategy(schema, verbose=True),
+        extraction_strategy=JsonXPathExtractionStrategy(WOLFRAM_SCHEMA, verbose=True),
         wait_for="div.sc-a1dd50ea-0.LChfQ",
     )
     url = f"https://www.wolframalpha.com/input?i={query}&lang=zh"
@@ -27,7 +34,7 @@ async def get_wolfram(query: str) -> str:
         result = await crawler.arun(url, config)
         if not result.success:
             return
-        data = json.loads(result.extracted_content)
+        data = orjson.loads(result.extracted_content)
         chunk_result = []
         for item in data:
             if (title := item.get("title", "")) and title != "图形":
@@ -38,7 +45,6 @@ async def get_wolfram(query: str) -> str:
 
 
 def attach_hints(query: str) -> str:
-    hints = asyncio.run(get_wolfram(query))
-    if hints:
+    if hints := asyncio.run(get_wolfram(query)):
         query = f"Wolframalpha提示：\n```\n{hints}\n```\n{query}"
     return query
