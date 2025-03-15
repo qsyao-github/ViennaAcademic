@@ -1,56 +1,37 @@
-import subprocess
+"""
+使用gVisor保护的scipy-notebook容器执行命令
+
+启动容器(先于demo.py)：
+docker run --runtime=runsc --rm -v /home/{user_name}/{working_dir}/media:/home/jovyan -d -p 8888:8888 --name scipy-notebook quay.io/jupyter/scipy-notebook
+"""
+
 import re
 
-CLEAN_LINE_PATTERN = re.compile(r"^In \[\d+\]:\s*Out\[\d+\]:\s*")
+import docker
 
+"""清除输出中的Out[...]"""
+clean_output_pattern = re.compile(r"Out\[\d+\]:\s*")
+client = docker.from_env()
+container = client.containers.get("scipy-notebook")
 
-def execute_code(code: str) -> str:
-    process = subprocess.Popen(
-        ["ipython"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    stdout_output, _ = process.communicate(code)
-
-    output_blocks = []
-
-    if (index := stdout_output.find("In [1]")) != -1:
-        stdout_output = stdout_output[index : stdout_output.rfind("In [")]
-        splitted_output = stdout_output.split("\n")
-        for i, line in enumerate(splitted_output):
-            if not line[line.rfind(":") + 1 :].strip():
-                splitted_output[i] = ""
-            elif "Out" in line:
-                splitted_output[i] = line[line.find(":") + 2 :]
-        cleaned_output = "\n".join([line for line in splitted_output if line])
-
-        code_block = f"```python\n{code}\n```"
-        output_blocks.append(code_block)
-
-        if cleaned_output:
-            output_blocks.append(f"```\n{cleaned_output}\n```")
-
-    return f"\n\n{'\n'.join(output_blocks)}\n"
 
 def python_tool(code: str) -> str:
-    process = subprocess.Popen(
-        ["ipython"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+    """通过容器执行Python代码
+    
+    Parameters
+    ----------
+    code: str
+        待执行的Python代码
+    
+    Returns
+    ----------
+    str
+        执行结果。清洗后放入文本框中
+    """
+    # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出
+    exec_id = container.exec_run(
+        f'ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace("\"", "\'")}"'
     )
-    stdout_output, _ = process.communicate(code)
-    if (index := stdout_output.find("In [1]")) != -1:
-        stdout_output = stdout_output[index : stdout_output.rfind("In [")]
-        splitted_output = stdout_output.split("\n")
-        for i, line in enumerate(splitted_output):
-            if not line[line.rfind(":") + 1 :].strip():
-                splitted_output[i] = ""
-            elif "Out" in line:
-                splitted_output[i] = line[line.find(":") + 2 :]
-        cleaned_output = "\n".join([line for line in splitted_output if line])
-        return f'\n```\n{cleaned_output}\n```\n'
-    return ""
+    # 获取执行结果
+    output = exec_id.output.decode("utf-8")
+    return f'```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
