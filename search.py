@@ -125,3 +125,4 @@ def generate_academic_search_summary(query: str) -> Generator[str, None, None]:
         yield final_response.getvalue()
     final_response.write(f"\n\n参考文献\n\n{reference}")
     yield final_response.getvalue()
+    final_response.close()
