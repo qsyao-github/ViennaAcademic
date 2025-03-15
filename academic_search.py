@@ -2,7 +2,8 @@
 提供Arxiv和SearXNG学术搜索的最高级API
 """
 
-from typing import Generator, List, Tuple
+import itertools
+from typing import Generator, Tuple
 
 from custom_reranker import CustomCompressor
 from langchain.retrievers import ContextualCompressionRetriever
@@ -40,7 +41,7 @@ def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None]:
     )
 
 
-def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
+def select_academic_search_result(query: str) -> itertools.islice:
     """使用searxng获取学术搜索结果
 
     bce embedding+rerank召回相关性>=0.35的且有摘要的前十结果
@@ -52,8 +53,8 @@ def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
 
     Returns
     ----------
-    List[Tuple[str, str, str]]
-        (标题, 摘要, 链接)元组组成的列表
+    itertools.islice
+        (标题, 摘要, 链接)元组生成器，仅前10个
     """
     results = searxng_academic_search(query)
     # 截取前512字符，防止超过bce-embedding上下文限制
@@ -71,6 +72,6 @@ def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
         base_compressor=reranker, base_retriever=retriever
     )
     response = compression_retriever.invoke(query)
-    indicies = [int(item.metadata["index"]) for item in response]
+    indicies = (int(item.metadata["index"]) for item in response)
     # 只筛选有摘要的，保留前10
-    return [results[i] for i in indicies if results[i][1]][:10]
+    return itertools.islice((results[i] for i in indicies if results[i][1]), 10)
