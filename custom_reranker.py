@@ -1,74 +1,120 @@
-import requests
-from typing import List, Sequence, Optional, Dict, Union
-from langchain_core.documents import Document
-from modelclient import silicon_client_API_KEY, silicon_client_BASE_URL
-from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
-from langchain.callbacks.manager import Callbacks
+from typing import Dict, List, Optional, Sequence, Union, Tuple
 
-url = silicon_client_BASE_URL + '/rerank'
+import requests
+from api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
+from langchain.callbacks.manager import Callbacks
+from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
+from langchain_core.documents import Document
+
+url = f"{silicon_client_BASE_URL}/rerank"
 headers = {
     "Authorization": f"Bearer {silicon_client_API_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
 
 
-def get_rerank(query: str, documents: List[str],
-               top_n: int) -> List[Dict[str, Union[int, Dict[str, str]]]]:
+def get_rerank(
+    query: str, documents: List[str], top_n: int
+) -> List[Dict[str, Union[int, Dict[str, str]]]]:
+    """调用siliconflow上得bce-reranker
+
+    Parameters
+    ----------
+    query: str
+        用户输入
+    documents: List[str]
+        知识库中的文档
+    top_n: int
+        返回的文档数量
+
+    Returns
+    ----------
+    List[Dict[str, Union[int, Dict[str, str]]]]
+        返回的文档列表
+    """
 
     payload = {
         "model": "netease-youdao/bce-reranker-base_v1",
         "query": query,
         "documents": documents,
         "top_n": top_n,
-        "return_documents": True
+        "return_documents": True,
     }
 
-    response = requests.request("POST", url, json=payload,
-                                headers=headers).json()
+    response = requests.request("POST", url, json=payload, headers=headers).json()
 
     return response["results"]
 
 
 class CustomCompressor(BaseDocumentCompressor):
-    top_n: int = 3
+    """基于bce-reranker的自定义压缩器
 
-    def __init__(self, top_n: int = 3):
+    通过 BCE Reranker 模型对文档进行重排序，保留相关性最高的文档。
+
+    Attributes
+    ----------
+    top_n: int = 100
+        返回的文档数量上限(BCE 建议 rerank 返回5-10，默认保留更多结果)
+    """
+
+    top_n: int = 100
+
+    def __init__(self, top_n: int = 100):
+        """初始化压缩器
+
+        Parameters
+        ----------
+        top_n: int = 100
+            返回的文档数量上限(建议值：embedding召回50-100，rerank返回5-10)
+        """
         super().__init__(top_n=top_n)
 
-    def compress_documents(
-            self,
-            documents: Sequence[Document],
-            query: str,
-            callbacks: Optional[Callbacks] = None) -> Sequence[Document]:
+    def filter_documents(
+        self, documents: Sequence[Document]
+    ) -> Tuple[List[str], List[Document], List[Document]]:
+        """过滤出包含有效文本内容的文档
+
+        Parameters
+        ----------
+        documents: Sequence[Document]
+            待过滤的文档列表
+
+        Returns
+        ----------
+        Tuple[List[str], List[Document], List[Document]]
+            有效文本内容列表，有效文档列表，无效文档列表
         """
-        Compress documents using `BCEmbedding RerankerModel API`.
-
-        Args:
-            documents: A sequence of documents to compress.
-            query: The query to use for compressing the documents.
-            callbacks: Callbacks to run during the compression process.
-
-        Returns:
-            A sequence of compressed documents.
-        """
-        if len(documents) == 0:  # to avoid empty api call
-            return []
-        doc_list = list(documents)
-
         passages = []
         valid_doc_list = []
         invalid_doc_list = []
-        for d in doc_list:
+        for d in documents:
             passage = d.page_content
             if isinstance(passage, str) and len(passage) > 0:
-                passages.append(passage.replace('\n', ' '))
+                passages.append(passage.replace("\n", " "))
                 valid_doc_list.append(d)
             else:
                 invalid_doc_list.append(d)
+        return passages, valid_doc_list, invalid_doc_list
 
-        rerank_result = get_rerank(query, passages, self.top_n)
+    def process_valid_docs(
+        self,
+        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]],
+        valid_doc_list: List[Document],
+        final_results: List[Document],
+    ) -> None:
+        """处理有效文档
 
-        final_results = []
+        为文档添加relevance_score和index字段，方便后续筛选
+
+        Parameters
+        ----------
+        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]]
+            bce-reranker返回的结果
+        valid_doc_list: List[Document]
+            有效文档列表
+        final_results: List[Document]
+            最终结果列表。注入该函数的全局变量，该函数直接修改final_results
+        """
         for item in rerank_result:
             score = item["relevance_score"]
             doc_id = item["index"]
@@ -76,9 +122,71 @@ class CustomCompressor(BaseDocumentCompressor):
             doc.metadata["relevance_score"] = score
             doc.metadata["index"] = doc_id
             final_results.append(doc)
+
+    def process_invalid_docs(self, invalid_doc_list, final_results):
+        """处理无效文档
+        
+        Parameters
+        ----------
+        invalid_doc_list: List[Document]
+            无效文档列表
+        final_results: List[Document]
+            最终结果列表。注入该函数的全局变量，该函数直接修改final_results
+        """
         for doc in invalid_doc_list:
             doc.metadata["relevance_score"] = 0
             final_results.append(doc)
 
-        final_results = final_results[:self.top_n]
+    def process_docs(self, rerank_result, valid_doc_list, invalid_doc_list):
+        """处理bce-reranker返回的结果
+        
+        Parameters
+        ----------
+        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]]
+            bce-reranker返回的结果
+        valid_doc_list: List[Document]
+            有效文档列表
+        invalid_doc_list: List[Document]
+            无效文档列表
+
+        Returns
+        ----------
+        List[Document]
+            最终结果列表
+        """
+        final_results = []
+        self.process_valid_docs(rerank_result, valid_doc_list, final_results)
+        self.process_invalid_docs(invalid_doc_list, final_results)
         return final_results
+
+    def compress_documents(
+        self,
+        documents: Sequence[Document],
+        query: str,
+        callbacks: Optional[Callbacks] = None,
+    ) -> Sequence[Document]:
+        """
+        用`BCEmbedding RerankerModel API`压缩文档
+
+        Parameters
+        ----------
+        documents: Sequence[Document]
+            一系列需要压缩的文档
+        query: str
+            用来压缩的用户输入
+        callbacks: Optional[Callbacks] = None
+            在压缩过程中运行的回调函数
+
+
+        Returns
+        ----------
+        Sequence[Document]
+            一系列压缩后的文档
+        """
+        if not documents:  # 避免API空调用
+            return []
+        doc_list = list(documents)
+        passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
+
+        rerank_result = get_rerank(query, passages, self.top_n)
+        return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
