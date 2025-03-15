@@ -141,6 +141,7 @@ def read_paper(
     for chunk in deepseek_v3.stream(prompt):
         answer.write(chunk.content)
         yield answer.getvalue()
+    answer.close()
 
 
 def process_single_chunk(text: str, system_prompt: str, model: ChatOpenAI) -> str:
