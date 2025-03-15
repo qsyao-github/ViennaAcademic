@@ -1,6 +1,7 @@
 """
 主页面聊天和解题/代码聊天后端
 """
+
 from io import StringIO
 from typing import Any, Dict, Generator, Iterator, List, Tuple, Union
 
@@ -108,6 +109,7 @@ class ChatManager:
             yield buffer.getvalue()
 
         final_response = format_tools(buffer.getvalue())
+        buffer.close()
         ChatManager.handle_generated_image(timestamp, chat_config)
         yield final_response
 
@@ -163,12 +165,12 @@ class SolveManager:
     @classmethod
     def split_final_response(cls, content: str) -> Tuple[str, str]:
         """分割思考和回答部分，去除<think>标签
-        
+
         Parameters
         ----------
         content: str
             模型返回内容
-        
+
         Returns
         ----------
         Tuple[str, str]
@@ -176,7 +178,7 @@ class SolveManager:
         """
         split_result = content.rsplit("</think>", 1)
         if len(split_result) > 1:
-            return split_result[0][cls.LENGTH_OF_THINK_TAG:].strip(), split_result[-1]
+            return split_result[0][cls.LENGTH_OF_THINK_TAG :].strip(), split_result[-1]
         return "", content
 
     @classmethod
@@ -187,7 +189,7 @@ class SolveManager:
         answer: Iterator[Union[dict[str, Any], Any]],
     ) -> Generator[Tuple[str, str], None, None]:
         """处理使用<think>标签的模型
-        
+
         涉及分割思考和回答部分，去除<think>标签，以及去除状态中的思考部分
 
         Parameters
@@ -198,7 +200,7 @@ class SolveManager:
             储存模型返回字符串。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
         answer: Iterator[Union[dict[str, Any], Any]]
             模型返回内容
-        
+
         Yields
         ----------
         Generator[Tuple[str, str], None, None]
@@ -225,7 +227,7 @@ class SolveManager:
         answer: Iterator[Union[dict[str, Any], Any]],
     ) -> Generator[Tuple[str, str], None, None]:
         """处理使用标准的reasoning_content的模型
-        
+
         Parameters
         ----------
         content_buffer: StringIO
@@ -243,13 +245,14 @@ class SolveManager:
             reasoning_buffer.write(chunk.additional_kwargs.get("reasoning_content", ""))
             content_buffer.write(chunk.content)
             yield reasoning_buffer.getvalue(), content_buffer.getvalue()
+        reasoning_buffer.close()
 
     @classmethod
     def stream_response(
         cls, text: str, thread_id: str, model_num: int
     ) -> Generator[Tuple[str, str], None, None]:
         """根据用户提问，流式返回模型回答
-        
+
         Parameters
         ----------
         text: str
@@ -275,3 +278,4 @@ class SolveManager:
             yield from cls.handle_tag_model(chat_config, content_buffer, answer)
         else:
             yield from cls.handle_reasoning_model(content_buffer, answer)
+        content_buffer.close()
