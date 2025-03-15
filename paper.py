@@ -1,13 +1,24 @@
+"""
+论文模块
+"""
+import concurrent.futures
 import os
 import re
-import concurrent.futures
 from io import StringIO
-from typing import List, Generator
+from typing import Dict, Generator, List, Literal
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from modelclient import glm_4_flash, deepseek_v3
+from modelclient import deepseek_v3
+from system_prompt import (
+    POLISH_PROMPT,
+    TRANSLATE_TO_CHINESE_PROMPT,
+    TRANSLATE_TO_ENGLISH_PROMPT,
+)
 
-file_suffix_to_markdown = {
+"""chunk函数对文件分段，每段不宜小于63个字符"""
+MIN_CHARACTER_THRESHOLD = 63
+FILE_SUFFIX_TO_MARKDOWN = {
     ".py": "python",
     ".c": "c",
     ".cpp": "cpp",
@@ -47,79 +58,24 @@ process_paper_prompt_template = ChatPromptTemplate.from_messages(
     ]
 )
 
-TRANSLATE_TO_CHINESE_PROMPT = """# 论文翻译任务
-
-## 目标：
-- 将提供的英文论文内容翻译成中文。
-
-## 注意事项：
-- 翻译应忠实于原文，确保内容准确无误。
-- 不需要添加任何解释或注释，只需直接翻译文本。
-- 保持原文的格式和结构，包括段落、标题和参考文献等。
-- 如果遇到专业术语或缩写，应保持原样，不要自行解释或翻译。
-
-## 工作流程：
-1. 接收并阅读英文论文内容。
-2. 使用专业知识进行翻译，确保语义准确。
-3. 检查翻译的中文文本，确保没有语法错误或遗漏。
-4. 保持原文格式，完成翻译任务。
-
-## 输出示例：
-- 输入：英文论文段落
-- 输出：对应的中文翻译段落
-
-## 响应：
-- 以文本形式提供翻译结果，保持原有格式不变。"""
-TRANSLATE_TO_ENGLISH_PROMPT = """# 论文翻译任务
-
-## 目标：
-- 将提供的中文论文内容翻译成英文。
-
-## 注意事项：
-- 确保翻译的准确性和学术性，保持原文的专业术语和意义。
-- 不需要添加任何额外的解释或注释，只需直接翻译文本。
-- 遵守学术翻译的规范，使用适当的学术语言和格式。
-
-## 工作流程：
-1. 仔细阅读并理解中文论文的内容。
-2. 使用专业翻译技巧，将中文翻译成英文。
-3. 确保翻译后的英文文本语法正确，表达清晰。
-4. 检查并修改翻译，确保没有遗漏或错误。
-
-## 示例：
-- **输入**：一段中文论文文本。
-- **输出**：对应的英文翻译文本。
-
-## 响应：
-- 以文本形式提供英文翻译。
-
-## 语气：
-- 保持客观和专业的语气。
-
-## 受众：
-- 针对学术研究人员和专业人士。
-
-## 风格：
-- 使用正式和准确的学术语言。
-
-## 上下文：
-- 适用于将中文学术论文翻译成英文，以便在国际学术期刊上发表或供国际学术界参考。"""
-POLISH_PROMPT = """你是一位专业的学术论文润色助手，专注于将论文提升至Nature期刊的发表标准。你的能力包括但不限于：
-1. **语言优化**：确保语言简洁、精确，符合学术写作规范。
-2. **逻辑清晰**：优化段落结构，增强论点的连贯性和说服力。
-3. **学术风格**：调整措辞，使其符合顶级期刊的学术风格。
-4. **格式规范**：确保引用、图表、公式等符合Nature的格式要求。
-
-你的知识储备包括：
-1. **Nature期刊的写作指南**：熟悉Nature的投稿要求和编辑偏好。
-2. **学术写作规范**：精通学术论文的写作技巧和语言风格。
-3. **相关领域知识**：具备广泛的专业知识，能够理解并优化不同领域的论文。
-
-请根据以上要求，对用户提供的论文进行润色，无需解释。若原文为中文，无需翻译为英文。
-"""
-
 
 def attach(file: str, current_user_directory: str) -> str:
+    """附加文件内容
+
+    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
+
+    Parameters
+    ----------
+    file: str
+        文件名
+    current_user_directory: str
+        当前用户根目录
+
+    Returns
+    ----------
+    str
+        文件内容。若为代码则放入代码框
+    """
     file_name, file_suffix = os.path.splitext(file)
     knowledgeBase_path = os.path.join(
         current_user_directory, "knowledgeBase", f"{file_name}.md"
@@ -131,15 +87,29 @@ def attach(file: str, current_user_directory: str) -> str:
     if os.path.exists(code_path):
         with open(code_path, "r", encoding="utf-8") as f:
             code = f.read()
-        return f"```{file_suffix_to_markdown.get(file_suffix, '')}\n{code}\n```"
+        return f"```{FILE_SUFFIX_TO_MARKDOWN.get(file_suffix, '')}\n{code}\n```"
 
 
 def chunk(content: str) -> List[str]:
-    temp_list = re.split("\n{2,}", content)
+    """分段
+
+    按换行符分段，确保每段长度大于63个字符
+
+    Parameters
+    ----------
+    content: str
+        文本内容
+
+    Returns
+    ----------
+    final_list: List[str]
+        分段后的文本
+    """
+    temp_list = re.split("\n+", content)
     final_list = []
     temp_string = ""
     for string in temp_list:
-        if len(temp_string) > 63:
+        if len(temp_string) > MIN_CHARACTER_THRESHOLD:
             final_list.append(temp_string.strip())
             temp_string = ""
         temp_string += string.strip() + "\n\n"
@@ -150,6 +120,20 @@ def chunk(content: str) -> List[str]:
 def read_paper(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
+    """论文解读
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    current_user_directory: str
+        当前用户根目录
+
+    Yields
+    ----------
+    str
+        解读结果。Gradio不支持增量更新，每次均返回完整字符串
+    """
     prompt = read_paper_prompt_template.invoke(
         {"content": attach(file_path, current_user_directory)}
     )
@@ -159,7 +143,23 @@ def read_paper(
         yield answer.getvalue()
 
 
-def process_text(text: str, system_prompt: str, model: ChatOpenAI) -> str:
+def process_single_chunk(text: str, system_prompt: str, model: ChatOpenAI) -> str:
+    """根据prompt处理文本
+
+    Parameters
+    ----------
+    text: str
+        待处理文本
+    system_prompt: str
+        系统提示词
+    model: ChatOpenAI
+        模型，目前都使用deepseek-v3
+
+    Returns
+    ----------
+    text: str
+        处理后的文本
+    """
     if text.strip():
         prompt = process_paper_prompt_template.invoke(
             {"system": system_prompt, "content": text}
@@ -168,65 +168,215 @@ def process_text(text: str, system_prompt: str, model: ChatOpenAI) -> str:
     return text
 
 
+def generate_output_path(
+    file_path: str, suffix: Literal["Chi", "Eng", "Pol"], user_directory: str
+) -> str:
+    """生成输出文件路径
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    suffix: Literal['Chi', 'Eng', 'Pol']
+        文件后缀。分别对应英译中、中译英、润色
+    user_directory: str
+        用户目录
+
+    Returns
+    ----------
+    str
+        输出文件路径
+    """
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
+    return f"{user_directory}/knowledgeBase/{base_name}{suffix}.md"
+
+
+def submit_processing_tasks(
+    executor: concurrent.futures.Executor,
+    chunks: List[str],
+    prompt: str,
+    model: ChatOpenAI,
+) -> Dict[concurrent.futures.Future, int]:
+    """提交所有处理任务到线程池
+
+    Parameters
+    ----------
+    executor: concurrent.futures.Executor
+        线程池
+    chunks: List[str]
+        分段后的文本
+    prompt: str
+        系统提示词
+    model: ChatOpenAI
+        模型，目前都使用deepseek-v3
+
+    Returns
+    ----------
+    Dict[concurrent.futures.Future, int]
+        任务映射表
+    """
+    return {
+        executor.submit(process_single_chunk, chunk, prompt, model): index
+        for index, chunk in enumerate(chunks)
+    }
+
+
+def generate_processing_progress(
+    future_mapping: Dict[concurrent.futures.Future, int],
+    result_container: List[str],
+) -> Generator[str, None, None]:
+    """生成实时处理进度更新
+
+    Parameters
+    ----------
+    future_mapping: Dict[concurrent.futures.Future, int]
+        任务映射表
+    result_container: List[str]
+        结果容器
+
+    Yields
+    ----------
+    str
+        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+    """
+    for future in concurrent.futures.as_completed(future_mapping):
+        chunk_index = future_mapping[future]
+        result_container[chunk_index] = future.result()
+        yield "\n\n".join(result_container)
+
+
+def write_to_knowledge_base(output_path: str, content: str) -> None:
+    """将处理结果写入知识库文件
+
+    Parameters
+    ----------
+    output_path: str
+        输出文件路径
+    content: str
+        处理结果
+    """
+    with open(output_path, "w", encoding="utf-8") as output_file:
+        output_file.write(content)
+
+
 def process_paper(
     file_path: str,
-    suffix: str,
+    suffix: Literal["Chi", "Eng", "Pol"],
     prompt: str,
     current_user_directory: str,
     model: ChatOpenAI,
 ) -> Generator[str, None, None]:
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    knowledgeBase_file_path = (
-        f"{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
+    """处理论文
+
+    论文翻译、润色的抽象函数。
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    suffix: Literal['Chi', 'Eng', 'Pol']
+        文件后缀。分别对应英译中、中译英、润色
+    prompt: str
+        系统提示词
+    current_user_directory: str
+        当前用户目录
+    model: ChatOpenAI
+        模型，目前都使用deepseek-v3
+
+    Yields
+    ----------
+    str
+        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+    """
+    # 初始化输出路径和内容块
+    knowledgeBase_file_path = generate_output_path(
+        file_path, suffix, current_user_directory
     )
-    content = chunk(attach(file_path, current_user_directory))
-    results = []
+    document_chunks = chunk(attach(file_path, current_user_directory))
+
+    # 并行处理文本块
+    processed_chunks = [""] * len(document_chunks)
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(process_text, text, prompt, model): text for text in content
-        }
-        for future in concurrent.futures.as_completed(futures):
-            results.append(future.result())
-            yield "\n\n".join(results)
-    converted_content = "\n\n".join(results)
-    with open(knowledgeBase_file_path, "w", encoding="utf-8") as f:
-        f.write(converted_content)
-    yield converted_content
+        future_mapping = submit_processing_tasks(
+            executor, document_chunks, prompt, model
+        )
+        # 实时生成处理进度
+        yield from generate_processing_progress(future_mapping, processed_chunks)
+    # 写入最终结果并返回
+    final_content = "\n\n".join(processed_chunks)
+    write_to_knowledge_base(knowledgeBase_file_path, final_content)
+    yield final_content
 
 
 def translate_paper_to_Chinese(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    converter = process_paper(
+    """论文英译中
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    current_user_directory: str
+        当前用户目录
+
+    Yields
+    ----------
+    str
+        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+    """
+    yield from process_paper(
         file_path,
         "Chi",
         TRANSLATE_TO_CHINESE_PROMPT,
         current_user_directory,
-        glm_4_flash,
+        deepseek_v3,
     )
-    for result in converter:
-        yield result
 
 
 def translate_paper_to_English(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    converter = process_paper(
+    """论文中译英
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    current_user_directory: str
+        当前用户目录
+
+    Yields
+    ----------
+    str
+        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+    """
+    yield from process_paper(
         file_path,
         "Eng",
         TRANSLATE_TO_ENGLISH_PROMPT,
         current_user_directory,
-        glm_4_flash,
+        deepseek_v3,
     )
-    for result in converter:
-        yield result
 
 
 def polish_paper(
     file_path: str, current_user_directory: str
 ) -> Generator[str, None, None]:
-    converter = process_paper(
+    """论文润色
+
+    Parameters
+    ----------
+    file_path: str
+        文件路径
+    current_user_directory: str
+        当前用户目录
+
+    Yields
+    ----------
+    str
+        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+    """
+    yield from process_paper(
         file_path, "Pol", POLISH_PROMPT, current_user_directory, deepseek_v3
     )
-    for result in converter:
-        yield result
