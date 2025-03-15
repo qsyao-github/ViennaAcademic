@@ -1,10 +1,14 @@
-from searXNG import searxng_websearch
-from academic_search import select_best_results
-from typing import Generator, Tuple
-from langchain_core.prompts import ChatPromptTemplate
-from system_prompt import ACADEMIC_SEARCH
-from modelclient import deepseek_v3
+"""
+搜索功能与前端的接口
+"""
 from io import StringIO
+from typing import Callable, Generator, Iterator, List, Tuple
+
+from academic_search import select_academic_search_result
+from langchain_core.prompts import ChatPromptTemplate
+from modelclient import deepseek_v3
+from searXNG import searxng_websearch
+from system_prompt import ACADEMIC_SEARCH
 
 generate_summary_prompt_tempate = ChatPromptTemplate.from_messages(
     [
@@ -14,30 +18,110 @@ generate_summary_prompt_tempate = ChatPromptTemplate.from_messages(
 )
 
 
+SearchResult = Tuple[str, str, str]  # (title, snippet, link)
+SearchFunction = Callable[[str], List[SearchResult]]
+
+# 格式字符串常量
+RESULT_TEMPLATE = "# {index}. {title}\n{snippet}"
+CITATION_TEMPLATE = "[{index}] [{title}]({link})"
+
+
+def process_results(results: List[SearchResult]) -> Iterator[Tuple[str, str]]:
+    """生成显示内容和引用链接的元组迭代器
+    
+    Parameters
+    ----------
+    results: List[SearchResult]
+        搜索结果列表
+
+    Yields
+    ----------
+    Tuple[str, str]
+        (显示内容, 引用链接)
+    """
+    for index, (title, snippet, link) in enumerate(results, start=1):
+        yield (
+            RESULT_TEMPLATE.format(index=index, title=title, snippet=snippet),
+            CITATION_TEMPLATE.format(index=index, title=title, link=link),
+        )
+
+
+def generate_search_results(query: str, search_func: SearchFunction) -> Tuple[str, str]:
+    """通用搜索结果生成函数
+    
+    Parameters
+    ----------
+    query: str
+        搜索关键词
+    search_func: SearchFunction
+        搜索函数。可能为searxng_websearch或select_academic_search_result
+    
+    Returns
+    ----------
+    Tuple[str, str]
+        (显示内容, 引用链接)
+    """
+    search_results = search_func(query)
+    display_lines, citation_lines = (
+        zip(*process_results(search_results)) if search_results else ([], [])
+    )
+    return "\n\n".join(display_lines), "\n\n".join(citation_lines)
+
+
 def attach_web_result(query: str) -> Tuple[str, str]:
-    results = searxng_websearch(query)
-    return f'{"\n\n".join(
-        f"# {i}. {title}\n{snippet}"
-        for i, (title, snippet, _) in enumerate(results, start=1)
-    )}', "\n\n".join(f"[{i}] [{title}]({link})" for i, (title, _, link) in enumerate(results, start=1))
+    """附加网页搜索结果
+    
+    Parameters
+    ----------
+    query: str
+        搜索关键词
+
+    Returns
+    ----------
+    Tuple[str, str]
+        (显示内容, 引用链接)
+    """
+    return generate_search_results(query, searxng_websearch)
 
 
 def attach_academic_result(query: str) -> Tuple[str, str]:
-    results = select_best_results(query)
-    return "\n\n".join(
-        f"# {i}. {title}\n{snippet}"
-        for i, (title, snippet, _) in enumerate(results, start=1)
-    ), "\n\n".join(f"[{i}] [{title}]({link})" for i, (title, _, link) in enumerate(results, start=1))
+    """附加论文搜索结果
+    
+    Parameters
+    ----------
+    query: str
+        搜索关键词
+
+    Returns
+    ----------
+    Tuple[str, str]
+        (显示内容, 引用链接)
+    """
+    return generate_search_results(query, select_academic_search_result)
 
 
-def generate_summary(query: str) -> Generator[str, None, None]:
+def generate_academic_search_summary(query: str) -> Generator[str, None, None]:
+    """生成论文搜索概述
+    
+    Parameters
+    ----------
+    query: str
+        搜索关键词
+    
+    Yields
+    ----------
+    str
+        概述。Gradio不支持增量更新，每次返回完整字符串
+    """
     best_results, reference = attach_academic_result(query)
-    prompt = generate_summary_prompt_tempate.invoke({"content": f"\n搜索引擎前10结果：\n{best_results}\n{query}"})
+    prompt = generate_summary_prompt_tempate.invoke(
+        {"content": f"\n搜索引擎前10结果：\n{best_results}\n{query}"}
+    )
     final_response = StringIO()
     yield final_response.getvalue()
     response = deepseek_v3.stream(prompt)
     for chunk in response:
         final_response.write(chunk.content)
         yield final_response.getvalue()
-    final_response.write(f'\n\n参考文献\n\n{reference}')
+    final_response.write(f"\n\n参考文献\n\n{reference}")
     yield final_response.getvalue()
