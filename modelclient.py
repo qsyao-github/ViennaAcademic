@@ -61,4 +61,7 @@ bce_embedding_base = OpenAIEmbeddings(
     model="netease-youdao/bce-embedding-base_v1",
     api_key=silicon_client_API_KEY,
     base_url=silicon_client_BASE_URL,
+    embedding_ctx_length=511,
+    chunk_size=32,
+    check_embedding_ctx_length=False,
 )
