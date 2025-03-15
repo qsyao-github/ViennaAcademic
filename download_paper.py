@@ -1,3 +1,7 @@
+"""
+下载Arxiv论文功能
+"""
+
 import concurrent.futures
 import os
 from typing import Literal, Tuple
@@ -32,7 +36,7 @@ def get_arxiv_metadata(arxiv_id: str) -> Tuple[str, str, str]:
     Tuple[str, str, str]
         标题、摘要和链接
     """
-    return search_arxiv(arxiv_id)[0]
+    return next(search_arxiv(arxiv_id))
 
 
 def translate_title(title: str) -> str:
