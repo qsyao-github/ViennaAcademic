@@ -1,3 +1,6 @@
+"""
+解题功能识别题目的模块
+"""
 from chat_utils.media_handler import create_image_component
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
