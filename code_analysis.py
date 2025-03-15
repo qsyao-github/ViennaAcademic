@@ -42,7 +42,8 @@ program_extensions = frozenset(
         ".hpp",
     }
 )
-
+"""表头"""
+TABLE_HEADER = "|文件名|功能概括|\n|:-:|:-:|\n"
 explain_code_template = ChatPromptTemplate.from_messages(
     [
         (
@@ -113,15 +114,14 @@ def generate_tree(folder_path: str) -> str:
     str
         目录树
     """
-    tree_str = subprocess.run(
+    tree_array = subprocess.run(
         f"tree {folder_path}",
         shell=True,
         text=True,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-    ).stdout
-    tree_array = tree_str.split("\n")
+    ).stdout.split("\n")
     new_tree_array = [
         file for file in tree_array if "." not in file or is_program_file(file)
     ]
@@ -143,8 +143,8 @@ def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
     str
         Markdown表格
     """
-    markdown_lines = [f"|{file}|{func}|" for file, func in comment_pair_list]
-    return "\n".join(["|文件名|功能概括|\n|:-:|:-:|"] + markdown_lines)
+    markdown_lines = (f"|{file}|{func}|" for file, func in comment_pair_list)
+    return f"{TABLE_HEADER}{"\n".join(markdown_lines)}"
 
 
 def analyze_folder(folder_path: str) -> Generator[str, None, None]:
@@ -166,4 +166,4 @@ def analyze_folder(folder_path: str) -> Generator[str, None, None]:
     yield repo_structure
     for structure in find_program_files(folder_path):
         repo_function = generate_markdown(structure)
-        yield repo_structure + "\n" + repo_function
+        yield f"{repo_structure}\n{repo_function}"
