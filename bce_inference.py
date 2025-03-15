@@ -29,7 +29,7 @@ text_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=16,
     chunk_size=512,
 )
-check_chars = ["。", "！", "？", ".", "!", "?"]
+check_chars = {"。", "！", "？", ".", "!", "?"}
 
 
 def get_document(file: str) -> List[Document]:
@@ -102,9 +102,10 @@ def remove_retriever(file: str, current_dir: str) -> None:
         当前用户根目录
     """
     # 在demo.py中，由于文件删除键的渲染慢于IO，用户重复点击可导致报错，忽略
+    retrievers_dir = os.path.join(current_dir, "retrievers")
     try:
-        os.remove(f"{current_dir}/retrievers/{file}.pkl")
-        os.remove(f"{current_dir}/retrievers/{file}.faiss")
+        os.remove(os.path.join(retrievers_dir, f"{file}.pkl"),)
+        os.remove(os.path.join(retrievers_dir, f"{file}.faiss"))
     except Exception as e:
         print(f"An error occurred: {e}")
 
@@ -225,6 +226,6 @@ def get_response(query: str, current_dir: str) -> str:
         source = os.path.basename(document.metadata["source"])
         source = os.path.splitext(source)[0]
         text_response.append(f"{content} [Source: {source}]")
-        if len(text_response) > 10:
+        if len(text_response) > 9:
             break
     return "\n\n".join(text_response)
