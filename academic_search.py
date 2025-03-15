@@ -1,7 +1,8 @@
 """
 提供Arxiv和SearXNG学术搜索的最高级API
 """
-from typing import List, Tuple
+
+from typing import Generator, List, Tuple
 
 from custom_reranker import CustomCompressor
 from langchain.retrievers import ContextualCompressionRetriever
@@ -15,7 +16,7 @@ retriever = ArxivRetriever()
 reranker = CustomCompressor()
 
 
-def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
+def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None]:
     """搜索arxiv论文
 
     Parameters
@@ -25,18 +26,18 @@ def search_arxiv(query: str) -> List[Tuple[str, str, str]]:
 
     Returns
     ----------
-    List[Tuple[str, str, str]]
-        (标题, 摘要, 链接)元组组成的列表
+    Generator[Tuple[str, str, str], None, None]
+        (标题, 摘要, 链接)元组生成器
     """
     docs = retriever.invoke(query)
-    return [
+    return (
         (
             doc.metadata["Title"],
             doc.page_content.replace("\n", " "),
             doc.metadata["Entry ID"],
         )
         for doc in docs
-    ]
+    )
 
 
 def select_academic_search_result(query: str) -> List[Tuple[str, str, str]]:
