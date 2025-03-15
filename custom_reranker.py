@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional, Sequence, Union, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-import requests
+import httpx
+import orjson
 from api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
@@ -11,6 +12,11 @@ headers = {
     "Authorization": f"Bearer {silicon_client_API_KEY}",
     "Content-Type": "application/json",
 }
+client = httpx.Client(
+    base_url=url,
+    headers=headers,
+    timeout=10,
+)
 
 
 def get_rerank(
@@ -40,10 +46,15 @@ def get_rerank(
         "top_n": top_n,
         "return_documents": True,
     }
-
-    response = requests.request("POST", url, json=payload, headers=headers).json()
-
-    return response["results"]
+    json_payload = orjson.dumps(payload)
+    try:
+        response = client.post(url, data=json_payload)
+        response.raise_for_status()
+        data = orjson.loads(response.text)
+        return data.get("results", [])
+    except httpx.HTTPError as e:
+        print(f"Error: {e}")
+        return []
 
 
 class CustomCompressor(BaseDocumentCompressor):
@@ -87,9 +98,9 @@ class CustomCompressor(BaseDocumentCompressor):
         passages = []
         valid_doc_list = []
         invalid_doc_list = []
+        # if isinstance(passage, str) and len(passage) > 0:
         for d in documents:
-            passage = d.page_content
-            if isinstance(passage, str) and len(passage) > 0:
+            if passage := d.page_content:
                 passages.append(passage.replace("\n", " "))
                 valid_doc_list.append(d)
             else:
@@ -115,17 +126,23 @@ class CustomCompressor(BaseDocumentCompressor):
         final_results: List[Document]
             最终结果列表。注入该函数的全局变量，该函数直接修改final_results
         """
+        valid_docs = valid_doc_list
+        score_key = "relevance_score"
+        index_key = "index"
         for item in rerank_result:
-            score = item["relevance_score"]
-            doc_id = item["index"]
-            doc = valid_doc_list[doc_id]
-            doc.metadata["relevance_score"] = score
-            doc.metadata["index"] = doc_id
+            score = item[score_key]
+            doc_id = item[index_key]
+            doc = valid_docs[doc_id]
+            meta = doc.metadata
+            meta[score_key] = score
+            meta[index_key] = doc_id
             final_results.append(doc)
 
-    def process_invalid_docs(self, invalid_doc_list, final_results):
+    def process_invalid_docs(
+        self, invalid_doc_list: List[Document], final_results: List[Document]
+    ) -> None:
         """处理无效文档
-        
+
         Parameters
         ----------
         invalid_doc_list: List[Document]
@@ -137,9 +154,14 @@ class CustomCompressor(BaseDocumentCompressor):
             doc.metadata["relevance_score"] = 0
             final_results.append(doc)
 
-    def process_docs(self, rerank_result, valid_doc_list, invalid_doc_list):
+    def process_docs(
+        self,
+        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]],
+        valid_doc_list: List[Document],
+        invalid_doc_list: List[Document],
+    ) -> List[Document]:
         """处理bce-reranker返回的结果
-        
+
         Parameters
         ----------
         rerank_result: List[Dict[str, Union[int, Dict[str, str]]]]
