@@ -1,23 +1,25 @@
-import os
 import datetime
 import glob
-import subprocess
-import gradio as gr
-from typing import Generator, Dict, List, Union, Tuple, Callable
-from chat import ChatManager, ContentProcessor, SolveManager
-from bce_inference import update, get_response
+import os
 import shutil
+import subprocess
+from typing import Callable, Dict, Generator, List, Tuple, Union
+
+import gradio as gr
+from bce_inference import get_response, update
+from chat import ChatManager, SolveManager
+from chat_utils.attachment_processor import process_attachments
+from code_analysis import analyze_folder
 from docling_parser import parse_everything
 from download_paper import download_arxiv_paper
-from code_analysis import analyze_folder
 from paper import (
     polish_paper,
+    read_paper,
     translate_paper_to_Chinese,
     translate_paper_to_English,
-    read_paper,
 )
-from wolfram import attach_hints
 from search import attach_web_result
+from wolfram import attach_hints
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -53,9 +55,7 @@ def show_files(
         with gr.Row():
             file_path = f"{current_dir}/{folder}/{file}"
             file_button = gr.Button(file, scale=1, min_width=120)
-            download_file_button = gr.DownloadButton(
-                "下载", file_path, scale=0, min_width=72
-            )
+            gr.DownloadButton("下载", file_path, scale=0, min_width=72)
             delete_file_button = gr.Button("删除", scale=0, min_width=72)
 
             def delete_file(file_path: str = file_path) -> List[str]:
@@ -87,7 +87,7 @@ def _paper_show_files(
         with gr.Row():
             file_path = f"{current_dir}/knowledgeBase/{file}"
             file_button = gr.Button(file, scale=1, min_width=120)
-            download_file = gr.DownloadButton("下载", file_path, scale=0, min_width=72)
+            gr.DownloadButton("下载", file_path, scale=0, min_width=72)
             delete_file = gr.Button("删除", scale=0, min_width=72)
 
             def delete_paper(file_path: str = file_path):
@@ -104,9 +104,17 @@ def check_delete(
 ) -> Tuple[List[str], List[str], List[str], List[str], List[str]]:
     for file_path in glob.glob("*.png"):
         os.remove(file_path)
-    subprocess.run(
-        f"find {current_user} -type f -mtime +2 -exec rm {{}} \\;", shell=True
-    )
+    now = datetime.datetime.now()
+    for root, _, files in os.walk(current_user):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if os.path.isfile(file_path):
+                file_mtime = datetime.datetime.fromtimestamp(
+                    os.path.getmtime(file_path)
+                )
+                if (now - file_mtime).days > 3:
+                    os.remove(file_path)
+                    print(f"Deleted: {file_path}")
     update(current_user)
     return (
         os.listdir(f"{current_user}/code"),
@@ -115,6 +123,7 @@ def check_delete(
         os.listdir(f"{current_user}/repositry"),
         os.listdir(f"{current_user}/tempest"),
     )
+
 
 def append_text(
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
@@ -161,41 +170,33 @@ def respond(
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
         possible_media_filename = f"{now_time}.png"
         # Process incoming message
-        # A special suffix is added to formatted_text. This is to address gradio issue #10450
         text = msg["text"]
         web_search_result, reference = "", ""
         if chat_mode == "知识库":
-            knowledgeBase_search = get_response(text, current_user_dir)
-            if knowledgeBase_search:
+            if knowledgeBase_search := get_response(text, current_user_dir):
                 text = knowledgeBase_search + "\n\n" + text
         elif chat_mode == "网页搜索":
             web_search_result, reference = attach_web_result(text)
-            web_search_result = f'\n{web_search_result}\n\n'
-            reference = f'\n\n参考文献\n\n{reference}'
-        formatted_text = ContentProcessor.process_attachments(text, current_user_dir)
-        append_text(
-            chatbot,
-            rf"""{formatted_text}
-$$ $$\( \)\[ \]""",
-            "user",
-        )
+            web_search_result = f"\n{web_search_result}\n\n"
+            reference = f"\n\n参考文献\n\n{reference}"
+        formatted_text = process_attachments(text, current_user_dir)
+        append_text(chatbot, formatted_text, "user")
         append_files(chatbot, msg["files"], "user")
-
         append_text(chatbot, "", "assistant")
-
         # Generate and stream responses
         bot_response = ChatManager.stream_response(
-            f'{web_search_result}{formatted_text}', msg["files"], str(chatbot[0]), chat_mode, now_time
+            f"{web_search_result}{formatted_text}",
+            msg["files"],
+            str(chatbot[0]),
+            chat_mode,
+            now_time,
         )
         yield {"text": "", "files": []}, chatbot
         for response_chunk in bot_response:
             chatbot[-1]["content"] = response_chunk
             yield {"text": "", "files": []}, chatbot
         # same suffix for #10450
-        chatbot[-1][
-            "content"
-        ] += rf"""{reference}
-$$ $$\( \)\[ \]"""
+        chatbot[-1]["content"] += reference
 
         # Handle generated media file if exists
         if os.path.exists(possible_media_filename):
@@ -382,25 +383,16 @@ def solve_respond(
 ) -> Generator[
     Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
 ]:
-    solve_msg = ContentProcessor.process_attachments(solve_msg.strip(), current_dir)
+    solve_msg = process_attachments(solve_msg.strip(), current_dir)
     if not solve_msg:
         return "", solve_chatbot
     solve_chatbot.append(
-        {
-            "role": "user",
-            "metadata": None,
-            "content": rf"""{solve_msg}
-$$ $$\( \)\[ \]""",
-            "options": None,
-        }
+        {"role": "user", "metadata": None, "content": solve_msg, "options": None}
     )
     yield "", solve_chatbot
     if wolfram:
         solve_msg = attach_hints(solve_msg)
-        solve_chatbot[-1][
-            "content"
-        ] = rf"""{solve_msg}
-$$ $$\( \)\[ \]"""
+        solve_chatbot[-1]["content"] = solve_msg
     solve_chatbot.extend(
         [
             {"role": "assistant", "content": "", "metadata": {"title": "思考过程"}},
