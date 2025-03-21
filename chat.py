@@ -79,7 +79,7 @@ class ChatManager:
         thread_id: str
             线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
         mode: str
-            聊天模式：常规，多模态，知识库，网页搜索
+            聊天模式：常规，工具，多模态，知识库，网页搜索
         timestamp: str
             当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
 
@@ -88,15 +88,17 @@ class ChatManager:
         str
             模型返回内容->工具调用排版。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
         """
-        chat_config = {"configurable": {"thread_id": thread_id}}
+        chat_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "mode": mode,
+                "now_time": timestamp,
+            }
+        }
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
         for chunk, _ in agent_app.stream(
-            {
-                "messages": [HumanMessage(content=content)],
-                "mode": mode,
-                "now_time": timestamp,
-            },
+            {"messages": [HumanMessage(content=content)]},
             config=chat_config,
             stream_mode="messages",
         ):
@@ -156,11 +158,11 @@ class SolveManager:
     LENGTH_OF_THINK_TAG: int
         len('<think>') + 1 = 8，去除模型回复的<think>标签
     TAG_MODEL_INDEXES: frozenset[int]
-        储存使用<think>标签的模型索引。目前只有0号模型qwq-32b。
+        储存使用<think>标签的模型索引。目前0号qwq-32b，1号deepseek-r1-671b都是此类模型。
     """
 
     LENGTH_OF_THINK_TAG = 8
-    TAG_MODEL_INDEXES = frozenset({0})
+    TAG_MODEL_INDEXES = frozenset({0, 1})
 
     @classmethod
     def split_final_response(cls, content: str) -> Tuple[str, str]:
@@ -267,10 +269,10 @@ class SolveManager:
         Generator[Tuple[str, str], None, None]
             思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
         """
-        chat_config = {"configurable": {"thread_id": thread_id}}
+        chat_config = {"configurable": {"thread_id": thread_id, "model_num": model_num}}
         content_buffer = StringIO()
         answer = solve_app.stream(
-            {"messages": [HumanMessage(text)], "model_num": model_num},
+            {"messages": [HumanMessage(text)]},
             config=chat_config,
             stream_mode="messages",
         )

@@ -1,5 +1,5 @@
-# pip3 install -U langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu
-# pip3 install -U crawl4ai
+# pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv
+# pip3 install -U --upgrade-strategy eager crawl4ai
 import gradio as gr
 from gradio.themes.utils import sizes
 from demo_utils import (
@@ -55,6 +55,7 @@ with gr.Blocks(
                     show_copy_all_button=True,
                     label="聊天框",
                     scale=8,
+                    sanitize_html=False,
                 )
                 with gr.Tab("聊天"):
                     msg = gr.MultimodalTextbox(
@@ -68,7 +69,7 @@ with gr.Blocks(
                             [msg, chatbot], value="清除", scale=1
                         )
                         chat_mode = gr.Radio(
-                            ["常规", "多模态", "知识库", "网页搜索"],
+                            ["常规", "工具", "多模态", "知识库", "网页搜索"],
                             value="常规",
                             label="聊天模式",
                             scale=2,
@@ -290,6 +291,7 @@ with gr.Blocks(
                         show_copy_all_button=True,
                         label="聊天框",
                         scale=8,
+                        sanitize_html=False,
                     )
                     solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
                     with gr.Tab("解题"):

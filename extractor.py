@@ -48,3 +48,5 @@ def attach_hints(query: str) -> str:
     if hints := asyncio.run(get_wolfram(query)):
         query = f"Wolframalpha提示：\n```\n{hints}\n```\n{query}"
     return query
+
+

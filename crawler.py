@@ -1,6 +1,6 @@
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CrawlerMonitor, BrowserConfig, DisplayMode, CacheMode
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
-from crawl4ai.content_filter_strategy import PruningContentFilter, BM25ContentFilter
+from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
 
 browser_config = BrowserConfig(headless=True, verbose=False)
@@ -31,13 +31,11 @@ dispatcher = MemoryAdaptiveDispatcher(
     monitor=CrawlerMonitor(display_mode=DisplayMode.DETAILED))
 
 
-async def crawl_and_save(test_urls_dict):
-    test_urls = list(test_urls_dict.keys())
+async def crawl_url(urls):
     async with AsyncWebCrawler(config=browser_config) as crawler:
-        async for result in await crawler.arun_many(urls=test_urls,
+        async for result in await crawler.arun_many(urls=urls,
                                                     config=config,
                                                     dispatcher=dispatcher):
             if result.success:
-                with open(test_urls_dict[result.url], 'a',
-                          encoding='utf-8') as f:
-                    f.write(result.markdown_v2.fit_markdown)
+                print(result.url)
+                print(result.html)

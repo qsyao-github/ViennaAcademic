@@ -1,30 +1,25 @@
 """
 Chatbot后端，处理ViennaAcademic解题功能
 """
+
 from typing import Dict
 
 from langchain_core.messages import BaseMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
+from langchain_core.runnables.config import RunnableConfig
 from modelclient import deepseek_r1_671b, qwq_32b
-
-
-class SolveMessageState(MessagesState):
-    """聊天消息状态
-    
-    Attributes
-    ----------
-    model_num: int
-        使用的模型编号
-    """
-    model_num: int
 
 
 select_model_from_num = {
     0: qwq_32b,
     1: deepseek_r1_671b,
 }
-def solve_call_model(state: SolveMessageState) -> Dict[str, BaseMessage]:
+
+
+def solve_call_model(
+    state: MessagesState, config: RunnableConfig
+) -> Dict[str, BaseMessage]:
     """进行一轮“解题功能”对话
 
     Parameters
@@ -36,18 +31,18 @@ def solve_call_model(state: SolveMessageState) -> Dict[str, BaseMessage]:
     ----------
     Dict[str, List[BaseMessage]]
         一轮推理后的状态
-        
+
     Notes
     ----------
     对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     """
-    model_num = state["model_num"]
+    model_num = config["configurable"].get("model_num", 0)
     model = select_model_from_num[model_num]
     response = model.invoke(state["messages"])
     return {"messages": response}
 
 
-solve_workflow = StateGraph(state_schema=SolveMessageState)
+solve_workflow = StateGraph(state_schema=MessagesState)
 solve_workflow.add_edge(START, "model")
 solve_workflow.add_node("model", solve_call_model)
 

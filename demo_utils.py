@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import Callable, Dict, Generator, List, Tuple, Union
+from typing import Callable, Dict, Generator, List, Tuple, Union, AsyncGenerator
 
 import gradio as gr
 from bce_inference import get_response, update
@@ -19,7 +19,7 @@ from paper import (
     translate_paper_to_English,
 )
 from search import attach_web_result
-from wolfram import attach_hints
+from extractor import attach_hints
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -358,16 +358,16 @@ paper_function_map = {
 }
 
 
-def generate_paper_answer(
+async def generate_paper_answer(
     selected_function: str, selected_paper: str, current_dir: str
-) -> Generator[Tuple[str, List[str]], None, None]:
+) -> AsyncGenerator[Tuple[str, List[str]], None]:
     if selected_paper not in os.listdir(f"{current_dir}/knowledgeBase"):
         yield "文件不存在", os.listdir(f"{current_dir}/knowledgeBase")
         return
     gr.Info("正在生成答案，请耐心等候")
     process_function = paper_function_map.get(selected_function, read_paper)
     final_answer = ""
-    for chunk in process_function(selected_paper, current_dir):
+    async for chunk in process_function(selected_paper, current_dir):
         final_answer = chunk
         yield final_answer, []
     gr.Info("已完成，请刷新")
