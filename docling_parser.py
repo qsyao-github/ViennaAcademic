@@ -1,6 +1,7 @@
 """
 docling的接口，加入自定义设置，提高解析精度
 """
+
 import re
 
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
@@ -23,9 +24,7 @@ from docling.pipeline.simple_pipeline import SimplePipeline
 from rapidocr_onnxruntime import RapidOCR
 
 engine = RapidOCR()
-pipeline_options = PdfPipelineOptions(
-    artifacts_path="/home/laowei/model/docling-models"
-)
+pipeline_options = PdfPipelineOptions(artifacts_path="/home/laowei/model/docling")
 pipeline_options.do_ocr = True
 pipeline_options.accelerator_options = AcceleratorOptions(
     num_threads=20, device=AcceleratorDevice.CPU
@@ -63,7 +62,7 @@ ARXIV_STRIP_PATTERN = re.compile(
 
 def parse_everything(file_or_url: str) -> str:
     """docling的万能接口
-    
+
     支持pdf, docx, pptx, html, image。文档解析结果中图片用<!-- image -->表示，予以去除
 
     Parameters
@@ -83,7 +82,7 @@ def parse_everything(file_or_url: str) -> str:
 
 def parse_arxiv(url: str) -> str:
     """解析arxiv论文html
-    
+
     有结果清洗机制和异常处理机制。解析失败返回空字符串，方便arxiv模块的函数处理该错误。
 
     Parameters

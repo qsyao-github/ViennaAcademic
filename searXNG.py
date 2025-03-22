@@ -12,7 +12,7 @@ REMOVE_HTML_PATTERN = re.compile(r"<[^>]+>")
 """最多返回结果数。embedding模型召回100个文段，据此选择256"""
 MAX_RESULTS = 256
 academic_search_wrapper = SearxSearchWrapper(
-    searx_host="http://localhost:8080", k=MAX_RESULTS
+    searx_host="http://localhost:8080", k=MAX_RESULTS, unsecure=True
 )
 
 
