@@ -148,7 +148,7 @@ async def read_paper(
 
 async def process_single_chunk(
     text: str, system_prompt: str, model: ChatOpenAI, index: int, result: List[str]
-) -> str:
+) -> None:
     """根据prompt处理文本
 
     Parameters
@@ -159,11 +159,10 @@ async def process_single_chunk(
         系统提示词
     model: ChatOpenAI
         模型，目前都使用deepseek-v3
-
-    Returns
-    ----------
-    text: str
-        处理后的文本
+    index: int
+        文本索引
+    result: List[str]
+        处理结果列表
     """
     if text.strip():
         prompt = await process_paper_prompt_template.ainvoke(
@@ -195,7 +194,28 @@ def generate_output_path(
     return f"{user_directory}/knowledgeBase/{base_name}{suffix}.md"
 
 
-def generate_tasks(prompt, model, processed_chunks, document_chunks, semaphore):
+def generate_tasks(
+    prompt: str,
+    model: ChatOpenAI,
+    processed_chunks: List[str],
+    document_chunks: List[str],
+    semaphore: asyncio.Semaphore,
+) -> List[asyncio.Task[str]]:
+    """产生任务列表
+
+    Parameters
+    ----------
+    prompt: str
+        系统提示词
+    model: ChatOpenAI
+        模型，目前都使用deepseek-v3
+    processed_chunks: List[str]
+        处理后的文本列表
+    document_chunks: List[str]
+        处理前的文本列表
+    semaphore: asyncio.Semaphore
+        信号量，用于控制并发数
+    """
     return [
         worker(chunk, prompt, model, index, processed_chunks, semaphore)
         for index, chunk in enumerate(document_chunks)

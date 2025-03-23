@@ -185,9 +185,3 @@ graph_builder.add_edge("tools", "chatbot")
 graph_builder.set_entry_point("chatbot")
 memory = MemorySaver()
 agent_app = graph_builder.compile(checkpointer=memory)
-
-
-
-"""使用搜索引擎"""
-result = attach_web_result("Composio")
-print(f"```\n搜索引擎前10结果：\n{result[0]}\n```\n\n参考文献\n\n{result[1]}\n\n")
