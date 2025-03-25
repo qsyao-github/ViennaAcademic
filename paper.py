@@ -9,7 +9,7 @@ from io import StringIO
 from typing import AsyncGenerator, List, Literal
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_openai.chat_models.base import BaseChatOpenAI
 from modelclient import deepseek_v3
 from semaphore import semaphore
 from system_prompt import (
@@ -147,7 +147,7 @@ async def read_paper(
 
 
 async def process_single_chunk(
-    text: str, system_prompt: str, model: ChatOpenAI, index: int, result: List[str]
+    text: str, system_prompt: str, model: BaseChatOpenAI, index: int, result: List[str]
 ) -> None:
     """根据prompt处理文本
 
@@ -157,7 +157,7 @@ async def process_single_chunk(
         待处理文本
     system_prompt: str
         系统提示词
-    model: ChatOpenAI
+    model: BaseChatOpenAI
         模型，目前都使用deepseek-v3
     index: int
         文本索引
@@ -196,7 +196,7 @@ def generate_output_path(
 
 def generate_tasks(
     prompt: str,
-    model: ChatOpenAI,
+    model: BaseChatOpenAI,
     processed_chunks: List[str],
     document_chunks: List[str],
     semaphore: asyncio.Semaphore,
@@ -207,7 +207,7 @@ def generate_tasks(
     ----------
     prompt: str
         系统提示词
-    model: ChatOpenAI
+    model: BaseChatOpenAI
         模型，目前都使用deepseek-v3
     processed_chunks: List[str]
         处理后的文本列表
@@ -239,7 +239,7 @@ def write_to_knowledge_base(output_path: str, content: str) -> None:
 async def worker(
     text: str,
     system_prompt: str,
-    model: ChatOpenAI,
+    model: BaseChatOpenAI,
     index: int,
     result: List[str],
     semaphore: asyncio.Semaphore,
@@ -253,7 +253,7 @@ async def process_paper(
     suffix: Literal["Chi", "Eng", "Pol"],
     prompt: str,
     current_user_directory: str,
-    model: ChatOpenAI,
+    model: BaseChatOpenAI,
 ) -> AsyncGenerator[str, None]:
     """处理论文
 
@@ -269,7 +269,7 @@ async def process_paper(
         系统提示词
     current_user_directory: str
         当前用户目录
-    model: ChatOpenAI
+    model: BaseChatOpenAI
         模型，目前都使用deepseek-v3
 
     Yields

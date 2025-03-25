@@ -1,21 +1,17 @@
 from api_keys import (
     silicon_client_API_KEY,
     silicon_client_BASE_URL,
-    volcano_client_API_KEY,
-    volcano_client_BASE_URL,
     xkx_client_API_KEY,
     xkx_client_BASE_URL,
     zhipu_client_API_KEY,
     zhipu_client_BASE_URL,
+    deepseek_client_API_KEY,
 )
+from langchain_deepseek import ChatDeepSeek
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 # 文生文
-deepseek_v3 = ChatOpenAI(
-    model="deepseek-v3-241226",
-    api_key=volcano_client_API_KEY,
-    base_url=volcano_client_BASE_URL,
-)
+deepseek_v3 = ChatDeepSeek(model="deepseek-chat", api_key=deepseek_client_API_KEY)
 
 # 多模态
 pixtral_large_latest = ChatOpenAI(
