@@ -1,6 +1,5 @@
 # pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker
 # pip3 install -U --upgrade-strategy eager crawl4ai
-# Modification in gradio.route_utils get_request_url at line 363
 import gradio as gr
 from gradio.themes.utils import sizes
 from demo_utils import (
