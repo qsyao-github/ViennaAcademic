@@ -58,15 +58,7 @@ def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
     results = academic_search_wrapper.results(
         query,
         categories=["science"],
-        engines=[
-            "arxiv",
-            "crossref",
-            "pubmed",
-            "wikispecies",
-            "openairedatasets",
-            "openairepublications",
-            "pbde",
-        ],
+        engines=["arxiv", "google_scholar", "pubmed"],
         num_results=MAX_RESULTS,
         language="all",
     )
