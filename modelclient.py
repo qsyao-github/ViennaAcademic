@@ -40,9 +40,9 @@ qwq_32b = ChatOpenAI(
     model="qwen-qwq-32b",
     api_key=xkx_client_API_KEY,
     base_url=xkx_client_BASE_URL,
-    temperature=0.6,
     top_p=0.95,
-    presence_penalty=1,
+    temperature=0.6,
+    presence_penalty=1.3,
 )
 
 # 代码
