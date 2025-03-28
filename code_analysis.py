@@ -1,12 +1,14 @@
 """
 Github解析功能
 """
+
 import os
 import subprocess
 from typing import Generator, List, Tuple
 
 from langchain_core.prompts import ChatPromptTemplate
 from modelclient import codestral_latest
+
 """程序文件后缀"""
 program_extensions = frozenset(
     {
@@ -57,12 +59,12 @@ explain_code_template = ChatPromptTemplate.from_messages(
 
 def is_program_file(filename: str) -> bool:
     """判断文件是否为程序文件
-    
+
     Parameters
     ----------
     filename : str
         文件名
-    
+
     Returns
     ----------
     bool
@@ -76,12 +78,12 @@ def find_program_files(directory: str) -> Generator[List[Tuple[str, str]], None,
     """查找目录下的程序文件并概括功能
 
     概括目前使用codestral-latest
-    
+
     Parameters
     ----------
     directory : str
         目录路径
-    
+
     Yields
     ----------
     List[Tuple[str, str]]
@@ -103,12 +105,12 @@ def find_program_files(directory: str) -> Generator[List[Tuple[str, str]], None,
 
 def generate_tree(folder_path: str) -> str:
     """生成目录树
-    
+
     Parameters
     ----------
     folder_path : str
         目录路径
-    
+
     Returns
     ----------
     str
@@ -130,14 +132,14 @@ def generate_tree(folder_path: str) -> str:
 
 def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
     """生成Markdown表格
-    
+
     整理文件名和功能概括，生成markdown表格
 
     Parameters
     ----------
     comment_pair_list : List[Tuple[str, str]]
         文件名和功能概括的列表，由find_program_files生成
-    
+
     Returns
     ----------
     str
@@ -149,14 +151,14 @@ def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
 
 def analyze_folder(folder_path: str) -> Generator[str, None, None]:
     """分析Github仓库
-    
+
     包括目录树和功能概括Markdown表格。
 
     Parameters
     ----------
     folder_path : str
         仓库路径
-    
+
     Yields
     ----------
     str

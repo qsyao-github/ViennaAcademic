@@ -1,6 +1,7 @@
 """
 解题功能识别题目的模块
 """
+
 from chat_utils.media_handler import create_image_component
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -16,12 +17,12 @@ ocr_prompt_template = ChatPromptTemplate(
 
 def file_ocr(file: str) -> str:
     """识别图片中的文字和公式
-    
+
     Parameters
     ----------
     file : str
         图片文件路径
-    
+
     Returns
     ----------
     str

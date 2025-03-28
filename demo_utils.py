@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import Callable, Dict, Generator, List, Tuple, Union, AsyncGenerator
+from typing import AsyncGenerator, Callable, Dict, Generator, List, Tuple, Union
 
 import gradio as gr
 from bce_inference import get_response, update
@@ -12,6 +12,8 @@ from chat_utils.attachment_processor import process_attachments
 from code_analysis import analyze_folder
 from docling_parser import parse_everything
 from download_paper import download_arxiv_paper
+from execute_code import delete_png_files
+from extractor import attach_hints
 from paper import (
     polish_paper,
     read_paper,
@@ -19,7 +21,6 @@ from paper import (
     translate_paper_to_English,
 )
 from search import attach_web_result
-from extractor import attach_hints
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -102,8 +103,9 @@ def _paper_show_files(
 def check_delete(
     current_user: str,
 ) -> Tuple[List[str], List[str], List[str], List[str], List[str]]:
-    for file_path in glob.glob("*.png"):
+    for file_path in glob.glob("media/*.png"):
         os.remove(file_path)
+    delete_png_files()
     now = datetime.datetime.now()
     for root, _, files in os.walk(current_user):
         for file in files:
@@ -168,7 +170,7 @@ def respond(
     if msg["text"] or msg["files"]:
         # Main processing logic
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
-        possible_media_filename = f"{now_time}.png"
+        possible_media_filename = f"media/{now_time}.png"
         # Process incoming message
         text = msg["text"]
         web_search_result, reference = "", ""

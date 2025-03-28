@@ -1,24 +1,24 @@
 # pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker
 # pip3 install -U --upgrade-strategy eager crawl4ai
 import gradio as gr
-from gradio.themes.utils import sizes
+from auth import check_login
 from demo_utils import (
     LATEX_DELIMITERS,
-    get_current_user,
-    show_files,
-    check_delete,
-    respond,
+    _show_repo,
     academic_search,
-    upload_paper,
+    check_delete,
+    clone_repo,
     download_paper_chatbot,
     download_paper_textbox,
-    upload_code,
-    clone_repo,
-    _show_repo,
     generate_paper_answer,
+    get_current_user,
+    respond,
+    show_files,
     solve_respond,
+    upload_code,
+    upload_paper,
 )
-from auth import check_login
+from gradio.themes.utils import sizes
 from llm_ocr import file_ocr
 
 with gr.Blocks(
@@ -63,6 +63,7 @@ with gr.Blocks(
                         placeholder="输入文字，可点左侧按钮上传图片",
                         scale=1,
                         file_types=["image", "text"],
+                        max_plain_text_length=8191,
                     )
                     with gr.Row():
                         clear_button = gr.ClearButton(
@@ -100,7 +101,7 @@ with gr.Blocks(
                         concurrency_limit=28,
                     )
                 with gr.Tab("搜索"):
-                    search_box = gr.Textbox(label="搜索框", scale=1)
+                    search_box = gr.Textbox(label="搜索框", scale=1, submit_btn=True)
                     with gr.Row():
                         academicSearch_button = gr.Button(
                             "论文搜索", scale=1, min_width=64
@@ -146,7 +147,9 @@ with gr.Blocks(
                             "arxiv论文下载", scale=1, min_width=168
                         )
                     arxiv_num = gr.Textbox(
-                        placeholder="输入arxiv号，例如：1706.03762", label="Arxiv ID"
+                        placeholder="输入arxiv号，例如：1706.03762",
+                        label="Arxiv ID",
+                        submit_btn=True,
                     )
                     download_arxiv.click(
                         download_paper_chatbot,
@@ -201,7 +204,9 @@ with gr.Blocks(
                         refresh = gr.Button("刷新", scale=1, min_width=32)
                         github_clone = gr.Button("克隆仓库", scale=1, min_width=64)
                     github_url = gr.Textbox(
-                        label="仓库url", placeholder="输入Github仓库的url，点击克隆仓库"
+                        label="仓库url",
+                        placeholder="输入Github仓库的url，点击克隆仓库",
+                        submit_btn=True,
                     )
                     github_clone.click(
                         clone_repo,
@@ -233,7 +238,10 @@ with gr.Blocks(
                         label="功能",
                     )
                     selected_paper = gr.Textbox(
-                        placeholder="点击右侧文件名输入", scale=1, label="文件名"
+                        placeholder="点击右侧文件名输入",
+                        scale=1,
+                        label="文件名",
+                        submit_btn=True,
                     )
                 paper_answer = gr.Markdown(show_copy_button=True)
                 selected_paper.submit(
@@ -255,7 +263,9 @@ with gr.Blocks(
                         "arxiv论文下载", scale=1, min_width=112
                     )
                 paper_arxiv_num = gr.Textbox(
-                    placeholder="输入arxiv号，例如：1706.03762", label="Arxiv ID"
+                    placeholder="输入arxiv号，例如：1706.03762",
+                    label="Arxiv ID",
+                    submit_btn=True,
                 )
                 paper_download_arxiv.click(
                     download_paper_textbox,
@@ -293,7 +303,9 @@ with gr.Blocks(
                         scale=8,
                         sanitize_html=False,
                     )
-                    solve_msg = gr.Textbox(placeholder="输入题目", label="输入框")
+                    solve_msg = gr.Textbox(
+                        placeholder="输入题目", label="输入框", submit_btn=True
+                    )
                     with gr.Tab("解题"):
                         with gr.Row():
                             distill = gr.Dropdown(

@@ -1,6 +1,7 @@
 """
 搜索功能与前端的接口
 """
+
 from io import StringIO
 from typing import Callable, Generator, Iterator, List, Tuple
 
@@ -28,7 +29,7 @@ CITATION_TEMPLATE = "[{index}] [{title}]({link})"
 
 def process_results(results: List[SearchResult]) -> Iterator[Tuple[str, str]]:
     """生成显示内容和引用链接的元组迭代器
-    
+
     Parameters
     ----------
     results: List[SearchResult]
@@ -48,14 +49,14 @@ def process_results(results: List[SearchResult]) -> Iterator[Tuple[str, str]]:
 
 def generate_search_results(query: str, search_func: SearchFunction) -> Tuple[str, str]:
     """通用搜索结果生成函数
-    
+
     Parameters
     ----------
     query: str
         搜索关键词
     search_func: SearchFunction
         搜索函数。可能为searxng_websearch或select_academic_search_result
-    
+
     Returns
     ----------
     Tuple[str, str]
@@ -70,7 +71,7 @@ def generate_search_results(query: str, search_func: SearchFunction) -> Tuple[st
 
 def attach_web_result(query: str) -> Tuple[str, str]:
     """附加网页搜索结果
-    
+
     Parameters
     ----------
     query: str
@@ -86,7 +87,7 @@ def attach_web_result(query: str) -> Tuple[str, str]:
 
 def attach_academic_result(query: str) -> Tuple[str, str]:
     """附加论文搜索结果
-    
+
     Parameters
     ----------
     query: str
@@ -102,12 +103,12 @@ def attach_academic_result(query: str) -> Tuple[str, str]:
 
 def generate_academic_search_summary(query: str) -> Generator[str, None, None]:
     """生成论文搜索概述
-    
+
     Parameters
     ----------
     query: str
         搜索关键词
-    
+
     Yields
     ----------
     str

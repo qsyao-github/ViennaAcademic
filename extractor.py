@@ -3,8 +3,8 @@ WolframAlpha爬虫
 """
 
 import asyncio
-import orjson
 
+import orjson
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
 from crawl4ai.extraction_strategy import JsonXPathExtractionStrategy
 
@@ -48,5 +48,3 @@ def attach_hints(query: str) -> str:
     if hints := asyncio.run(get_wolfram(query)):
         query = f"Wolframalpha提示：\n```\n{hints}\n```\n{query}"
     return query
-
-

@@ -5,11 +5,10 @@ Chatbot后端，处理ViennaAcademic解题功能
 from typing import Dict
 
 from langchain_core.messages import BaseMessage
+from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from langchain_core.runnables.config import RunnableConfig
 from modelclient import deepseek_r1_671b, qwq_32b
-
 
 select_model_from_num = {
     0: qwq_32b,
