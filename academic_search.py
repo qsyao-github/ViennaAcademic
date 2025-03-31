@@ -17,7 +17,7 @@ retriever = ArxivRetriever()
 reranker = CustomCompressor()
 
 
-def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None]:
+async def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None]:
     """搜索arxiv论文
 
     Parameters
@@ -30,7 +30,7 @@ def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None]:
     Generator[Tuple[str, str, str], None, None]
         (标题, 摘要, 链接)元组生成器
     """
-    docs = retriever.invoke(query)
+    docs = await retriever.ainvoke(query)
     return (
         (
             doc.metadata["Title"],

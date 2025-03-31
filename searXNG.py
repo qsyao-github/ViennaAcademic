@@ -2,13 +2,10 @@
 SearXNG搜索引擎接口
 """
 
-import re
 from typing import Generator, List, Tuple
 
 from langchain_community.utilities import SearxSearchWrapper
 
-"""正则表达式，用于去除html标签"""
-REMOVE_HTML_PATTERN = re.compile(r"<[^>]+>")
 """最多返回结果数。embedding模型召回100个文段，据此选择256"""
 MAX_RESULTS = 256
 academic_search_wrapper = SearxSearchWrapper(
@@ -62,11 +59,4 @@ def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
         num_results=MAX_RESULTS,
         language="all",
     )
-    return [
-        (
-            result["title"],
-            REMOVE_HTML_PATTERN.sub("", result["snippet"]),
-            result["link"],
-        )
-        for result in results
-    ]
+    return [(result["title"], result["snippet"], result["link"]) for result in results]

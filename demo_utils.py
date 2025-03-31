@@ -270,26 +270,28 @@ def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     return os.listdir(paper_directory), list(knowledge_base_files)
 
 
-def download_paper_chatbot(
+async def download_paper_chatbot(
     arxiv_num: str,
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     current_dir: str,
-) -> Generator[
-    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]], List[str]], None, None
+) -> AsyncGenerator[
+    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]], List[str]], None
 ]:
     gr.Info("正在下载，请耐心等候")
     append_text(chatbot, f"下载{arxiv_num}并翻译标题与摘要", "user")
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
-    append_text(chatbot, download_arxiv_paper(arxiv_num, current_dir), "assistant")
+    append_text(
+        chatbot, await download_arxiv_paper(arxiv_num, current_dir), "assistant"
+    )
     update(current_dir)
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
-def download_paper_textbox(
+async def download_paper_textbox(
     arxiv_num: str, current_dir: str
 ) -> Tuple[str, str, List[str]]:
     gr.Info("正在下载，请耐心等候")
-    answer = download_arxiv_paper(arxiv_num, current_dir)
+    answer = await download_arxiv_paper(arxiv_num, current_dir)
     update(current_dir)
     return "", answer, os.listdir(f"{current_dir}/knowledgeBase")
 

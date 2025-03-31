@@ -3,6 +3,7 @@
 """
 
 import concurrent.futures
+import asyncio
 import os
 from typing import Literal, Tuple
 
@@ -21,7 +22,7 @@ translate_template = ChatPromptTemplate.from_messages(
 )
 
 
-def get_arxiv_metadata(arxiv_id: str) -> Tuple[str, str, str]:
+async def get_arxiv_metadata(arxiv_id: str) -> Tuple[str, str, str]:
     """获取arxiv论文的标题、摘要和链接
 
     因为使用arxiv_id搜索，所以第一个一定是我们想要的论文
@@ -36,10 +37,10 @@ def get_arxiv_metadata(arxiv_id: str) -> Tuple[str, str, str]:
     Tuple[str, str, str]
         标题、摘要和链接
     """
-    return next(search_arxiv(arxiv_id))
+    return next(await search_arxiv(arxiv_id))
 
 
-def translate_title(title: str) -> str:
+async def translate_title(title: str) -> str:
     """翻译标题
 
     Parameters
@@ -52,13 +53,13 @@ def translate_title(title: str) -> str:
     str
         翻译后的标题
     """
-    translate_title_prompt = translate_template.invoke(
+    translate_title_prompt = await translate_template.ainvoke(
         {"type": "标题", "content": title}
     )
-    return deepseek_v3.invoke(translate_title_prompt).content
+    return (await deepseek_v3.ainvoke(translate_title_prompt)).content
 
 
-def translate_abstract(abstract: str) -> str:
+async def translate_abstract(abstract: str) -> str:
     """翻译摘要
 
     Parameters
@@ -71,10 +72,10 @@ def translate_abstract(abstract: str) -> str:
     str
         翻译后的摘要
     """
-    translate_abstract_prompt = translate_template.invoke(
+    translate_abstract_prompt = await translate_template.ainvoke(
         {"type": "摘要", "content": abstract}
     )
-    return deepseek_v3.invoke(translate_abstract_prompt).content
+    return (await deepseek_v3.ainvoke(translate_abstract_prompt)).content
 
 
 def process_concurrently(title: str, abstract: str, link: str) -> Tuple[str, str, str]:
@@ -107,7 +108,7 @@ def process_concurrently(title: str, abstract: str, link: str) -> Tuple[str, str
         )
 
 
-def update_conversation_thread(
+async def update_conversation_thread(
     thread_id: str, message_content: str, message_type: Literal["user", "assistant"]
 ):
     """将标题、摘要加入对话
@@ -135,7 +136,7 @@ def update_conversation_thread(
     )
 
 
-def save_content(file_path: str, content: str):
+async def save_content(file_path: str, content: str):
     """将内容保存到文件
 
     Parameters
@@ -149,13 +150,10 @@ def save_content(file_path: str, content: str):
         f.write(content)
 
 
-def save_and_generate_response(
-    title: str,
-    abstract: str,
+async def generate_response(
     translated_title: str,
     translated_abstract: str,
     content: str,
-    save_dir: str,
 ) -> str:
     """保存论文内容并生成响应消息
 
@@ -181,18 +179,15 @@ def save_and_generate_response(
     str
         响应消息
     """
-    save_path = os.path.join(save_dir, "knowledgeBase", f"{title}.md")
-    save_content(save_path, content or abstract)
-
     if not content:
         return f"下载失败，请自行下载PDF并导入。\n\n标题：{translated_title}\n\n摘要：\n{translated_abstract}"
     return f"标题：{translated_title}\n\n摘要：\n{translated_abstract}"
 
 
-def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
+async def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
     """下载并处理arXiv论文，返回翻译后的标题和摘要
 
-    未找到论文的情况用try-except处理，报错信息不加入对话
+    未找到论文的情况用try-except处理，报错信息不加入对话。
 
     Parameters
     ----------
@@ -205,31 +200,52 @@ def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
     ----------
     str
         响应消息
-    """
 
-    # 获取论文元信息
+    Notes
+    ----------
+    并行逻辑：
+    ```mermaid
+    graph TD
+    Start[开始] --> A[获取arXiv元数据]
+    A --> B[创建用户消息和thread_id]
+    B --> C1[启动翻译标题任务]
+    B --> C2[启动翻译摘要任务]
+    B --> C3[启动更新用户消息任务]
+    B --> D[解析arXiv内容]
+    D --> E[启动保存内容任务]
+    C1 --> F[翻译标题完成]
+    C2 --> G[翻译摘要完成]
+    C3 --> H[更新用户消息完成]
+    F & G & H --> I[生成响应]
+    I --> J[更新AI消息]
+    E --> K[保存内容完成]
+    J & K --> L[返回响应]
+    ```
+    """
     try:
-        title, abstract, link = get_arxiv_metadata(arxiv_id)
+        title, abstract, link = await get_arxiv_metadata(arxiv_id)
     except Exception as e:
         return f"ID可能错误: {str(e)}"
-
-    # 初始化消息和线程
     user_message = f"下载{arxiv_id}并翻译标题与摘要"
     thread_id = str(
         {"role": "user", "metadata": None, "content": user_message, "options": None}
     )
-    update_conversation_thread(thread_id, user_message, "user")
-
-    # 并行处理翻译和解析任务
-    translated_title, translated_abstract, content = process_concurrently(
-        title, abstract, link
+    translate_title_task = asyncio.create_task(translate_title(title))
+    translate_abstract_task = asyncio.create_task(translate_abstract(abstract))
+    update_user_message_task = asyncio.create_task(
+        update_conversation_thread(thread_id, user_message, "user")
     )
-
-    # 保存论文内容并生成响应消息
-    ai_message = save_and_generate_response(
-        title, abstract, translated_title, translated_abstract, content, current_dir
+    content = parse_arxiv(link.replace("abs", "html").replace("http://", "https://"))
+    save_content_task = asyncio.create_task(
+        save_content(
+            os.path.join(current_dir, "knowledgeBase", f"{title}.md"),
+            content or abstract,
+        )
     )
-
-    # 更新对话线程并返回最终结果
-    update_conversation_thread(thread_id, ai_message, "assistant")
+    translated_title = await translate_title_task
+    translated_abstract = await translate_abstract_task
+    await update_user_message_task
+    ai_message = await generate_response(translated_title, translated_abstract, content)
+    await update_conversation_thread(thread_id, ai_message, "assistant")
+    await save_content_task
     return ai_message
