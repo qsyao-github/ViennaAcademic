@@ -11,6 +11,7 @@ MAX_RESULTS = 256
 academic_search_wrapper = SearxSearchWrapper(
     searx_host="http://localhost:8080", k=MAX_RESULTS, unsecure=True
 )
+ENGINES = frozenset(["arxiv", "google scholar", "pubmed"])
 
 
 def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]:
@@ -59,4 +60,8 @@ def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
         num_results=MAX_RESULTS,
         language="all",
     )
-    return [(result["title"], result["snippet"], result["link"]) for result in results]
+    return [
+        (result["title"], result["snippet"], result["link"])
+        for result in results
+        if set(result["engines"]) <= ENGINES
+    ]
