@@ -2,7 +2,6 @@
 下载Arxiv论文功能
 """
 
-import concurrent.futures
 import asyncio
 import os
 from typing import Literal, Tuple
@@ -78,37 +77,7 @@ async def translate_abstract(abstract: str) -> str:
     return (await deepseek_v3.ainvoke(translate_abstract_prompt)).content
 
 
-def process_concurrently(title: str, abstract: str, link: str) -> Tuple[str, str, str]:
-    """并发执行翻译和解析任务
-
-    翻译标题、摘要、docling解析。共3线程
-
-    Parameters
-    ----------
-    title: str
-        待翻译标题
-    abstract: str
-        待翻译摘要
-    link: str
-        arxiv论文链接
-
-    Returns
-    ----------
-    Tuple[str, str, str]
-        翻译后的标题、摘要和解析后的内容
-    """
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        title_future = executor.submit(translate_title, title)
-        abstract_future = executor.submit(translate_abstract, abstract)
-        content_future = executor.submit(parse_arxiv, link.replace("abs", "html"))
-        return (
-            title_future.result(),
-            abstract_future.result(),
-            content_future.result(),
-        )
-
-
-async def update_conversation_thread(
+def update_conversation_thread(
     thread_id: str, message_content: str, message_type: Literal["user", "assistant"]
 ):
     """将标题、摘要加入对话
@@ -136,7 +105,7 @@ async def update_conversation_thread(
     )
 
 
-async def save_content(file_path: str, content: str):
+def save_content(file_path: str, content: str):
     """将内容保存到文件
 
     Parameters
@@ -150,7 +119,7 @@ async def save_content(file_path: str, content: str):
         f.write(content)
 
 
-async def generate_response(
+def generate_response(
     translated_title: str,
     translated_abstract: str,
     content: str,
@@ -232,20 +201,14 @@ async def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
     )
     translate_title_task = asyncio.create_task(translate_title(title))
     translate_abstract_task = asyncio.create_task(translate_abstract(abstract))
-    update_user_message_task = asyncio.create_task(
-        update_conversation_thread(thread_id, user_message, "user")
-    )
     content = parse_arxiv(link.replace("abs", "html").replace("http://", "https://"))
-    save_content_task = asyncio.create_task(
-        save_content(
-            os.path.join(current_dir, "knowledgeBase", f"{title}.md"),
-            content or abstract,
-        )
+    save_content(
+        os.path.join(current_dir, "knowledgeBase", f"{title}.md"),
+        content or abstract,
     )
+    update_conversation_thread(thread_id, user_message, "user")
     translated_title = await translate_title_task
     translated_abstract = await translate_abstract_task
-    await update_user_message_task
-    ai_message = await generate_response(translated_title, translated_abstract, content)
-    await update_conversation_thread(thread_id, ai_message, "assistant")
-    await save_content_task
+    ai_message = generate_response(translated_title, translated_abstract, content)
+    update_conversation_thread(thread_id, ai_message, "assistant")
     return ai_message
