@@ -1,28 +1,76 @@
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-import httpx
+# import httpx
 import orjson
+import asyncio
+import aiohttp
 from api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain_core.documents import Document
 
-url = f"{silicon_client_BASE_URL}/rerank"
-headers = {
+BASE_URL = f"{silicon_client_BASE_URL}/"
+HEADERS = {
     "Authorization": f"Bearer {silicon_client_API_KEY}",
     "Content-Type": "application/json",
 }
-client = httpx.Client(
+"""client = httpx.Client(
     base_url=url,
     headers=headers,
     timeout=10,
-)
+)"""
+
+_session = None
+_session_lock = asyncio.Lock()
 
 
-def get_rerank(
+async def get_rerank_aiohttp(
     query: str, documents: List[str], top_n: int
 ) -> List[Dict[str, Union[int, Dict[str, str]]]]:
-    """调用siliconflow上得bce-reranker
+    """使用 aiohttp 实现的异步优化版本"""
+    global _session, _session_lock, HEADERS, BASE_URL
+    # 初始化连接池（线程安全）
+    async with _session_lock:
+        if _session is None or _session.closed:
+            connector = aiohttp.TCPConnector(
+                limit_per_host=100,
+                keepalive_timeout=120,
+                ssl=False,
+            )
+            _session = aiohttp.ClientSession(
+                base_url=BASE_URL,
+                connector=connector,
+                headers=HEADERS,
+                json_serialize=lambda x: orjson.dumps(x).decode("utf-8"),
+            )
+
+    payload = {
+        "model": "netease-youdao/bce-reranker-base_v1",
+        "query": query,
+        "documents": documents,
+        "top_n": top_n,
+        "return_documents": True,
+    }
+
+    try:
+        # 发送请求（复用连接池）
+        async with _session.post(
+            "rerank",
+            data=orjson.dumps(payload),
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as response:
+            response.raise_for_status()
+            return (await response.json()).get("results", [])
+
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        print(f"Rerank Error: {type(e).__name__} - {str(e)}")
+        return []
+
+
+'''def get_rerank(
+    query: str, documents: List[str], top_n: int
+) -> List[Dict[str, Union[int, Dict[str, str]]]]:
+    """调用siliconflow上的bce-reranker
 
     Parameters
     ----------
@@ -54,7 +102,7 @@ def get_rerank(
         return data.get("results", [])
     except httpx.HTTPError as e:
         print(f"Error: {e}")
-        return []
+        return []'''
 
 
 class CustomCompressor(BaseDocumentCompressor):
@@ -209,6 +257,13 @@ class CustomCompressor(BaseDocumentCompressor):
             return []
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
-
-        rerank_result = get_rerank(query, passages, self.top_n)
+        rerank_result = asyncio.run(get_rerank_aiohttp(query, passages, self.top_n))
+        # rerank_result = get_rerank(query, passages, self.top_n)
         return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
+
+
+async def shutdown():
+    global _session
+    if _session and not _session.closed:
+        await _session.close()
+        print("aiohttp session closed")

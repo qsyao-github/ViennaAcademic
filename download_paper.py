@@ -175,20 +175,15 @@ async def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
     并行逻辑：
     ```mermaid
     graph TD
-    Start[开始] --> A[获取arXiv元数据]
-    A --> B[创建用户消息和thread_id]
-    B --> C1[启动翻译标题任务]
-    B --> C2[启动翻译摘要任务]
-    B --> C3[启动更新用户消息任务]
-    B --> D[解析arXiv内容]
-    D --> E[启动保存内容任务]
-    C1 --> F[翻译标题完成]
-    C2 --> G[翻译摘要完成]
-    C3 --> H[更新用户消息完成]
-    F & G & H --> I[生成响应]
-    I --> J[更新AI消息]
-    E --> K[保存内容完成]
-    J & K --> L[返回响应]
+    START --> A[get_arxiv_metadata]
+    A --> B1[translate title]
+    A --> B2[translate abstract]
+    A --> B3[parse_arxiv]
+    B3 --> C[save_content]
+    C --> D[update_conversation_thread]
+    B1 & B2 & D --> E[generate_response]
+    E --> F[update_conversation_thread]
+    F --> END
     ```
     """
     try:

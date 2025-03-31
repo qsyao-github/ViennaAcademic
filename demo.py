@@ -1,7 +1,11 @@
 # pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker radon
 # pip3 install -U --upgrade-strategy eager crawl4ai
+import asyncio
+import atexit
+
 import gradio as gr
 from auth import check_login
+from custom_reranker import shutdown
 from demo_utils import (
     LATEX_DELIMITERS,
     _show_repo,
@@ -20,6 +24,15 @@ from demo_utils import (
 )
 from gradio.themes.utils import sizes
 from llm_ocr import file_ocr
+
+
+@atexit.register
+def exit_cleanup():
+    print("Shutting down")
+    asyncio.run(shutdown())
+    demo.close()
+    print("Gradio server stopped")
+
 
 with gr.Blocks(
     fill_height=True,
