@@ -70,6 +70,14 @@ select_model_from_mode = {
     "网页搜索": deepseek_v3,
 }
 
+# 没有文本情况下的默认提示
+NO_TEXT_FALLBACK = [
+    {
+        "type": "text",
+        "text": "系统提示：用户没有输入任何内容，请要求用户输入文本或使用多模态模式",
+    }
+]
+
 
 # 以下两个函数参考langchain_core.messages.filter_messages
 def filter_tools(messages: PromptValue) -> List[BaseMessage]:
@@ -100,6 +108,26 @@ def filter_tools(messages: PromptValue) -> List[BaseMessage]:
     return filtered
 
 
+def _filter_multimodal_human_message(
+    content: List[str | Dict[str, str]],
+) -> List[str | Dict[str, str]]:
+    """过滤HumanMessage中的多模态部分
+
+    当过滤后没有文本部分，则返回一个默认提示
+
+    Parameters
+    ----------
+    content: List[str | Dict[str, str]]
+        待过滤的内容
+
+    Returns
+    ----------
+    List[str | Dict[str, str]]
+        过滤后的内容
+    """
+    return [chunk for chunk in content if chunk["type"] == "text"] or NO_TEXT_FALLBACK
+
+
 def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
     """过滤messages中的多模态部分
 
@@ -118,26 +146,14 @@ def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
     目前只有HumanMessage有可能出现多模态内容
     """
     messages = convert_to_messages(messages)
-    filtered: list[BaseMessage] = []
-    for message in messages:
-        if isinstance(message, HumanMessage):
-            # 处理用户仅上传图片，不输入文字的情况
-            filtered.append(
-                HumanMessage(
-                    content=[
-                        chunk for chunk in message.content if chunk["type"] == "text"
-                    ]
-                    or [
-                        {
-                            "type": "text",
-                            "text": "系统提示：用户没有输入任何内容，请礼貌的要求用户输入文本或使用多模态模式",
-                        }
-                    ]
-                )
-            )
-        else:
-            filtered.append(message)
-    return filtered
+    return [
+        (
+            HumanMessage(content=_filter_multimodal_human_message(message.content))
+            if isinstance(message, HumanMessage)
+            else message
+        )
+        for message in messages
+    ]
 
 
 def chatbot(state: AgentState, config: RunnableConfig) -> Dict[str, List[BaseMessage]]:

@@ -1,4 +1,4 @@
-# pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker
+# pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker radon
 # pip3 install -U --upgrade-strategy eager crawl4ai
 import gradio as gr
 from auth import check_login
@@ -149,7 +149,6 @@ with gr.Blocks(
                     arxiv_num = gr.Textbox(
                         placeholder="输入arxiv号，例如：1706.03762",
                         label="Arxiv ID",
-                        submit_btn=True,
                     )
                     download_arxiv.click(
                         download_paper_chatbot,
@@ -206,7 +205,6 @@ with gr.Blocks(
                     github_url = gr.Textbox(
                         label="仓库url",
                         placeholder="输入Github仓库的url，点击克隆仓库",
-                        submit_btn=True,
                     )
                     github_clone.click(
                         clone_repo,
@@ -265,7 +263,6 @@ with gr.Blocks(
                 paper_arxiv_num = gr.Textbox(
                     placeholder="输入arxiv号，例如：1706.03762",
                     label="Arxiv ID",
-                    submit_btn=True,
                 )
                 paper_download_arxiv.click(
                     download_paper_textbox,
