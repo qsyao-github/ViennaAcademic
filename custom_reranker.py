@@ -29,7 +29,6 @@ async def get_rerank_aiohttp(
 ) -> List[Dict[str, Union[int, Dict[str, str]]]]:
     """使用 aiohttp 实现的异步优化版本"""
     global _session, _session_lock, HEADERS, BASE_URL
-    # 初始化连接池（线程安全）
     async with _session_lock:
         if _session is None or _session.closed:
             connector = aiohttp.TCPConnector(

@@ -156,7 +156,9 @@ def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
     ]
 
 
-def chatbot(state: AgentState, config: RunnableConfig) -> Dict[str, List[BaseMessage]]:
+async def chatbot(
+    state: AgentState, config: RunnableConfig
+) -> Dict[str, List[BaseMessage]]:
     """进行一轮React Agent推理
 
     Parameters
@@ -176,7 +178,7 @@ def chatbot(state: AgentState, config: RunnableConfig) -> Dict[str, List[BaseMes
     mode = config["configurable"].get("mode", "常规")
     template = select_template_from_mode[mode]
     model = select_model_from_mode[mode]
-    prompted_message = template.invoke(
+    prompted_message = await template.ainvoke(
         {"messages": state["messages"], "now_time": config["configurable"]["now_time"]}
     )
     # 仅多模态模式的模型支持多模态信息
@@ -186,7 +188,7 @@ def chatbot(state: AgentState, config: RunnableConfig) -> Dict[str, List[BaseMes
     if mode != "工具":
         prompted_message = filter_tools(prompted_message)
     merged = merge_message_runs(prompted_message)
-    response = model.invoke(merged)
+    response = await model.ainvoke(merged)
     return {"messages": [response]}
 
 

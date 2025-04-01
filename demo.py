@@ -1,4 +1,4 @@
-# pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker radon
+# pip3 install -U --upgrade-strategy eager langchain langchain-community langchain-openai langchain-deepseek langgraph docling gradio rapidocr-onnxruntime DrissionPage numpy scipy sympy matplotlib ipython faiss-cpu arxiv docker unstructured markdown radon
 # pip3 install -U --upgrade-strategy eager crawl4ai
 import asyncio
 import atexit

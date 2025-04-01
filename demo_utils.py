@@ -59,9 +59,9 @@ def show_files(
             gr.DownloadButton("下载", file_path, scale=0, min_width=72)
             delete_file_button = gr.Button("删除", scale=0, min_width=72)
 
-            def delete_file(file_path: str = file_path) -> List[str]:
+            async def delete_file(file_path: str = file_path) -> List[str]:
                 os.remove(file_path)
-                update(current_dir)
+                await update(current_dir)
                 return os.listdir(folder_path)
 
             delete_file_button.click(delete_file, None, file_list, concurrency_limit=28)
@@ -91,16 +91,16 @@ def _paper_show_files(
             gr.DownloadButton("下载", file_path, scale=0, min_width=72)
             delete_file = gr.Button("删除", scale=0, min_width=72)
 
-            def delete_paper(file_path: str = file_path):
+            async def delete_paper(file_path: str = file_path):
                 os.remove(file_path)
-                update(current_dir)
+                await update(current_dir)
                 return os.listdir(folder_path)
 
             delete_file.click(delete_paper, None, file_list, concurrency_limit=28)
             file_button.click(lambda: file, None, selected_paper, concurrency_limit=28)
 
 
-def check_delete(
+async def check_delete(
     current_user: str,
 ) -> Tuple[List[str], List[str], List[str], List[str], List[str]]:
     for file_path in glob.glob("media/*.png"):
@@ -117,7 +117,7 @@ def check_delete(
                 if (now - file_mtime).days > 3:
                     os.remove(file_path)
                     print(f"Deleted: {file_path}")
-    update(current_user)
+    await update(current_user)
     return (
         os.listdir(f"{current_user}/code"),
         os.listdir(f"{current_user}/knowledgeBase"),
@@ -154,17 +154,16 @@ def append_files(
         append_file(chatbot, file_path, message_type)
 
 
-def respond(
+async def respond(
     msg: Dict[str, Union[str, List[str]]],
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     chat_mode: str,
     current_user_dir: str,
-) -> Generator[
+) -> AsyncGenerator[
     Tuple[
         Dict[str, Union[str, List[str]]],
         List[Dict[str, Union[str, Dict[str, str], None]]],
     ],
-    None,
     None,
 ]:
     if msg["text"] or msg["files"]:
@@ -175,7 +174,7 @@ def respond(
         text = msg["text"]
         web_search_result, reference = "", ""
         if chat_mode == "知识库":
-            if knowledgeBase_search := get_response(text, current_user_dir):
+            if knowledgeBase_search := await get_response(text, current_user_dir):
                 text = knowledgeBase_search + "\n\n" + text
         elif chat_mode == "网页搜索":
             web_search_result, reference = attach_web_result(text)
@@ -186,7 +185,7 @@ def respond(
         append_files(chatbot, msg["files"], "user")
         append_text(chatbot, "", "assistant")
         # Generate and stream responses
-        bot_response = ChatManager.stream_response(
+        bot_response = ChatManager.astream_response(
             f"{web_search_result}{formatted_text}",
             msg["files"],
             str(chatbot[0]),
@@ -194,7 +193,7 @@ def respond(
             now_time,
         )
         yield {"text": "", "files": []}, chatbot
-        for response_chunk in bot_response:
+        async for response_chunk in bot_response:
             chatbot[-1]["content"] = response_chunk
             yield {"text": "", "files": []}, chatbot
         # same suffix for #10450
@@ -251,7 +250,7 @@ def search(
     return _search
 
 
-def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
+async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     gr.Info("已开始上传，请勿重复提交。10页的论文约需40s，请耐心等候")
     file_base_name = os.path.basename(file)
     simpfile = os.path.splitext(file_base_name)[0]
@@ -266,7 +265,7 @@ def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     text = parse_everything(f"{current_dir}/paper/{file_base_name}")
     with open(f"{current_dir}/knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
         f.write(text)
-    update(current_dir)
+    await update(current_dir)
     return os.listdir(paper_directory), list(knowledge_base_files)
 
 
@@ -283,7 +282,7 @@ async def download_paper_chatbot(
     append_text(
         chatbot, await download_arxiv_paper(arxiv_num, current_dir), "assistant"
     )
-    update(current_dir)
+    await update(current_dir)
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
@@ -292,7 +291,7 @@ async def download_paper_textbox(
 ) -> Tuple[str, str, List[str]]:
     gr.Info("正在下载，请耐心等候")
     answer = await download_arxiv_paper(arxiv_num, current_dir)
-    update(current_dir)
+    await update(current_dir)
     return "", answer, os.listdir(f"{current_dir}/knowledgeBase")
 
 

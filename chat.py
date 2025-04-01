@@ -3,7 +3,7 @@
 """
 
 from io import StringIO
-from typing import Any, Dict, Generator, Iterator, List, Tuple, Union
+from typing import Any, Dict, Generator, Iterator, List, Tuple, Union, AsyncGenerator
 
 from agent_backend import agent_app
 from chat_backend import solve_app
@@ -65,9 +65,9 @@ class ChatManager:
             )
 
     @staticmethod
-    def stream_response(
+    async def astream_response(
         text: str, files: List[str], thread_id: str, mode: str, timestamp: str
-    ) -> Generator[str, None, None]:
+    ) -> AsyncGenerator[str, None]:
         """流式处理聊天响应
 
         Parameters
@@ -97,7 +97,7 @@ class ChatManager:
         }
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
-        for chunk, _ in agent_app.stream(
+        async for chunk, _ in agent_app.astream(
             {"messages": [HumanMessage(content=content)]},
             config=chat_config,
             stream_mode="messages",
