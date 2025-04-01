@@ -344,7 +344,7 @@ def _show_repo(
                 List[Dict[str, Union[str, Dict[str, str], None]]], None
             ]:
                 analysis_generator = analyze_folder(folder_directory)
-                tree = await anext(analysis_generator)
+                tree = await anext(analysis_generator)  # noqa: F821
                 append_text(chatbot, f"解析{folder}", "user")
                 append_text(chatbot, tree, "assistant")
                 yield chatbot

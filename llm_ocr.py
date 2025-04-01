@@ -15,7 +15,7 @@ ocr_prompt_template = ChatPromptTemplate(
 )
 
 
-def file_ocr(file: str) -> str:
+async def file_ocr(file: str) -> str:
     """识别图片中的文字和公式
 
     Parameters
@@ -28,8 +28,8 @@ def file_ocr(file: str) -> str:
     str
         识别结果
     """
-    ocr_prompt = ocr_prompt_template.invoke(
+    ocr_prompt = await ocr_prompt_template.ainvoke(
         {"messages": [HumanMessage(content=[create_image_component(file)])]}
     )
-    response = glm_4v_flash.invoke(ocr_prompt)
+    response = await glm_4v_flash.ainvoke(ocr_prompt)
     return response.content
