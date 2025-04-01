@@ -1,3 +1,5 @@
+from typing import List
+
 from crawl4ai import (
     AsyncWebCrawler,
     CrawlerRunConfig,
@@ -18,7 +20,19 @@ arxiv_crawler_config = CrawlerRunConfig(
 )
 
 
-async def crawl_arxivs(urls):
+async def crawl_arxivs(urls: List[str]) -> List[str]:
+    """爬取arxiv论文的html网页，转换为markdown
+
+    Parameters
+    ----------
+    urls: List[str]
+        arxiv论文的html网页链接
+
+    Returns
+    ----------
+    List[str]
+        arxiv论文的markdown内容
+    """
     async with AsyncWebCrawler() as crawler:
         results = await crawler.arun_many(urls, config=arxiv_crawler_config)
         return [result.markdown for result in results]

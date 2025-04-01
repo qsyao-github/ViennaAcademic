@@ -2,12 +2,14 @@
 Github解析功能
 """
 
+import asyncio
 import os
-import subprocess
-from typing import Generator, List, Tuple
+from typing import AsyncGenerator, List, Tuple
 
+import aiofiles
 from langchain_core.prompts import ChatPromptTemplate
 from modelclient import codestral_latest
+from semaphore import semaphore1
 
 """程序文件后缀"""
 program_extensions = frozenset(
@@ -74,8 +76,39 @@ def is_program_file(filename: str) -> bool:
     return ext.lower() in program_extensions
 
 
-def find_program_files(directory: str) -> Generator[List[Tuple[str, str]], None, None]:
-    """查找目录下的程序文件并概括功能
+async def process_file(full_path: str, basename: str) -> Tuple[str, str]:
+    """异步处理单个文件
+
+    Parameters
+    ----------
+    full_path: str
+        文件的完整路径
+    basename: str
+        文件名
+
+    Returns
+    ----------
+    Tuple[str, str]
+        文件名和功能概括
+    """
+    # 异步读取文件
+    async with aiofiles.open(full_path, "r", encoding="utf-8") as f:
+        code = await f.read()
+
+    # 并发执行模板生成和AI调用
+    prompt_task = explain_code_template.ainvoke({"file": basename, "code": code})
+    async with semaphore1:
+        response = await codestral_latest.ainvoke(await prompt_task)
+
+    # 等待结果
+    file_function = response.content
+    return (basename, file_function)
+
+
+async def find_program_files(
+    directory: str,
+) -> AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]:
+    """查找目录下的程序文件，生成mermaid结构图，并概括功能
 
     概括目前使用codestral-latest
 
@@ -86,48 +119,29 @@ def find_program_files(directory: str) -> Generator[List[Tuple[str, str]], None,
 
     Yields
     ----------
-    List[Tuple[str, str]]
-        程序文件路径和功能概括。由于Gradio不支持增量更新，每次都会返回所有文件的功能概括
+    Tuple[str, List[Tuple[str, str]]]
+        mermaid字符串，程序文件路径和功能概括。由于Gradio不支持增量更新，每次都会返回所有文件的功能概括
     """
     program_files = []
-    index = len(directory) + 1
-    for root, _, files in os.walk(directory):
+    tasks = []
+    mermaid_lines = ["graph LR"]
+
+    for root, dirs, files in os.walk(directory):
+        root_dir = os.path.basename(root)
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for dir in dirs:
+            mermaid_lines.append(f"    {root_dir} --> {dir}")
         for file in files:
             if is_program_file(file):
                 full_path = os.path.join(root, file)
-                with open(full_path, "r", encoding="utf-8") as file:
-                    code = file.read()
-                prompt = explain_code_template.invoke({"file": file, "code": code})
-                file_function = codestral_latest.invoke(prompt).content
-                program_files.append((full_path[index:], file_function))
-                yield program_files
-
-
-def generate_tree(folder_path: str) -> str:
-    """生成目录树
-
-    Parameters
-    ----------
-    folder_path : str
-        目录路径
-
-    Returns
-    ----------
-    str
-        目录树
-    """
-    tree_array = subprocess.run(
-        f"tree {folder_path}",
-        shell=True,
-        text=True,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ).stdout.split("\n")
-    new_tree_array = [
-        file for file in tree_array if "." not in file or is_program_file(file)
-    ]
-    return "\n".join(new_tree_array[:-2])
+                tasks.append(asyncio.create_task(process_file(full_path, file)))
+                mermaid_lines.append(f"    {root_dir} --> {file}")
+    mermaid_result = f'```mermaid\n{"\n".join(mermaid_lines)}\n```'
+    yield mermaid_result, program_files
+    for task in tasks:
+        rel_path, func = await task
+        program_files.append((rel_path, func))
+        yield mermaid_result, program_files
 
 
 def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
@@ -149,7 +163,7 @@ def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
     return f"{TABLE_HEADER}{"\n".join(markdown_lines)}"
 
 
-def analyze_folder(folder_path: str) -> Generator[str, None, None]:
+async def analyze_folder(folder_path: str) -> AsyncGenerator[str, None]:
     """分析Github仓库
 
     包括目录树和功能概括Markdown表格。
@@ -164,8 +178,6 @@ def analyze_folder(folder_path: str) -> Generator[str, None, None]:
     str
         目录树和Markdown表格。因Gradio不支持增量更新，每次都会返回所有文件的功能概括。目录树生成较快，生成后直接返回一次
     """
-    repo_structure = generate_tree(folder_path)
-    yield repo_structure
-    for structure in find_program_files(folder_path):
-        repo_function = generate_markdown(structure)
-        yield f"{repo_structure}\n{repo_function}"
+    async for structure, function in find_program_files(folder_path):
+        repo_function = generate_markdown(function)
+        yield f"{structure}\n{repo_function}"

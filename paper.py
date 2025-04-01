@@ -11,7 +11,7 @@ from typing import AsyncGenerator, List, Literal
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai.chat_models.base import BaseChatOpenAI
 from modelclient import deepseek_v3
-from semaphore import semaphore
+from semaphore import semaphore1024
 from system_prompt import (
     POLISH_PROMPT,
     TRANSLATE_TO_CHINESE_PROMPT,
@@ -285,7 +285,9 @@ async def process_paper(
 
     # 并行处理文本块
     processed_chunks = [""] * len(document_chunks)
-    tasks = generate_tasks(prompt, model, processed_chunks, document_chunks, semaphore)
+    tasks = generate_tasks(
+        prompt, model, processed_chunks, document_chunks, semaphore1024
+    )
     for future in asyncio.as_completed(tasks):
         await future
         yield "\n\n".join(processed_chunks)

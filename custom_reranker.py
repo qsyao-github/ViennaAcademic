@@ -1,9 +1,8 @@
+import asyncio
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-# import httpx
-import orjson
-import asyncio
 import aiohttp
+import orjson
 from api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor

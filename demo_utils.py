@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import AsyncGenerator, Dict, Generator, List, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Tuple, Union
 
 import gradio as gr
 from bce_inference import get_response, update
@@ -337,18 +337,18 @@ def _show_repo(
                 delete_folder, [], [repositry_file_list], concurrency_limit=28
             )
 
-            def repo_analysis(
+            async def repo_analysis(
                 chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
                 folder_directory: str = folder_directory,
-            ) -> Generator[
-                List[Dict[str, Union[str, Dict[str, str], None]]], None, None
+            ) -> AsyncGenerator[
+                List[Dict[str, Union[str, Dict[str, str], None]]], None
             ]:
                 analysis_generator = analyze_folder(folder_directory)
-                tree = next(analysis_generator)
+                tree = await anext(analysis_generator)
                 append_text(chatbot, f"解析{folder}", "user")
                 append_text(chatbot, tree, "assistant")
                 yield chatbot
-                for chunk in analysis_generator:
+                async for chunk in analysis_generator:
                     chatbot[-1]["content"] = chunk
                     yield chatbot
 
