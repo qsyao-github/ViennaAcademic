@@ -114,7 +114,7 @@ with gr.Blocks(
                         concurrency_limit=28,
                     )
                 with gr.Tab("搜索"):
-                    search_box = gr.Textbox(label="搜索框", scale=1, submit_btn=True)
+                    search_box = gr.Textbox(label="搜索框", scale=1)
                     with gr.Row():
                         academicSearch_button = gr.Button(
                             "论文搜索", scale=1, min_width=64

@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import AsyncGenerator, Callable, Dict, Generator, List, Tuple, Union
+from typing import AsyncGenerator, Dict, Generator, List, Tuple, Union
 
 import gradio as gr
 from bce_inference import get_response, update
@@ -170,6 +170,7 @@ async def respond(
         # Main processing logic
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
         possible_media_filename = f"media/{now_time}.png"
+
         # Process incoming message
         text = msg["text"]
         web_search_result, reference = "", ""
@@ -177,13 +178,14 @@ async def respond(
             if knowledgeBase_search := await get_response(text, current_user_dir):
                 text = knowledgeBase_search + "\n\n" + text
         elif chat_mode == "网页搜索":
-            web_search_result, reference = attach_web_result(text)
+            web_search_result, reference = await attach_web_result(text)
             web_search_result = f"\n{web_search_result}\n\n"
             reference = f"\n\n参考文献\n\n{reference}"
         formatted_text = process_attachments(text, current_user_dir)
         append_text(chatbot, formatted_text, "user")
         append_files(chatbot, msg["files"], "user")
         append_text(chatbot, "", "assistant")
+
         # Generate and stream responses
         bot_response = ChatManager.astream_response(
             f"{web_search_result}{formatted_text}",
@@ -196,7 +198,6 @@ async def respond(
         async for response_chunk in bot_response:
             chatbot[-1]["content"] = response_chunk
             yield {"text": "", "files": []}, chatbot
-        # same suffix for #10450
         chatbot[-1]["content"] += reference
 
         # Handle generated media file if exists
@@ -206,10 +207,10 @@ async def respond(
     yield {"text": "", "files": []}, chatbot
 
 
-def academic_search(
+async def academic_search(
     query: str, chatbot: List[Dict[str, Union[str, Dict[str, str], None]]]
-) -> Generator[
-    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
+) -> AsyncGenerator[
+    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None
 ]:
     if query:
         append_text(chatbot, f"搜索{query}相关论文", "user")
@@ -218,12 +219,12 @@ def academic_search(
             query, str(chatbot[0])
         )
         append_text(chatbot, "", "assistant")
-        for chunk_result in academic_search_result:
+        async for chunk_result in academic_search_result:
             chatbot[-1]["content"] = chunk_result
             yield "", chatbot
 
 
-def search(
+"""def search(
     focus_mode: str,
 ) -> Callable[
     [str, List[Dict[str, Union[str, Dict[str, str], None]]]],
@@ -247,7 +248,7 @@ def search(
             )
         yield "", chatbot
 
-    return _search
+    return _search"""
 
 
 async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
@@ -377,24 +378,25 @@ async def generate_paper_answer(
     yield final_answer, os.listdir(f"{current_dir}/knowledgeBase")
 
 
-def solve_respond(
+async def solve_respond(
     solve_msg: str,
     solve_chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
     current_dir: str,
     distill: bool,
     wolfram: bool,
-) -> Generator[
-    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
+) -> AsyncGenerator[
+    Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None
 ]:
     solve_msg = process_attachments(solve_msg.strip(), current_dir)
     if not solve_msg:
-        return "", solve_chatbot
+        yield "", solve_chatbot
+        return
     solve_chatbot.append(
         {"role": "user", "metadata": None, "content": solve_msg, "options": None}
     )
     yield "", solve_chatbot
     if wolfram:
-        solve_msg = attach_hints(solve_msg)
+        solve_msg = await attach_hints(solve_msg)
         solve_chatbot[-1]["content"] = solve_msg
     solve_chatbot.extend(
         [
@@ -402,8 +404,8 @@ def solve_respond(
             {"role": "assistant", "content": ""},
         ]
     )
-    answer = SolveManager.stream_response(solve_msg, str(solve_chatbot[0]), distill)
+    answer = SolveManager.astream_response(solve_msg, str(solve_chatbot[0]), distill)
     yield "", solve_chatbot
-    for chunk in answer:
+    async for chunk in answer:
         solve_chatbot[-2]["content"], solve_chatbot[-1]["content"] = chunk
         yield "", solve_chatbot

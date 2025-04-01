@@ -16,7 +16,7 @@ select_model_from_num = {
 }
 
 
-def solve_call_model(
+async def solve_call_model(
     state: MessagesState, config: RunnableConfig
 ) -> Dict[str, BaseMessage]:
     """进行一轮“解题功能”对话
@@ -37,7 +37,7 @@ def solve_call_model(
     """
     model_num = config["configurable"].get("model_num", 0)
     model = select_model_from_num[model_num]
-    response = model.invoke(state["messages"])
+    response = await model.ainvoke(state["messages"])
     return {"messages": response}
 
 

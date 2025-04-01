@@ -14,7 +14,7 @@ academic_search_wrapper = SearxSearchWrapper(
 ENGINES = frozenset(["arxiv", "google scholar", "pubmed"])
 
 
-def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]:
+async def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]:
     """SearXNG网页搜索
 
     仅返回前10结果
@@ -29,7 +29,7 @@ def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]
     Generator[Tuple[str, str, str], None, None]
         搜索结果，标题、摘要和链接生成器
     """
-    results = academic_search_wrapper.results(
+    results = await academic_search_wrapper.aresults(
         query,
         categories=["general"],
         num_results=10,
@@ -38,7 +38,7 @@ def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None, None]
     return ((result["title"], result["snippet"], result["link"]) for result in results)
 
 
-def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
+async def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
     """SearXNG学术搜索
 
     crossref搜索结果可能包含html标签，需要去除
@@ -53,15 +53,17 @@ def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
     List[Tuple[str, str, str]]
         搜索结果，标题、摘要和链接列表。因后续需要按元素访问，不能使用生成器
     """
-    results = academic_search_wrapper.results(
+    results = await academic_search_wrapper.aresults(
         query,
         categories=["science"],
         engines=["arxiv", "google_scholar", "pubmed"],
         num_results=MAX_RESULTS,
         language="all",
     )
-    return [
-        (result["title"], result["snippet"], result["link"])
-        for result in results
-        if set(result["engines"]) <= ENGINES
-    ]
+    if results:
+        return [
+            (result["title"], result["snippet"], result["link"])
+            for result in results
+            if set(result["engines"]) <= ENGINES
+        ]
+    return []

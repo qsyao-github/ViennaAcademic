@@ -2,7 +2,6 @@
 WolframAlpha爬虫
 """
 
-import asyncio
 from typing import Dict, List
 
 import orjson
@@ -75,7 +74,7 @@ async def get_wolfram(query: str) -> str:
         return process_wolfram_results(data)
 
 
-def attach_hints(query: str) -> str:
+async def attach_hints(query: str) -> str:
     """在询问前附加WolframAlpha的提示信息
 
     Parameters
@@ -88,6 +87,6 @@ def attach_hints(query: str) -> str:
     query: str
         附加提示后的搜索词
     """
-    if hints := asyncio.run(get_wolfram(query)):
+    if hints := await get_wolfram(query):
         query = f"Wolframalpha提示：\n```\n{hints}\n```\n{query}"
     return query

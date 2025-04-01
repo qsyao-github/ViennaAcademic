@@ -40,7 +40,7 @@ async def search_arxiv(query: str) -> Generator[Tuple[str, str, str], None, None
     )
 
 
-def select_academic_search_result(
+async def select_academic_search_result(
     query: str,
 ) -> Generator[Tuple[str, str, str], None, None]:
     """使用searxng获取学术搜索结果
@@ -57,21 +57,25 @@ def select_academic_search_result(
     Generator[Tuple[str, str, str]]
         (标题, 摘要, 链接)元组生成器
     """
-    results = searxng_academic_search(query)
-    # 截取前512字符，防止超过bce-embedding上下文限制
-    texts = [f"{item[0]}\n{item[1]}"[:512] for item in results]
-    # 召回100个文段，要求相关分数大于0.35
-    retriever = FAISS.from_texts(
-        texts,
-        bce_embedding_base,
-        distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
-    ).as_retriever(
-        search_type="similarity",
-        search_kwargs={"score_threshold": 0.35, "k": 100},
-    )
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=reranker, base_retriever=retriever
-    )
-    response = compression_retriever.invoke(query)
-    indicies = (int(item.metadata["index"]) for item in response)
-    return (results[i] for i in indicies if results[i][1])
+    results = await searxng_academic_search(query)
+    if results:
+        # 截取前512字符，防止超过bce-embedding上下文限制
+        texts = [f"{item[0]}\n{item[1]}"[:512] for item in results]
+        # 召回100个文段，要求相关分数大于0.35
+        retriever = (
+            await FAISS.afrom_texts(
+                texts,
+                bce_embedding_base,
+                distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+            )
+        ).as_retriever(
+            search_type="similarity",
+            search_kwargs={"score_threshold": 0.35, "k": 100},
+        )
+        compression_retriever = ContextualCompressionRetriever(
+            base_compressor=reranker, base_retriever=retriever
+        )
+        response = await compression_retriever.ainvoke(query)
+        indicies = (int(item.metadata["index"]) for item in response)
+        return (results[i] for i in indicies if results[i][1])
+    return ()

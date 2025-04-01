@@ -3,7 +3,7 @@
 """
 
 from io import StringIO
-from typing import Any, Dict, Generator, Iterator, List, Tuple, Union, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 
 from agent_backend import agent_app
 from chat_backend import solve_app
@@ -116,7 +116,9 @@ class ChatManager:
         yield final_response
 
     @staticmethod
-    def append_search_result(query: str, thread_id: str) -> Generator[str, None, None]:
+    async def append_search_result(
+        query: str, thread_id: str
+    ) -> AsyncGenerator[str, None]:
         """处理学术搜索结果
 
         将模型生成的概述和参考文献返回Gradio，在完成恢复后将回复并入状态中
@@ -135,7 +137,7 @@ class ChatManager:
         """
         final_result = ""
         search_result = generate_academic_search_summary(query)
-        for chunk_result in search_result:
+        async for chunk_result in search_result:
             final_result = chunk_result
             yield final_result
         agent_app.update_state(
@@ -184,12 +186,12 @@ class SolveManager:
         return "", content
 
     @classmethod
-    def handle_tag_model(
+    async def handle_tag_model(
         cls,
         chat_config: dict,
         content_buffer: StringIO,
         answer: Iterator[Union[dict[str, Any], Any]],
-    ) -> Generator[Tuple[str, str], None, None]:
+    ) -> AsyncGenerator[Tuple[str, str], None]:
         """处理使用<think>标签的模型
 
         涉及分割思考和回答部分，去除<think>标签，以及去除状态中的思考部分
@@ -208,7 +210,7 @@ class SolveManager:
         Generator[Tuple[str, str], None, None]
             思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
         """
-        for chunk, _ in answer:
+        async for chunk, _ in answer:
             content_buffer.write(chunk.content)
             yield "", content_buffer.getvalue()
         full_response = content_buffer.getvalue()
@@ -223,11 +225,11 @@ class SolveManager:
         yield final_reasoning, final_answer
 
     @classmethod
-    def handle_reasoning_model(
+    async def handle_reasoning_model(
         cls,
         content_buffer: StringIO,
         answer: Iterator[Union[dict[str, Any], Any]],
-    ) -> Generator[Tuple[str, str], None, None]:
+    ) -> AsyncGenerator[Tuple[str, str], None]:
         """处理使用标准的reasoning_content的模型
 
         Parameters
@@ -243,16 +245,16 @@ class SolveManager:
             思考部分，回答部分。分开渲染，其中思考部分放入metadata框中。
         """
         reasoning_buffer = StringIO()
-        for chunk, _ in answer:
+        async for chunk, _ in answer:
             reasoning_buffer.write(chunk.additional_kwargs.get("reasoning_content", ""))
             content_buffer.write(chunk.content)
             yield reasoning_buffer.getvalue(), content_buffer.getvalue()
         reasoning_buffer.close()
 
     @classmethod
-    def stream_response(
+    async def astream_response(
         cls, text: str, thread_id: str, model_num: int
-    ) -> Generator[Tuple[str, str], None, None]:
+    ) -> AsyncGenerator[Tuple[str, str], None]:
         """根据用户提问，流式返回模型回答
 
         Parameters
@@ -271,13 +273,15 @@ class SolveManager:
         """
         chat_config = {"configurable": {"thread_id": thread_id, "model_num": model_num}}
         content_buffer = StringIO()
-        answer = solve_app.stream(
+        answer = solve_app.astream(
             {"messages": [HumanMessage(text)]},
             config=chat_config,
             stream_mode="messages",
         )
         if model_num in cls.TAG_MODEL_INDEXES:
-            yield from cls.handle_tag_model(chat_config, content_buffer, answer)
+            handler = cls.handle_tag_model(chat_config, content_buffer, answer)
         else:
-            yield from cls.handle_reasoning_model(content_buffer, answer)
+            handler = cls.handle_reasoning_model(content_buffer, answer)
+        async for item in handler:
+            yield item
         content_buffer.close()

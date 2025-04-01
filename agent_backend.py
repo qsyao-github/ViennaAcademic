@@ -47,9 +47,9 @@ select_template_from_mode = {
 
 
 @tool
-def websearch(query: str) -> str:
+async def websearch(query: str) -> str:
     """使用搜索引擎"""
-    result = attach_web_result(query)
+    result = await attach_web_result(query)
     return f"```\n搜索引擎前10结果：\n{result[0]}\n```\n\n参考文献\n\n{result[1]}\n\n"
 
 

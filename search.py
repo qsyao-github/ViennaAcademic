@@ -3,7 +3,7 @@
 """
 
 from io import StringIO
-from typing import Callable, Generator, Iterator, List, Tuple
+from typing import Callable, AsyncGenerator, Iterator, List, Tuple, Generator
 
 from academic_search import select_academic_search_result
 from langchain_core.prompts import ChatPromptTemplate
@@ -47,7 +47,9 @@ def process_results(results: List[SearchResult]) -> Iterator[Tuple[str, str]]:
         )
 
 
-def generate_search_results(query: str, search_func: SearchFunction) -> Tuple[str, str]:
+async def generate_search_results(
+    query: str, search_func: SearchFunction
+) -> Tuple[str, str]:
     """通用搜索结果生成函数
 
     Parameters
@@ -62,14 +64,19 @@ def generate_search_results(query: str, search_func: SearchFunction) -> Tuple[st
     Tuple[str, str]
         (显示内容, 引用链接)
     """
-    search_results = search_func(query)
-    display_lines, citation_lines = (
-        zip(*process_results(search_results)) if search_results else ([], [])
+    search_results = await search_func(query)
+    if search_results:
+        display_lines, citation_lines = (
+            zip(*process_results(search_results)) if search_results else ([], [])
+        )
+        return "\n\n".join(display_lines), "\n\n".join(citation_lines)
+    return (
+        "未能找到相关结果，模型请结合自身知识与理解回答",
+        "# 系统提示：未能找到相关结果",
     )
-    return "\n\n".join(display_lines), "\n\n".join(citation_lines)
 
 
-def attach_web_result(query: str) -> Tuple[str, str]:
+async def attach_web_result(query: str) -> Tuple[str, str]:
     """附加网页搜索结果
 
     Parameters
@@ -82,10 +89,10 @@ def attach_web_result(query: str) -> Tuple[str, str]:
     Tuple[str, str]
         (显示内容, 引用链接)
     """
-    return generate_search_results(query, searxng_websearch)
+    return await generate_search_results(query, searxng_websearch)
 
 
-def attach_academic_result(query: str) -> Tuple[str, str]:
+async def attach_academic_result(query: str) -> Tuple[str, str]:
     """附加论文搜索结果
 
     Parameters
@@ -98,10 +105,12 @@ def attach_academic_result(query: str) -> Tuple[str, str]:
     Tuple[str, str]
         (显示内容, 引用链接)
     """
-    return generate_search_results(query, select_academic_search_result)
+    return await generate_search_results(query, select_academic_search_result)
 
 
-def generate_academic_search_summary(query: str) -> Generator[str, None, None]:
+async def generate_academic_search_summary(
+    query: str,
+) -> AsyncGenerator[str, None]:
     """生成论文搜索概述
 
     Parameters
@@ -114,14 +123,14 @@ def generate_academic_search_summary(query: str) -> Generator[str, None, None]:
     str
         概述。Gradio不支持增量更新，每次返回完整字符串
     """
-    best_results, reference = attach_academic_result(query)
-    prompt = generate_summary_prompt_tempate.invoke(
+    best_results, reference = await attach_academic_result(query)
+    prompt = await generate_summary_prompt_tempate.ainvoke(
         {"content": f"\n搜索引擎前10结果：\n{best_results}\n{query}"}
     )
     final_response = StringIO()
     yield final_response.getvalue()
-    response = deepseek_v3.stream(prompt)
-    for chunk in response:
+    response = deepseek_v3.astream(prompt)
+    async for chunk in response:
         final_response.write(chunk.content)
         yield final_response.getvalue()
     final_response.write(f"\n\n参考文献\n\n{reference}")
