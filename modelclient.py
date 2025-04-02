@@ -1,4 +1,5 @@
 from api_keys import (
+    laowei_mistral_client_API_KEY,
     silicon_client_API_KEY,
     silicon_client_BASE_URL,
     volcano_client_API_KEY,
@@ -8,6 +9,7 @@ from api_keys import (
     zhipu_client_API_KEY,
     zhipu_client_BASE_URL,
 )
+from langchain_mistralai import ChatMistralAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 # 文生文
@@ -18,6 +20,10 @@ deepseek_v3 = ChatOpenAI(
 )
 
 # 多模态
+mistral_small_latest = ChatMistralAI(
+    model="mistral-small-latest", api_key=laowei_mistral_client_API_KEY
+)
+
 pixtral_large_latest = ChatOpenAI(
     model="pixtral-large-latest",
     api_key=xkx_client_API_KEY,

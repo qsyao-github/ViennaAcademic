@@ -236,6 +236,8 @@ class CustomCompressor(BaseDocumentCompressor):
         """
         用`BCEmbedding RerankerModel API`压缩文档
 
+        这是同步版本，事件循环可能存在问题。前端应仅调用异步版本。
+
         Parameters
         ----------
         documents: Sequence[Document]
@@ -256,7 +258,39 @@ class CustomCompressor(BaseDocumentCompressor):
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
         rerank_result = asyncio.run(get_rerank_aiohttp(query, passages, self.top_n))
-        # rerank_result = get_rerank(query, passages, self.top_n)
+        return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
+
+    async def acompress_documents(
+        self,
+        documents: Sequence[Document],
+        query: str,
+        callbacks: Optional[Callbacks] = None,
+    ) -> Sequence[Document]:
+        """
+        用`BCEmbedding RerankerModel API`压缩文档
+
+        这是异步版本。前端应仅调用此版本。
+
+        Parameters
+        ----------
+        documents: Sequence[Document]
+            一系列需要压缩的文档
+        query: str
+            用来压缩的用户输入
+        callbacks: Optional[Callbacks] = None
+            在压缩过程中运行的回调函数
+
+
+        Returns
+        ----------
+        Sequence[Document]
+            一系列压缩后的文档
+        """
+        if not documents:  # 避免API空调用
+            return []
+        doc_list = list(documents)
+        passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
+        rerank_result = await get_rerank_aiohttp(query, passages, self.top_n)
         return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
 
 

@@ -10,10 +10,10 @@ from bce_inference import get_response, update
 from chat import ChatManager, SolveManager
 from chat_utils.attachment_processor import process_attachments
 from code_analysis import analyze_folder
-from docling_parser import parse_everything
 from download_paper import download_arxiv_paper
 from execute_code import delete_png_files
 from extractor import attach_hints
+from file_conversion import everything_to_markdown
 from paper import (
     polish_paper,
     read_paper,
@@ -263,9 +263,12 @@ async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str
     ):
         return os.listdir(paper_directory), list(knowledge_base_files)
     shutil.move(file, paper_directory)
-    text = parse_everything(f"{current_dir}/paper/{file_base_name}")
+    everything_to_markdown(
+        f"{current_dir}/paper/{file_base_name}", f"{current_dir}/knowledgeBase"
+    )
+    """text = parse_everything(f"{current_dir}/paper/{file_base_name}")
     with open(f"{current_dir}/knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
-        f.write(text)
+        f.write(text)"""
     await update(current_dir)
     return os.listdir(paper_directory), list(knowledge_base_files)
 

@@ -21,7 +21,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
-from modelclient import deepseek_v3, pixtral_large_latest
+from modelclient import deepseek_v3, mistral_small_latest
 from search import attach_web_result
 from system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
 
@@ -65,7 +65,7 @@ deepseek_v3_with_tools = deepseek_v3.bind_tools(tools)
 select_model_from_mode = {
     "常规": deepseek_v3,
     "工具": deepseek_v3_with_tools,
-    "多模态": pixtral_large_latest,
+    "多模态": mistral_small_latest,
     "知识库": deepseek_v3,
     "网页搜索": deepseek_v3,
 }
