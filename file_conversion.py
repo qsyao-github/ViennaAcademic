@@ -1,6 +1,9 @@
-from marker_parser import pdf_to_markdown
 import os
 import subprocess
+
+from marker_parser import pdf_to_markdown
+
+marker_ext = frozenset([".pdf", ".pptx", ".xlsx"])
 
 
 def pandoc_parse(
@@ -24,7 +27,7 @@ def marker_parse(original_file_name: str, original_file_path: str, target_path: 
 
 def everything_to_markdown(original_path: str, target_path: str):
     file_name, ext = os.path.splitext(original_path)
-    if ext == ".pdf":
+    if ext in marker_ext:
         marker_parse(file_name, original_path, target_path)
     else:
         pandoc_parse(file_name, original_path, target_path, "md")

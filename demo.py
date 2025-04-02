@@ -130,6 +130,11 @@ with gr.Blocks(
                         upload_paper_button = gr.UploadButton(
                             "上传论文", scale=1, min_width=64
                         )
+                        upload_paper_button.click(
+                            lambda: gr.Warning(
+                                "不允许上传图片或PDF扫描件(普通PDF可以)，若要上传图片，请通过聊天框上传，并使用多模态聊天"
+                            )
+                        )
                         upload_paper_button.upload(
                             upload_paper,
                             [upload_paper_button, current_user_directory],
@@ -188,6 +193,11 @@ with gr.Blocks(
                     with gr.Row():
                         upload_code_button = gr.UploadButton(
                             "上传代码", scale=1, min_width=64
+                        )
+                        upload_code_button.click(
+                            lambda: gr.Warning(
+                                "仅允许上传纯文本文件(如.py, .cpp, .txt, .md, .tex)"
+                            )
                         )
                         upload_code_button.upload(
                             upload_code,
@@ -260,6 +270,11 @@ with gr.Blocks(
                 )
             with gr.Column(scale=1, min_width=384):
                 upload_paper_button = gr.UploadButton("上传论文", scale=1, min_width=64)
+                upload_paper_button.click(
+                    lambda: gr.Warning(
+                        "不允许上传图片或PDF扫描件(普通PDF可以)，若要上传图片，请通过聊天框上传，并使用多模态聊天"
+                    )
+                )
                 upload_paper_button.upload(
                     upload_paper,
                     [upload_paper_button, current_user_directory],
@@ -326,7 +341,10 @@ with gr.Blocks(
                             solve_clear = gr.ClearButton(
                                 [solve_msg, solve_chatbot], value="清除"
                             )
-                            ocr_button = gr.UploadButton("识别题目")
+                            ocr_button = gr.UploadButton(
+                                "识别题目", file_types=["image"]
+                            )
+                            ocr_button.click(lambda: gr.Warning("仅允许上传图片"))
                             wolfram = gr.Checkbox(value=False, label="使用Wolfram")
                             ocr_button.upload(
                                 file_ocr, ocr_button, solve_msg, concurrency_limit=10
@@ -367,6 +385,11 @@ with gr.Blocks(
                     with gr.Row():
                         solve_upload_code_button = gr.UploadButton(
                             "上传代码", scale=1, min_width=64
+                        )
+                        solve_upload_code_button.click(
+                            lambda: gr.Warning(
+                                "仅允许上传纯文本文件(如.py, .cpp, .txt, .md, .tex)"
+                            )
                         )
                         solve_upload_code_button.upload(
                             upload_code,
