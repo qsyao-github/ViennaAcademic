@@ -105,6 +105,54 @@ async def process_file(full_path: str, basename: str) -> Tuple[str, str]:
     return (basename, file_function)
 
 
+def process_directories(
+    dirs: List[str], root_dir: str, mermaid_lines: List[str]
+) -> None:
+    """处理目录过滤和mermaid节点添加
+
+    过滤.git
+
+    Parameters
+    ----------
+    dirs: List[str]
+        目录列表
+    root_dir: str
+        当前目录名
+    mermaid_lines: List[str]
+        mermaid节点列表
+    """
+    dirs[:] = [d for d in dirs if d != ".git"]  # 原地修改过滤.git目录
+    for dir_name in dirs:
+        mermaid_lines.append(f"    {root_dir} --> {dir_name}")
+
+
+def process_single_file(
+    file: str, root: str, root_dir: str, mermaid_lines: List[str], tasks: List[str]
+) -> None:
+    """处理单个文件的任务创建
+
+    Parameters
+    ----------
+    file: str
+        文件名
+    root: str
+        当前目录
+    root_dir: str
+        当前目录名
+    mermaid_lines: List[str]
+        mermaid节点列表
+    tasks: List[str]
+        任务列表
+    """
+    if not is_program_file(file):
+        return
+
+    full_path = os.path.join(root, file)
+    task = asyncio.create_task(process_file(full_path, file))
+    tasks.append(task)
+    mermaid_lines.append(f"    {root_dir} --> {file}")
+
+
 async def find_program_files(
     directory: str,
 ) -> AsyncGenerator[Tuple[str, List[Tuple[str, str]]], None]:
@@ -120,24 +168,23 @@ async def find_program_files(
     Yields
     ----------
     Tuple[str, List[Tuple[str, str]]]
-        mermaid字符串，程序文件路径和功能概括。由于Gradio不支持增量更新，每次都会返回所有文件的功能概括
-    """
+        mermaid字符串，程序文件路径和功能概括。由于Gradio不支持增量更新，每次都会返回所有文件的功能概括"""
     program_files = []
     tasks = []
-    mermaid_lines = ["graph LR"]
+    mermaid_lines = []
 
+    # 第一阶段：遍历目录构建结构
     for root, dirs, files in os.walk(directory):
         root_dir = os.path.basename(root)
-        dirs[:] = [d for d in dirs if d != ".git"]
-        for dir in dirs:
-            mermaid_lines.append(f"    {root_dir} --> {dir}")
+        process_directories(dirs, root_dir, mermaid_lines)
         for file in files:
-            if is_program_file(file):
-                full_path = os.path.join(root, file)
-                tasks.append(asyncio.create_task(process_file(full_path, file)))
-                mermaid_lines.append(f"    {root_dir} --> {file}")
-    mermaid_result = f'```mermaid\n{"\n".join(mermaid_lines)}\n```'
+            process_single_file(file, root, root_dir, mermaid_lines, tasks)
+
+    # 生成初始mermaid图
+    mermaid_result = f'```mermaid\ngraph LR\n{"\n".join(mermaid_lines)}\n```'
     yield mermaid_result, program_files
+
+    # 第二阶段：异步处理任务
     for task in tasks:
         rel_path, func = await task
         program_files.append((rel_path, func))
@@ -166,7 +213,7 @@ def generate_markdown(comment_pair_list: List[Tuple[str, str]]) -> str:
 async def analyze_folder(folder_path: str) -> AsyncGenerator[str, None]:
     """分析Github仓库
 
-    包括目录树和功能概括Markdown表格。
+    包括目录树和功能概括Markdown表格，最后排序
 
     Parameters
     ----------
@@ -179,5 +226,10 @@ async def analyze_folder(folder_path: str) -> AsyncGenerator[str, None]:
         目录树和Markdown表格。因Gradio不支持增量更新，每次都会返回所有文件的功能概括。目录树生成较快，生成后直接返回一次
     """
     async for structure, function in find_program_files(folder_path):
-        repo_function = generate_markdown(function)
+        structure = structure
+        final_function = function
+        repo_function = generate_markdown(final_function)
         yield f"{structure}\n{repo_function}"
+    final_function = sorted(final_function)
+    repo_function = generate_markdown(final_function)
+    yield f"{structure}\n{repo_function}"
