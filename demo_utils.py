@@ -3,7 +3,7 @@ import glob
 import os
 import shutil
 import subprocess
-from typing import AsyncGenerator, Dict, List, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Tuple, Union, Optional
 
 import gradio as gr
 from bce_inference import get_response, update
@@ -13,7 +13,7 @@ from code_analysis import analyze_folder
 from download_paper import download_arxiv_paper
 from execute_code import delete_png_files
 from extractor import attach_hints
-from file_conversion import everything_to_markdown
+from file_conversion import everything_to_markdown, markdown_to_everything
 from paper import (
     polish_paper,
     read_paper,
@@ -41,6 +41,7 @@ def get_current_user(
         os.listdir(f"{username}/paper"),
         os.listdir(f"{username}/repositry"),
         os.listdir(f"{username}/tempest"),
+        os.listdir(f"{username}/convert"),
     )
 
 
@@ -48,8 +49,9 @@ def show_files(
     folder: str,
     current_dir: str,
     file_list: gr.State,
-    msg: Union[gr.MultimodalTextbox, gr.Textbox],
+    msg: Optional[Union[gr.MultimodalTextbox, gr.Textbox]],
     append: bool = True,
+    with_folder_name: bool = False,
 ) -> None:
     folder_path = f"{current_dir}/{folder}"
     for file in os.listdir(folder_path):
@@ -65,10 +67,13 @@ def show_files(
                 return os.listdir(folder_path)
 
             delete_file_button.click(delete_file, None, file_list, concurrency_limit=28)
+            if msg is None:
+                continue
 
             def append_to_msg(
                 msg: Union[Dict[str, Union[str, List[str]]], str], file: str = file
             ) -> Dict[str, Union[str, List[str]]]:
+                file = f"{folder}/{file}" if with_folder_name else file
                 if isinstance(msg, dict):
                     msg["text"] += "#attach{" + file + "}"
                 elif append:
@@ -412,3 +417,10 @@ async def solve_respond(
     async for chunk in answer:
         solve_chatbot[-2]["content"], solve_chatbot[-1]["content"] = chunk
         yield "", solve_chatbot
+
+
+def convert_markdown_to(file_name: str, current_dir: str, target_ext: str) -> List[str]:
+    markdown_to_everything(
+        f"{current_dir}/{file_name}", f"{current_dir}/convert", target_ext
+    )
+    return os.listdir(f"{current_dir}/convert")

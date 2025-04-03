@@ -1,21 +1,13 @@
-from api_keys import (
-    laowei_mistral_client_API_KEY,
-    mistral_BASE_URL,
-)
 from marker.config.parser import ConfigParser
 from marker.converters.pdf import PdfConverter
 from marker.models import create_model_dict
 
 config = {
-    "pdftext_workers": 15,
-    "llm_service": "marker.services.openai.OpenAIService",
-    "use_llm": True,
     "languages": "en,zh",
     "output_format": "markdown",
     "strip_existing_ocr": True,
-    "openai_base_url": mistral_BASE_URL,
-    "openai_model": "mistral-small-latest",
-    "openai_api_key": laowei_mistral_client_API_KEY,
+    "disable_image_extraction": True,
+    "disable_links": True,
 }
 config_parser = ConfigParser(config)
 

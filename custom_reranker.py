@@ -13,11 +13,6 @@ HEADERS = {
     "Authorization": f"Bearer {silicon_client_API_KEY}",
     "Content-Type": "application/json",
 }
-"""client = httpx.Client(
-    base_url=url,
-    headers=headers,
-    timeout=10,
-)"""
 
 _session = None
 _session_lock = asyncio.Lock()
@@ -63,44 +58,6 @@ async def get_rerank_aiohttp(
     except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         print(f"Rerank Error: {type(e).__name__} - {str(e)}")
         return []
-
-
-'''def get_rerank(
-    query: str, documents: List[str], top_n: int
-) -> List[Dict[str, Union[int, Dict[str, str]]]]:
-    """调用siliconflow上的bce-reranker
-
-    Parameters
-    ----------
-    query: str
-        用户输入
-    documents: List[str]
-        知识库中的文档
-    top_n: int
-        返回的文档数量
-
-    Returns
-    ----------
-    List[Dict[str, Union[int, Dict[str, str]]]]
-        返回的文档列表
-    """
-
-    payload = {
-        "model": "netease-youdao/bce-reranker-base_v1",
-        "query": query,
-        "documents": documents,
-        "top_n": top_n,
-        "return_documents": True,
-    }
-    json_payload = orjson.dumps(payload)
-    try:
-        response = client.post(url, data=json_payload)
-        response.raise_for_status()
-        data = orjson.loads(response.text)
-        return data.get("results", [])
-    except httpx.HTTPError as e:
-        print(f"Error: {e}")
-        return []'''
 
 
 class CustomCompressor(BaseDocumentCompressor):
@@ -294,7 +251,7 @@ class CustomCompressor(BaseDocumentCompressor):
         return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
 
 
-async def shutdown():
+async def shutdown_reranker_session():
     global _session
     if _session and not _session.closed:
         await _session.close()

@@ -3,7 +3,9 @@ import atexit
 
 import gradio as gr
 from auth import check_login
-from custom_reranker import shutdown
+from custom_reranker import shutdown_reranker_session
+from crawler import shutdown_arxiv_crawler
+from extractor import shutdown_wolfram_crawler
 from demo_utils import (
     LATEX_DELIMITERS,
     _show_repo,
@@ -19,6 +21,7 @@ from demo_utils import (
     solve_respond,
     upload_code,
     upload_paper,
+    convert_markdown_to,
 )
 from gradio.themes.utils import sizes
 from llm_ocr import file_ocr
@@ -27,7 +30,9 @@ from llm_ocr import file_ocr
 @atexit.register
 def exit_cleanup():
     print("Shutting down")
-    asyncio.run(shutdown())
+    asyncio.run(shutdown_reranker_session())
+    asyncio.run(shutdown_arxiv_crawler())
+    asyncio.run(shutdown_wolfram_crawler())
     demo.close()
     print("Gradio server stopped")
 
@@ -44,6 +49,7 @@ with gr.Blocks(
     paper_file_list = gr.State([])
     repositry_file_list = gr.State([])
     tempest_file_list = gr.State([])
+    convert_file_list = gr.State([])
     demo.load(
         get_current_user,
         [],
@@ -54,6 +60,7 @@ with gr.Blocks(
             paper_file_list,
             repositry_file_list,
             tempest_file_list,
+            convert_file_list,
         ],
     )
     with gr.Tab("聊天"):
@@ -410,6 +417,84 @@ with gr.Blocks(
                         show_files(
                             "code", current_dir, code_file_list, solve_msg, append=True
                         )
+
+    with gr.Tab("格式转换"):
+        with gr.Row():
+            with gr.Column(scale=1, min_width=384):
+                to_be_converted = gr.Textbox(label="待转换文件")
+                with gr.Tab("已解析文件"):
+                    refresh = gr.Button("刷新", scale=1, min_width=32)
+
+                    @gr.render(
+                        triggers=[
+                            refresh.click,
+                            current_user_directory.change,
+                            knowledgeBase_file_list.change,
+                        ],
+                        inputs=[current_user_directory],
+                    )
+                    def show_knowledgeBase(current_dir: str) -> None:
+                        show_files(
+                            "knowledgeBase",
+                            current_dir,
+                            knowledgeBase_file_list,
+                            to_be_converted,
+                            False,
+                            True,
+                        )
+
+                with gr.Tab("写作"):
+                    refresh = gr.Button("刷新", scale=1, min_width=32)
+
+                    @gr.render(
+                        triggers=[
+                            refresh.click,
+                            current_user_directory.change,
+                            tempest_file_list.change,
+                        ],
+                        inputs=[current_user_directory],
+                    )
+                    def show_tempest(current_dir: str) -> None:
+                        show_files(
+                            "tempest",
+                            current_dir,
+                            tempest_file_list,
+                            to_be_converted,
+                            False,
+                            True,
+                        )
+
+            with gr.Column(scale=1, min_width=384):
+                with gr.Row():
+                    target_ext = gr.Dropdown(
+                        ["docx", "pdf", "tex", "typ"],
+                        value="docx",
+                        scale=1,
+                        label="目标格式",
+                    )
+                    convert = gr.Button("转换", scale=1, min_width=32)
+                    convert.click(
+                        convert_markdown_to,
+                        [to_be_converted, current_user_directory, target_ext],
+                        [convert_file_list],
+                    )
+                    refresh = gr.Button("刷新", scale=1, min_width=32)
+
+                @gr.render(
+                    triggers=[
+                        refresh.click,
+                        current_user_directory.change,
+                        convert_file_list.change,
+                    ],
+                    inputs=[current_user_directory],
+                )
+                def show_convert(current_dir: str) -> None:
+                    show_files(
+                        "convert",
+                        current_dir,
+                        convert_file_list,
+                        None,
+                    )
 
 
 demo.launch(auth=check_login)
