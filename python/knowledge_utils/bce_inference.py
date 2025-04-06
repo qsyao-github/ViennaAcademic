@@ -7,14 +7,14 @@
 import os
 from typing import List, Union
 
-from custom_reranker import CustomCompressor
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_core.documents import Document
-from modelclient import bce_embedding_base
+from python.knowledge_utils.custom_reranker import CustomCompressor
+from python.llm_utils.modelclient import bce_embedding_base
 
 reranker = CustomCompressor()
 text_splitter = RecursiveCharacterTextSplitter(

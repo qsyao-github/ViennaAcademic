@@ -10,13 +10,13 @@ from typing import AsyncGenerator, List, Literal
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai.chat_models.base import BaseChatOpenAI
-from modelclient import deepseek_v3
-from semaphore import semaphore1024
-from system_prompt import (
+from python.llm_utils.modelclient import deepseek_v3
+from python.llm_utils.system_prompt import (
     POLISH_PROMPT,
     TRANSLATE_TO_CHINESE_PROMPT,
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
+from python.semaphore import semaphore1024
 
 """chunk函数对文件分段，每段不宜小于63个字符"""
 MIN_CHARACTER_THRESHOLD = 63

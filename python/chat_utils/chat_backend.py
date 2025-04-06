@@ -8,7 +8,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from modelclient import deepseek_r1_671b, qwq_32b
+from python.llm_utils.modelclient import deepseek_r1_671b, qwq_32b
 
 select_model_from_num = {
     0: qwq_32b,

@@ -2,10 +2,10 @@
 解题功能识别题目的模块
 """
 
-from chat_utils.media_handler import create_image_component
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from modelclient import glm_4v_flash
+from python.chat_utils.media_handler import create_image_component
+from python.llm_utils.modelclient import glm_4v_flash
 
 ocr_prompt_template = ChatPromptTemplate(
     [

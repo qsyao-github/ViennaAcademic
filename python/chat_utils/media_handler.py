@@ -1,6 +1,10 @@
+"""
+处理聊天中出现的图片信息
+"""
+
 import base64
-from typing import Dict, Optional, Union
 import os
+from typing import Dict, Optional, Union
 
 
 def encode_image(image_path: str) -> str:

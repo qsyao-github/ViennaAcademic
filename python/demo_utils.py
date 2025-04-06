@@ -5,20 +5,23 @@ import shutil
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import gradio as gr
-from bce_inference import get_response, update
-from chat import ChatManager, SolveManager
-from chat_utils.attachment_processor import process_attachments
-from download_paper import download_arxiv_paper
-from execute_code import delete_png_files
-from file_conversion import everything_to_markdown, markdown_to_everything
-from paper import (
+from python.academic_utils.download_paper import download_arxiv_paper
+from python.academic_utils.paper import (
     polish_paper,
     read_paper,
     translate_paper_to_Chinese,
     translate_paper_to_English,
 )
-from search import attach_web_result
-from wolfram import attach_hints
+from python.academic_utils.wolfram import attach_hints
+from python.chat_utils.attachment_processor import process_attachments
+from python.chat_utils.chat import ChatManager, SolveManager
+from python.file_utils.file_conversion import (
+    everything_to_markdown,
+    markdown_to_everything,
+)
+from python.knowledge_utils.bce_inference import get_response, update
+from python.llm_utils.execute_code import delete_png_files
+from python.web_utils.search import attach_web_result
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},

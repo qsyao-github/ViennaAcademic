@@ -6,12 +6,12 @@ import asyncio
 import os
 from typing import Literal, Tuple
 
-from academic_search import search_arxiv
-from agent_backend import agent_app
-from arxiv_crawler import crawl_arxiv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
-from modelclient import deepseek_v3
+from python.chat_utils.agent_backend import agent_app
+from python.llm_utils.modelclient import deepseek_v3
+from python.web_utils.academic_search import search_arxiv
+from python.web_utils.arxiv_crawler import crawl_arxiv
 
 translate_template = ChatPromptTemplate.from_messages(
     [

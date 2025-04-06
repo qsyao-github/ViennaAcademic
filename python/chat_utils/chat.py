@@ -5,12 +5,12 @@
 from io import StringIO
 from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 
-from agent_backend import agent_app
-from chat_backend import solve_app
-from chat_utils.media_handler import create_image_component
-from chat_utils.tool_formatter import format_tools
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
-from search import generate_academic_search_summary
+from python.chat_utils.agent_backend import agent_app
+from python.chat_utils.chat_backend import solve_app
+from python.chat_utils.media_handler import create_image_component
+from python.chat_utils.tool_formatter import format_tools
+from python.web_utils.search import generate_academic_search_summary
 
 
 class ChatManager:

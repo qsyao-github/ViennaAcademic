@@ -2,11 +2,9 @@ import asyncio
 import atexit
 
 import gradio as gr
-from arxiv_crawler import shutdown_arxiv_session
-from auth import check_login
-from crawler import shutdown_crawler
-from custom_reranker import shutdown_reranker_session
-from demo_utils import (
+from gradio.themes.utils import sizes
+from python.academic_utils.llm_ocr import file_ocr
+from python.demo_utils import (
     LATEX_DELIMITERS,
     academic_search,
     check_delete,
@@ -21,8 +19,10 @@ from demo_utils import (
     upload_code,
     upload_paper,
 )
-from gradio.themes.utils import sizes
-from llm_ocr import file_ocr
+from python.knowledge_utils.custom_reranker import shutdown_reranker_session
+from python.private.auth import check_login
+from python.web_utils.arxiv_crawler import shutdown_arxiv_session
+from python.web_utils.crawler import shutdown_crawler
 
 
 @atexit.register

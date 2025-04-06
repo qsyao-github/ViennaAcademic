@@ -1,9 +1,10 @@
 """
 处理附件替换
 """
+
 import re
 
-from paper import attach
+from python.academic_utils.paper import attach
 
 """匹配信息中的#attach{}命令"""
 ATTACH_PATTERN = re.compile(r"#attach\{([^}]+)\}")

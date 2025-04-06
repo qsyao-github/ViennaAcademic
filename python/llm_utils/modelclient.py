@@ -2,7 +2,9 @@
 储存目前使用的模型
 """
 
-from api_keys import (
+from langchain_mistralai import ChatMistralAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from python.private.api_keys import (
     laowei_mistral_client_API_KEY,
     silicon_client_API_KEY,
     silicon_client_BASE_URL,
@@ -13,8 +15,6 @@ from api_keys import (
     zhipu_client_API_KEY,
     zhipu_client_BASE_URL,
 )
-from langchain_mistralai import ChatMistralAI
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 # 文生文
 deepseek_v3 = ChatOpenAI(

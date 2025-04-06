@@ -4,7 +4,6 @@ React Agent后端，处理ViennaAcademic中的主页面聊天部分
 
 from typing import Dict, List
 
-from execute_code import python_tool
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -21,9 +20,10 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
-from modelclient import deepseek_v3, mistral_small_latest
-from search import attach_web_result
-from system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
+from python.llm_utils.execute_code import python_tool
+from python.llm_utils.modelclient import deepseek_v3, mistral_small_latest
+from python.llm_utils.system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
+from python.web_utils.search import attach_web_result
 
 empty_template = ChatPromptTemplate.from_messages(
     [MessagesPlaceholder(variable_name="messages")]

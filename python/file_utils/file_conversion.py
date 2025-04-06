@@ -3,10 +3,10 @@
 """
 
 import os
-import subprocess
 import re
+import subprocess
 
-from marker_parser import pdf_to_markdown
+from python.file_utils.marker_parser import pdf_to_markdown
 
 # 由marker处理的文件类型
 marker_ext = frozenset([".pdf", ".pptx", ".xlsx"])
