@@ -2,17 +2,14 @@ import datetime
 import glob
 import os
 import shutil
-import subprocess
-from typing import AsyncGenerator, Dict, List, Tuple, Union, Optional
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import gradio as gr
 from bce_inference import get_response, update
 from chat import ChatManager, SolveManager
 from chat_utils.attachment_processor import process_attachments
-from code_analysis import analyze_folder
 from download_paper import download_arxiv_paper
 from execute_code import delete_png_files
-from extractor import attach_hints
 from file_conversion import everything_to_markdown, markdown_to_everything
 from paper import (
     polish_paper,
@@ -21,6 +18,7 @@ from paper import (
     translate_paper_to_English,
 )
 from search import attach_web_result
+from wolfram import attach_hints
 
 LATEX_DELIMITERS = [
     {"left": "$$", "right": "$$", "display": True},
@@ -308,59 +306,6 @@ def upload_code(file: str, current_dir: str) -> List[str]:
     code_directory = f"{current_dir}/code"
     shutil.move(file, code_directory)
     return os.listdir(code_directory)
-
-
-def clone_repo(url: str, current_dir: str) -> Tuple[str, List[str]]:
-    url = url.strip("/")
-    if url and not os.path.exists(f"{current_dir}/repositry/{url[url.rfind('/')+1:]}"):
-        result = subprocess.run(
-            f"cd {current_dir}/repositry && git clone {url}",
-            capture_output=True,
-            text=True,
-            shell=True,
-        )
-        if result.returncode == 0:
-            gr.Info("克隆成功，请刷新")
-        else:
-            gr.Info(f"克隆失败：{result.stderr}")
-    return "", os.listdir(f"{current_dir}/repositry")
-
-
-def _show_repo(
-    current_dir: str,
-    repositry_file_list: gr.State,
-    chatbot: gr.Chatbot,
-) -> None:
-    for folder in os.listdir(f"{current_dir}/repositry"):
-        with gr.Row():
-            folder_button = gr.Button(f"解析{folder}", scale=1)
-            delete_folder_button = gr.Button("删除", scale=0)
-            folder_directory = f"{current_dir}/repositry/{folder}"
-
-            def delete_folder(folder_directory: str = folder_directory) -> List[str]:
-                shutil.rmtree(folder_directory)
-                return os.listdir(f"{current_dir}/repositry")
-
-            delete_folder_button.click(
-                delete_folder, [], [repositry_file_list], concurrency_limit=28
-            )
-
-            async def repo_analysis(
-                chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
-                folder_directory: str = folder_directory,
-            ) -> AsyncGenerator[
-                List[Dict[str, Union[str, Dict[str, str], None]]], None
-            ]:
-                analysis_generator = analyze_folder(folder_directory)
-                tree = await anext(analysis_generator)  # noqa: F821
-                append_text(chatbot, f"解析{folder}", "user")
-                append_text(chatbot, tree, "assistant")
-                yield chatbot
-                async for chunk in analysis_generator:
-                    chatbot[-1]["content"] = chunk
-                    yield chatbot
-
-            folder_button.click(repo_analysis, chatbot, chatbot)
 
 
 paper_function_map = {

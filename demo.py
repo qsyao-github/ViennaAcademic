@@ -2,16 +2,15 @@ import asyncio
 import atexit
 
 import gradio as gr
+from arxiv_crawler import shutdown_arxiv_session
 from auth import check_login
+from crawler import shutdown_crawler
 from custom_reranker import shutdown_reranker_session
-from crawler import shutdown_arxiv_crawler
-from extractor import shutdown_wolfram_crawler
 from demo_utils import (
     LATEX_DELIMITERS,
-    _show_repo,
     academic_search,
     check_delete,
-    clone_repo,
+    convert_markdown_to,
     download_paper_chatbot,
     download_paper_textbox,
     generate_paper_answer,
@@ -21,7 +20,6 @@ from demo_utils import (
     solve_respond,
     upload_code,
     upload_paper,
-    convert_markdown_to,
 )
 from gradio.themes.utils import sizes
 from llm_ocr import file_ocr
@@ -30,11 +28,11 @@ from llm_ocr import file_ocr
 @atexit.register
 def exit_cleanup():
     print("Shutting down")
-    asyncio.run(shutdown_reranker_session())
-    asyncio.run(shutdown_arxiv_crawler())
-    asyncio.run(shutdown_wolfram_crawler())
     demo.close()
     print("Gradio server stopped")
+    asyncio.run(shutdown_reranker_session())
+    asyncio.run(shutdown_crawler())
+    asyncio.run(shutdown_arxiv_session())
 
 
 with gr.Blocks(
@@ -225,33 +223,6 @@ with gr.Blocks(
                         show_files(
                             "code", current_dir, code_file_list, msg, append=True
                         )
-
-                with gr.Tab("Github仓库"):
-                    with gr.Row():
-                        refresh = gr.Button("刷新", scale=1, min_width=32)
-                        github_clone = gr.Button("克隆仓库", scale=1, min_width=64)
-                    github_url = gr.Textbox(
-                        label="仓库url",
-                        placeholder="输入Github仓库的url，点击克隆仓库",
-                    )
-                    github_clone.click(
-                        clone_repo,
-                        [github_url, current_user_directory],
-                        [github_url, repositry_file_list],
-                    )
-
-                    @gr.render(
-                        triggers=[
-                            refresh.click,
-                            current_user_directory.change,
-                            repositry_file_list.change,
-                        ],
-                        inputs=[current_user_directory],
-                    )
-                    def show_repo(
-                        current_dir: str,
-                    ) -> None:
-                        _show_repo(current_dir, repositry_file_list, chatbot)
 
     with gr.Tab("论文"):
         with gr.Row():

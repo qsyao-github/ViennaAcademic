@@ -12,7 +12,7 @@ from typing import List
 import docker
 
 # 优雅退出时限
-TIMEOUT = 10
+TIMEOUT = 30
 # 强制退出时限
 KILL_AFTER = 1
 # 清除输出中的Out[...]

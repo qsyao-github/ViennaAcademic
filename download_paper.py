@@ -8,7 +8,7 @@ from typing import Literal, Tuple
 
 from academic_search import search_arxiv
 from agent_backend import agent_app
-from crawler import crawl_arxivs
+from arxiv_crawler import crawl_arxiv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from modelclient import deepseek_v3
@@ -196,9 +196,8 @@ async def download_arxiv_paper(arxiv_id: str, current_dir: str) -> str:
     )
     translate_title_task = asyncio.create_task(translate_title(title))
     translate_abstract_task = asyncio.create_task(translate_abstract(abstract))
-    content = (
-        await crawl_arxivs([link.replace("abs", "html").replace("http://", "https://")])
-    )[0]
+    arxiv_num = link.rsplit("/", 1)[-1]
+    content = await crawl_arxiv(arxiv_num, current_dir)
     save_content(
         os.path.join(current_dir, "knowledgeBase", f"{title}.md"),
         content or abstract,

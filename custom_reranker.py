@@ -1,3 +1,7 @@
+"""
+自定义reranker实现
+"""
+
 import asyncio
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -14,23 +18,39 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-_session = None
-_session_lock = asyncio.Lock()
+"""全局reranker session"""
+_reranker_session = None
+_reranker_session_lock = asyncio.Lock()
 
 
-async def get_rerank_aiohttp(
+async def get_rerank(
     query: str, documents: List[str], top_n: int
 ) -> List[Dict[str, Union[int, Dict[str, str]]]]:
-    """使用 aiohttp 实现的异步优化版本"""
-    global _session, _session_lock, HEADERS, BASE_URL
-    async with _session_lock:
-        if _session is None or _session.closed:
+    """异步获取rerank信息
+
+    Parameters
+    ----------
+    query: str
+        用户输入
+    documents: List[str]
+        文章片段
+    top_n: int
+        返回前top_n相关文段
+
+    Returns
+    ----------
+    List[Dict[str, Union[int, Dict[str, str]]]]
+        rerank结果
+    """
+    global _reranker_session, _reranker_session_lock, HEADERS, BASE_URL
+    async with _reranker_session_lock:
+        if _reranker_session is None or _reranker_session.closed:
             connector = aiohttp.TCPConnector(
                 limit_per_host=100,
                 keepalive_timeout=120,
                 ssl=False,
             )
-            _session = aiohttp.ClientSession(
+            _reranker_session = aiohttp.ClientSession(
                 base_url=BASE_URL,
                 connector=connector,
                 headers=HEADERS,
@@ -47,7 +67,7 @@ async def get_rerank_aiohttp(
 
     try:
         # 发送请求（复用连接池）
-        async with _session.post(
+        async with _reranker_session.post(
             "rerank",
             data=orjson.dumps(payload),
             timeout=aiohttp.ClientTimeout(total=10),
@@ -214,7 +234,7 @@ class CustomCompressor(BaseDocumentCompressor):
             return []
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
-        rerank_result = asyncio.run(get_rerank_aiohttp(query, passages, self.top_n))
+        rerank_result = asyncio.run(get_rerank(query, passages, self.top_n))
         return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
 
     async def acompress_documents(
@@ -247,12 +267,14 @@ class CustomCompressor(BaseDocumentCompressor):
             return []
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
-        rerank_result = await get_rerank_aiohttp(query, passages, self.top_n)
+        rerank_result = await get_rerank(query, passages, self.top_n)
         return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
 
 
 async def shutdown_reranker_session():
-    global _session
-    if _session and not _session.closed:
-        await _session.close()
-        print("aiohttp session closed")
+    """释放reranker session"""
+    global _reranker_session
+    if _reranker_session and not _reranker_session.closed:
+        await _reranker_session.close()
+        _reranker_session = None
+        print("reranker session closed")

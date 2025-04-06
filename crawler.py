@@ -1,46 +1,82 @@
-from typing import List
+"""
+crawl4ai爬虫，爬取wolframalpha
+"""
 
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
-from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
+from typing import Dict, List
 
-arxiv_browser_config = BrowserConfig(light_mode=True, text_mode=True)
-arxiv_crawler_config = CrawlerRunConfig(
-    markdown_generator=DefaultMarkdownGenerator(
-        options={
-            "ignore_links": True,
-            "ignore_images": True,
-            "skip_internal_links": True,
-            "escape_html": False,
+import orjson
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+from crawl4ai.extraction_strategy import JsonXPathExtractionStrategy
+
+"""全局爬虫器"""
+browser_config = BrowserConfig(light_mode=True, text_mode=True)
+crawler = AsyncWebCrawler(config=browser_config)
+
+WOLFRAM_SCHEMA = {
+    "name": "wolfram",
+    "baseSelector": '//section[@tabindex="0"]',
+    "fields": [
+        {"name": "title", "selector": ".//span", "type": "text"},
+        {
+            "name": "content",
+            "selector": ".//img[@alt]",
+            "type": "attribute",
+            "attribute": "alt",
         },
-    ),
-    css_selector="#main > div > article",
-    excluded_tags=["button"],
+    ],
+}
+
+"""WolframAlpha的爬虫配置"""
+wolfram_config = CrawlerRunConfig(
+    extraction_strategy=JsonXPathExtractionStrategy(WOLFRAM_SCHEMA, verbose=True),
+    wait_for="div.sc-a1dd50ea-0.LChfQ",
 )
-arxiv_crawler = None
 
 
-async def crawl_arxivs(urls: List[str]) -> List[str]:
-    """爬取arxiv论文的html网页，转换为markdown
+def process_wolfram_results(data: List[Dict]) -> str:
+    """将爬取的json信息转换为markdown，去除图片信息
 
     Parameters
     ----------
-    urls: List[str]
-        arxiv论文的html网页链接
+    data: List[Dict]
+        爬取的json信息
 
     Returns
     ----------
-    List[str]
-        arxiv论文的markdown内容
+    str
+        解析后的markdown
     """
-    global arxiv_crawler
-    if arxiv_crawler is None:
-        arxiv_crawler = AsyncWebCrawler(config=arxiv_browser_config)
-        await arxiv_crawler.start()
-    results = await arxiv_crawler.arun_many(urls, config=arxiv_crawler_config)
-    return [result.markdown for result in results]
+    chunk_result = []
+    for item in data:
+        if (title := item.get("title", "")) and title != "图形":
+            chunk_result.append(f"# {title}")
+        if (content := item.get("content", "")) != "图形":
+            chunk_result.append(content)
+    return "\n".join(chunk_result)
 
 
-async def shutdown_arxiv_crawler():
-    if arxiv_crawler is not None:
-        await arxiv_crawler.close()
-        print("arxiv crawler closed")
+async def get_wolfram(query: str) -> str:
+    """爬取WolframAlpha的提示信息
+
+    Parameters
+    ----------
+    query: str
+        搜索词
+
+    Returns
+    ----------
+    str
+        爬取的提示信息
+    """
+    url = f"https://www.wolframalpha.com/input?i={query}&lang=zh"
+    result = await crawler.arun(url, wolfram_config)
+    if not result.success:
+        return
+    data = orjson.loads(result.extracted_content)
+    return process_wolfram_results(data)
+
+
+async def shutdown_crawler():
+    """释放爬虫资源"""
+    await crawler.close()
+    print("crawler closed")
