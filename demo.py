@@ -5,6 +5,7 @@ import gradio as gr
 import uvloop
 from gradio.themes.utils import sizes
 from python.academic_utils.llm_ocr import file_ocr
+from python.chat_utils.memory import shutdown_sqlite_connection
 from python.demo_utils import (
     LATEX_DELIMITERS,
     academic_search,
@@ -32,10 +33,10 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 def exit_cleanup():
     print("Shutting down")
     demo.close()
-    print("Gradio server stopped")
+    asyncio.run(shutdown_arxiv_session())
     asyncio.run(shutdown_reranker_session())
     asyncio.run(shutdown_crawler())
-    asyncio.run(shutdown_arxiv_session())
+    print("Gradio server stopped")
 
 
 with gr.Blocks(
@@ -85,9 +86,7 @@ with gr.Blocks(
                         max_plain_text_length=8191,
                     )
                     with gr.Row():
-                        clear_button = gr.ClearButton(
-                            [msg, chatbot], value="清除", scale=1
-                        )
+                        clear_button = gr.Button(value="清除", scale=1)
                         chat_mode = gr.Radio(
                             ["常规", "工具", "多模态", "知识库", "网页搜索"],
                             value="常规",
@@ -97,8 +96,10 @@ with gr.Blocks(
 
                         clear_button.click(
                             check_delete,
-                            [current_user_directory],
+                            [current_user_directory, chatbot],
                             [
+                                msg,
+                                chatbot,
                                 code_file_list,
                                 knowledgeBase_file_list,
                                 paper_file_list,
@@ -319,7 +320,7 @@ with gr.Blocks(
                                 scale=1,
                                 type="index",
                             )
-                            solve_clear = gr.ClearButton(
+                            solve_clear = gr.Button(
                                 [solve_msg, solve_chatbot], value="清除"
                             )
                             ocr_button = gr.UploadButton(
@@ -471,4 +472,10 @@ with gr.Blocks(
                     )
 
 
-demo.launch(auth=check_login)
+try:
+    demo.launch(auth=check_login)
+except KeyboardInterrupt:
+    asyncio.run(shutdown_arxiv_session())
+    asyncio.run(shutdown_reranker_session())
+    asyncio.run(shutdown_crawler())
+    asyncio.run(shutdown_sqlite_connection())

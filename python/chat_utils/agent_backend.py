@@ -2,8 +2,10 @@
 React Agent后端，处理ViennaAcademic中的主页面聊天部分
 """
 
+import asyncio
 from typing import Dict, List
 
+import uvloop
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -16,14 +18,17 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import tool
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
+from python.chat_utils.memory import checkpoint_connection
 from python.llm_utils.execute_code import python_tool
 from python.llm_utils.modelclient import deepseek_v3, mistral_small_latest
 from python.llm_utils.system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
 from python.web_utils.search import attach_web_result
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 empty_template = ChatPromptTemplate.from_messages(
     [MessagesPlaceholder(variable_name="messages")]
@@ -192,14 +197,18 @@ async def chatbot(
     return {"messages": [response]}
 
 
-graph_builder.add_node("chatbot", chatbot)
-tool_node = ToolNode(tools=tools)
-graph_builder.add_node("tools", tool_node)
-graph_builder.add_conditional_edges(
-    "chatbot",
-    tools_condition,
-)
-graph_builder.add_edge("tools", "chatbot")
-graph_builder.set_entry_point("chatbot")
-memory = MemorySaver()
-agent_app = graph_builder.compile(checkpointer=memory)
+async def build_agent_app():
+    graph_builder.add_node("chatbot", chatbot)
+    tool_node = ToolNode(tools=tools)
+    graph_builder.add_node("tools", tool_node)
+    graph_builder.add_conditional_edges(
+        "chatbot",
+        tools_condition,
+    )
+    graph_builder.add_edge("tools", "chatbot")
+    graph_builder.set_entry_point("chatbot")
+    sqlite_checkpointer = AsyncSqliteSaver(checkpoint_connection)
+    return graph_builder.compile(checkpointer=sqlite_checkpointer)
+
+
+agent_app = asyncio.run(build_agent_app())

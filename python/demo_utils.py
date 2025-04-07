@@ -15,6 +15,7 @@ from python.academic_utils.paper import (
 from python.academic_utils.wolfram import attach_hints
 from python.chat_utils.attachment_processor import process_attachments
 from python.chat_utils.chat import ChatManager, SolveManager
+from python.chat_utils.memory import remove_thread_data
 from python.file_utils.file_conversion import (
     everything_to_markdown,
     markdown_to_everything,
@@ -108,10 +109,13 @@ def _paper_show_files(
 
 async def check_delete(
     current_user: str,
+    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
 ) -> Tuple[List[str], List[str], List[str], List[str], List[str]]:
     for file_path in glob.glob("media/*.png"):
         os.remove(file_path)
     delete_png_files()
+    if chatbot:
+        await remove_thread_data(str(chatbot[0]))
     now = datetime.datetime.now()
     for root, _, files in os.walk(current_user):
         for file in files:
@@ -125,6 +129,8 @@ async def check_delete(
                     print(f"Deleted: {file_path}")
     await update(current_user)
     return (
+        {"text": "", "files": []},
+        [],
         os.listdir(f"{current_user}/code"),
         os.listdir(f"{current_user}/knowledgeBase"),
         os.listdir(f"{current_user}/paper"),
