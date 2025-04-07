@@ -230,33 +230,6 @@ async def academic_search(
             yield "", chatbot
 
 
-"""def search(
-    focus_mode: str,
-) -> Callable[
-    [str, List[Dict[str, Union[str, Dict[str, str], None]]]],
-    Generator[
-        Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
-    ],
-]:
-
-    def _search(
-        query: str, chatbot: List[Dict[str, Union[str, Dict[str, str], None]]]
-    ) -> Generator[
-        Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None, None
-    ]:
-        if query:
-            append_text(chatbot, f"请搜索{query}", "user")
-            yield "", chatbot
-            append_text(
-                chatbot,
-                ChatManager.append_search_result(query, focus_mode, str(chatbot[0])),
-                "assistant",
-            )
-        yield "", chatbot
-
-    return _search"""
-
-
 async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
     gr.Info("已开始上传，请勿重复提交。10页的论文约需40s，请耐心等候")
     file_base_name = os.path.basename(file)
