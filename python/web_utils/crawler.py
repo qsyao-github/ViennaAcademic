@@ -78,5 +78,6 @@ async def get_wolfram(query: str) -> str:
 
 async def shutdown_crawler():
     """释放爬虫资源"""
+    global crawler
     await crawler.close()
     print("crawler closed")

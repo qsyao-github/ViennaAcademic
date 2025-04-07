@@ -215,11 +215,11 @@ class SolveManager:
             yield "", content_buffer.getvalue()
         full_response = content_buffer.getvalue()
         final_reasoning, final_answer = cls.split_final_response(full_response)
-        messages = solve_app.get_state(chat_config).values["messages"]
-        solve_app.update_state(
+        messages = (await solve_app.aget_state(chat_config)).values["messages"]
+        await solve_app.aupdate_state(
             chat_config, {"messages": RemoveMessage(id=messages[-1].id)}
         )
-        solve_app.update_state(
+        await solve_app.aupdate_state(
             chat_config, {"messages": AIMessage(content=final_answer)}
         )
         yield final_reasoning, final_answer

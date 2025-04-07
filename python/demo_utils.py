@@ -107,15 +107,29 @@ def _paper_show_files(
             file_button.click(lambda: file, None, selected_paper, concurrency_limit=28)
 
 
+async def clear_thread(
+    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+) -> None:
+    if chatbot:
+        await remove_thread_data(str(chatbot[0]))
+
+
 async def check_delete(
     current_user: str,
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
-) -> Tuple[List[str], List[str], List[str], List[str], List[str]]:
+) -> Tuple[
+    Dict[str, Union[str, List]],
+    List,
+    List[str],
+    List[str],
+    List[str],
+    List[str],
+    List[str],
+]:
     for file_path in glob.glob("media/*.png"):
         os.remove(file_path)
     delete_png_files()
-    if chatbot:
-        await remove_thread_data(str(chatbot[0]))
+    await clear_thread(chatbot)
     now = datetime.datetime.now()
     for root, _, files in os.walk(current_user):
         for file in files:
@@ -137,6 +151,13 @@ async def check_delete(
         os.listdir(f"{current_user}/repositry"),
         os.listdir(f"{current_user}/tempest"),
     )
+
+
+async def solve_delete(
+    chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
+) -> Tuple[str, List]:
+    await clear_thread(chatbot)
+    return "", []
 
 
 def append_text(

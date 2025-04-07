@@ -2,12 +2,14 @@
 Chatbot后端，处理ViennaAcademic解题功能
 """
 
+import asyncio
 from typing import Dict
 
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables.config import RunnableConfig
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import START, MessagesState, StateGraph
+from python.chat_utils.memory import checkpoint_connection
 from python.llm_utils.modelclient import deepseek_r1_671b, qwq_32b
 
 select_model_from_num = {
@@ -45,5 +47,10 @@ solve_workflow = StateGraph(state_schema=MessagesState)
 solve_workflow.add_edge(START, "model")
 solve_workflow.add_node("model", solve_call_model)
 
-solve_memory = MemorySaver()
-solve_app = solve_workflow.compile(checkpointer=solve_memory)
+
+async def build_solve_app():
+    solve_sqlite_checkpointer = AsyncSqliteSaver(checkpoint_connection)
+    return solve_workflow.compile(checkpointer=solve_sqlite_checkpointer)
+
+
+solve_app = asyncio.run(build_solve_app())

@@ -1,5 +1,5 @@
 import asyncio
-import atexit
+import signal
 
 import gradio as gr
 import uvloop
@@ -20,6 +20,7 @@ from python.demo_utils import (
     solve_respond,
     upload_code,
     upload_paper,
+    solve_delete,
 )
 from python.knowledge_utils.custom_reranker import shutdown_reranker_session
 from python.private.auth import check_login
@@ -29,15 +30,18 @@ from python.web_utils.crawler import shutdown_crawler
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
-@atexit.register
-def exit_cleanup():
+def handle_sigint(_signum, _frame):
     print("Shutting down")
-    demo.close()
     asyncio.run(shutdown_arxiv_session())
     asyncio.run(shutdown_reranker_session())
+    asyncio.run(shutdown_sqlite_connection())
     asyncio.run(shutdown_crawler())
+    demo.close()
     print("Gradio server stopped")
+    exit(0)
 
+
+signal.signal(signal.SIGINT, handle_sigint)
 
 with gr.Blocks(
     fill_height=True,
@@ -320,8 +324,12 @@ with gr.Blocks(
                                 scale=1,
                                 type="index",
                             )
-                            solve_clear = gr.Button(
-                                [solve_msg, solve_chatbot], value="清除"
+                            solve_clear = gr.Button(value="清除")
+                            solve_clear.click(
+                                solve_delete,
+                                [solve_chatbot],
+                                [solve_msg, solve_chatbot],
+                                concurrency_limit=28,
                             )
                             ocr_button = gr.UploadButton(
                                 "识别题目", file_types=["image"]
@@ -472,10 +480,4 @@ with gr.Blocks(
                     )
 
 
-try:
-    demo.launch(auth=check_login)
-except KeyboardInterrupt:
-    asyncio.run(shutdown_arxiv_session())
-    asyncio.run(shutdown_reranker_session())
-    asyncio.run(shutdown_crawler())
-    asyncio.run(shutdown_sqlite_connection())
+demo.launch(auth=check_login)
