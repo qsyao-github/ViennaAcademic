@@ -10,7 +10,8 @@ from crawl4ai.extraction_strategy import JsonXPathExtractionStrategy
 
 """全局爬虫器"""
 browser_config = BrowserConfig(light_mode=True, text_mode=True)
-crawler = AsyncWebCrawler(config=browser_config)
+_crawler = None
+# AsyncWebCrawler(config=browser_config)
 
 WOLFRAM_SCHEMA = {
     "name": "wolfram",
@@ -68,8 +69,12 @@ async def get_wolfram(query: str) -> str:
     str
         爬取的提示信息
     """
+    global _crawler
+    if _crawler is None:
+        _crawler = AsyncWebCrawler(config=browser_config)
+        await _crawler.start()
     url = f"https://www.wolframalpha.com/input?i={query}&lang=zh"
-    result = await crawler.arun(url, wolfram_config)
+    result = await _crawler.arun(url, wolfram_config)
     if not result.success:
         return
     data = orjson.loads(result.extracted_content)
@@ -78,6 +83,7 @@ async def get_wolfram(query: str) -> str:
 
 async def shutdown_crawler():
     """释放爬虫资源"""
-    global crawler
-    await crawler.close()
-    print("crawler closed")
+    global _crawler
+    if _crawler is not None:
+        await _crawler.close()
+        print("crawler closed")

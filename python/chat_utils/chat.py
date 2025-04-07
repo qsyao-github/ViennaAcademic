@@ -41,7 +41,7 @@ class ChatManager:
         return content
 
     @staticmethod
-    def handle_generated_image(
+    async def handle_generated_image(
         timestamp: str, chat_config: Dict[str, Dict[str, str]]
     ) -> None:
         """处理生成的图片并更新状态
@@ -60,7 +60,7 @@ class ChatManager:
         """
         image_path = f"media/{timestamp}.png"
         if image_component := create_image_component(image_path):
-            agent_app.update_state(
+            await agent_app.aupdate_state(
                 chat_config, {"messages": HumanMessage([image_component])}
             )
 
@@ -112,7 +112,7 @@ class ChatManager:
 
         final_response = format_tools(buffer.getvalue())
         buffer.close()
-        ChatManager.handle_generated_image(timestamp, chat_config)
+        await ChatManager.handle_generated_image(timestamp, chat_config)
         yield final_response
 
     @staticmethod
@@ -140,7 +140,7 @@ class ChatManager:
         async for chunk_result in search_result:
             final_result = chunk_result
             yield final_result
-        agent_app.update_state(
+        await agent_app.aupdate_state(
             {"configurable": {"thread_id": thread_id}},
             {
                 "messages": [
