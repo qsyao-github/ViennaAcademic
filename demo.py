@@ -2,6 +2,7 @@ import asyncio
 import atexit
 
 import gradio as gr
+import uvloop
 from gradio.themes.utils import sizes
 from python.academic_utils.llm_ocr import file_ocr
 from python.demo_utils import (
@@ -23,6 +24,8 @@ from python.knowledge_utils.custom_reranker import shutdown_reranker_session
 from python.private.auth import check_login
 from python.web_utils.arxiv_crawler import shutdown_arxiv_session
 from python.web_utils.crawler import shutdown_crawler
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 @atexit.register
