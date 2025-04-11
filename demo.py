@@ -319,7 +319,7 @@ with gr.Blocks(
                         with gr.Row():
                             distill = gr.Dropdown(
                                 ["QwQ-32B", "Deepseek-R1-671B"],
-                                value="QwQ-32B",
+                                value="Deepseek-R1-671B",
                                 label="模型",
                                 scale=1,
                                 type="index",
