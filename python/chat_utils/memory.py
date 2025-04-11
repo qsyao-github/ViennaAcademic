@@ -22,7 +22,6 @@ async def remove_thread_data(thread_id: str) -> None:
 async def shutdown_sqlite_connection():
     global checkpoint_connection
     if checkpoint_connection.is_alive():
-        print("detected connection alive")
         async with checkpoint_connection.executescript(
             "DELETE FROM checkpoints;VACUUM;DELETE FROM writes;VACUUM;"
         ):

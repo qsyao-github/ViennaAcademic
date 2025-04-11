@@ -25,7 +25,6 @@ from python.demo_utils import (
 from python.knowledge_utils.custom_reranker import shutdown_reranker_session
 from python.private.auth import check_login
 from python.web_utils.arxiv_crawler import shutdown_arxiv_session
-from python.web_utils.crawler import shutdown_crawler
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -35,7 +34,6 @@ def handle_sigint(_signum, _frame):
     asyncio.run(shutdown_arxiv_session())
     asyncio.run(shutdown_reranker_session())
     asyncio.run(shutdown_sqlite_connection())
-    asyncio.run(shutdown_crawler())
     demo.close()
     print("Gradio server stopped")
     exit(0)
@@ -80,6 +78,7 @@ with gr.Blocks(
                     label="聊天框",
                     scale=8,
                     sanitize_html=False,
+                    resizable=True,
                 )
                 with gr.Tab("聊天"):
                     msg = gr.MultimodalTextbox(
@@ -311,6 +310,7 @@ with gr.Blocks(
                         label="聊天框",
                         scale=8,
                         sanitize_html=False,
+                        resizable=True,
                     )
                     solve_msg = gr.Textbox(
                         placeholder="输入题目", label="输入框", submit_btn=True
