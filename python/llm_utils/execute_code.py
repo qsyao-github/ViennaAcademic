@@ -2,7 +2,7 @@
 使用gVisor保护的scipy-notebook容器执行命令
 
 启动容器(先于demo.py)：
-docker run --runtime=runsc --rm -d -p 8888:8888 --name scipy-notebook quay.io/jupyter/scipy-notebook
+docker run --runtime=runsc --rm -d -p 127.0.0.1:8888:8888 --name scipy-notebook quay.io/jupyter/scipy-notebook
 """
 
 import os
