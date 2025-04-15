@@ -10,12 +10,9 @@ from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import START, MessagesState, StateGraph
 from python.chat_utils.memory import checkpoint_connection
-from python.llm_utils.modelclient import deepseek_r1_671b, qwq_32b
+from python.llm_utils.modelclient import deepseek_r1_671b, glm_z1_flash
 
-select_model_from_num = {
-    0: qwq_32b,
-    1: deepseek_r1_671b,
-}
+select_model_from_num = {0: glm_z1_flash, 1: deepseek_r1_671b}
 
 
 async def solve_call_model(

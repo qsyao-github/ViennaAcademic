@@ -17,10 +17,10 @@ from python.demo_utils import (
     get_current_user,
     respond,
     show_files,
+    solve_delete,
     solve_respond,
     upload_code,
     upload_paper,
-    solve_delete,
 )
 from python.knowledge_utils.custom_reranker import shutdown_reranker_session
 from python.private.auth import check_login
@@ -318,10 +318,10 @@ with gr.Blocks(
                     with gr.Tab("解题"):
                         with gr.Row():
                             distill = gr.Dropdown(
-                                ["QwQ-32B", "Deepseek-R1-671B"],
-                                value="Deepseek-R1-671B",
+                                ["GLM-Z1-FLASH-32B", "Deepseek-R1-671B"],
+                                value="GLM-Z1-FLASH-32B",
                                 label="模型",
-                                scale=1,
+                                scale=2,
                                 type="index",
                             )
                             solve_clear = gr.Button(value="清除")

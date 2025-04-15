@@ -289,20 +289,24 @@ async def download_paper_chatbot(
     gr.Info("正在下载，请耐心等候")
     append_text(chatbot, f"下载{arxiv_num}并翻译标题与摘要", "user")
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
-    append_text(
-        chatbot, await download_arxiv_paper(arxiv_num, current_dir), "assistant"
-    )
+    append_text(chatbot, "", "assistant")
+    async for chunk in download_arxiv_paper(arxiv_num, current_dir):
+        chatbot[-1]["content"] = chunk
+        yield "", chatbot, []
     await update(current_dir)
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
 async def download_paper_textbox(
     arxiv_num: str, current_dir: str
-) -> Tuple[str, str, List[str]]:
+) -> AsyncGenerator[Tuple[str, str, List[str]], None]:
     gr.Info("正在下载，请耐心等候")
-    answer = await download_arxiv_paper(arxiv_num, current_dir)
+    answer = ""
+    async for chunk in download_arxiv_paper(arxiv_num, current_dir):
+        answer = chunk
+        yield "", chunk, []
     await update(current_dir)
-    return "", answer, os.listdir(f"{current_dir}/knowledgeBase")
+    yield "", answer, os.listdir(f"{current_dir}/knowledgeBase")
 
 
 def upload_code(file: str, current_dir: str) -> List[str]:

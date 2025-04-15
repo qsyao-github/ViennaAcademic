@@ -50,13 +50,22 @@ deepseek_r1_671b = ChatOpenAI(
     max_tokens=16384,
 )
 
-qwq_32b = ChatOpenAI(
+"""qwq_32b = ChatOpenAI(
     model="qwen-qwq-32b",
     api_key=xkx_client_API_KEY,
     base_url=xkx_client_BASE_URL,
     top_p=0.95,
     temperature=0.6,
     presence_penalty=1.3,
+)"""
+
+glm_z1_flash = ChatOpenAI(
+    model="glm-z1-flash",
+    api_key=zhipu_client_API_KEY,
+    base_url=zhipu_client_BASE_URL,
+    temperature=0.6,
+    top_p=0.95,
+    max_completion_tokens=30000,
 )
 
 # 代码

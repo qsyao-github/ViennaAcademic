@@ -37,6 +37,7 @@ FILE_SUFFIX_TO_MARKDOWN = {
     ".r": "r",
     ".sql": "sql",
 }
+SPLIT_PARAGRAPH_PATTERN = re.compile(r"\s*\n+\s*")
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
@@ -107,15 +108,15 @@ def chunk(content: str) -> List[str]:
     final_list: List[str]
         分段后的文本
     """
-    temp_list = re.split("\n+", content)
+    temp_list = SPLIT_PARAGRAPH_PATTERN.split(content)
     final_list = []
     temp_string = ""
     for string in temp_list:
         if len(temp_string) > MIN_CHARACTER_THRESHOLD:
-            final_list.append(temp_string.strip())
+            final_list.append(temp_string)
             temp_string = ""
-        temp_string += string.strip() + "\n\n"
-    final_list.append(temp_string.strip())
+        temp_string += string + "\n\n"
+    final_list.append(temp_string)
     return final_list
 
 
@@ -146,96 +147,6 @@ async def read_paper(
     answer.close()
 
 
-async def process_single_chunk(
-    text: str, system_prompt: str, model: BaseChatOpenAI, index: int, result: List[str]
-) -> None:
-    """根据prompt处理文本
-
-    Parameters
-    ----------
-    text: str
-        待处理文本
-    system_prompt: str
-        系统提示词
-    model: BaseChatOpenAI
-        模型，目前都使用deepseek-v3
-    index: int
-        文本索引
-    result: List[str]
-        处理结果列表
-    """
-    if text.strip():
-        prompt = await process_paper_prompt_template.ainvoke(
-            {"system": system_prompt, "content": text}
-        )
-        result[index] = (await model.ainvoke(prompt)).content
-
-
-def generate_output_path(
-    file_path: str, suffix: Literal["Chi", "Eng", "Pol"], user_directory: str
-) -> str:
-    """生成输出文件路径
-
-    Parameters
-    ----------
-    file_path: str
-        文件路径
-    suffix: Literal['Chi', 'Eng', 'Pol']
-        文件后缀。分别对应英译中、中译英、润色
-    user_directory: str
-        用户目录
-
-    Returns
-    ----------
-    str
-        输出文件路径
-    """
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    return f"{user_directory}/knowledgeBase/{base_name}{suffix}.md"
-
-
-def generate_tasks(
-    prompt: str,
-    model: BaseChatOpenAI,
-    processed_chunks: List[str],
-    document_chunks: List[str],
-    semaphore: asyncio.Semaphore,
-) -> List[asyncio.Task[str]]:
-    """产生任务列表
-
-    Parameters
-    ----------
-    prompt: str
-        系统提示词
-    model: BaseChatOpenAI
-        模型，目前都使用deepseek-v3
-    processed_chunks: List[str]
-        处理后的文本列表
-    document_chunks: List[str]
-        处理前的文本列表
-    semaphore: asyncio.Semaphore
-        信号量，用于控制并发数
-    """
-    return [
-        worker(chunk, prompt, model, index, processed_chunks, semaphore)
-        for index, chunk in enumerate(document_chunks)
-    ]
-
-
-def write_to_knowledge_base(output_path: str, content: str) -> None:
-    """将处理结果写入知识库文件
-
-    Parameters
-    ----------
-    output_path: str
-        输出文件路径
-    content: str
-        处理结果
-    """
-    with open(output_path, "w", encoding="utf-8") as output_file:
-        output_file.write(content)
-
-
 async def worker(
     text: str,
     system_prompt: str,
@@ -243,9 +154,13 @@ async def worker(
     index: int,
     result: List[str],
     semaphore: asyncio.Semaphore,
-) -> str:
+) -> None:
     async with semaphore:
-        return await process_single_chunk(text, system_prompt, model, index, result)
+        if text.strip():
+            prompt = await process_paper_prompt_template.ainvoke(
+                {"system": system_prompt, "content": text}
+            )
+            result[index] = (await model.ainvoke(prompt)).content
 
 
 async def process_paper(
@@ -278,22 +193,26 @@ async def process_paper(
         已处理的文段。Gradio不支持增量更新，故返回完整字符串
     """
     # 初始化输出路径和内容块
-    knowledgeBase_file_path = generate_output_path(
-        file_path, suffix, current_user_directory
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
+    knowledgeBase_file_path = (
+        f"{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
     )
     document_chunks = chunk(attach(file_path, current_user_directory))
 
     # 并行处理文本块
     processed_chunks = [""] * len(document_chunks)
-    tasks = generate_tasks(
-        prompt, model, processed_chunks, document_chunks, semaphore1024
-    )
+    tasks = [
+        worker(chunk, prompt, model, index, processed_chunks, semaphore1024)
+        for index, chunk in enumerate(document_chunks)
+    ]
     for future in asyncio.as_completed(tasks):
         await future
         yield "\n\n".join(processed_chunks)
+
     # 写入最终结果并返回
     final_content = "\n\n".join(processed_chunks)
-    write_to_knowledge_base(knowledgeBase_file_path, final_content)
+    with open(knowledgeBase_file_path, "w", encoding="utf-8") as output_file:
+        output_file.write(final_content)
     yield final_content
 
 
