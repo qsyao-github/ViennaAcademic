@@ -182,7 +182,7 @@ class SolveManager:
         """
         split_result = content.rsplit("</think>", 1)
         if len(split_result) > 1:
-            return split_result[0][cls.LENGTH_OF_THINK_TAG :].strip(), split_result[-1]
+            return split_result[0][cls.LENGTH_OF_THINK_TAG:].strip(), split_result[-1]
         return "", content
 
     @classmethod

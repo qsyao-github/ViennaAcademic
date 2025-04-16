@@ -42,10 +42,10 @@ def format_tools(text: str) -> str:
         str
             替换后的文本
         """
-        arg_name = match.group(1)
-        arg_value = match.group(2)
-        if not arg_value or arg_name not in TOOLS:
+        arg_name, arg_value = match.groups()
+        formatter = TOOLS.get(arg_name)
+        if not arg_value or not formatter:
             return match.group(0)
-        return TOOLS[arg_name](arg_value)
+        return formatter(arg_value)
 
     return TOOL_CALL_PATTERN.sub(replace_tag, text)
