@@ -4,15 +4,15 @@
 包括对上传、生成文件的分割向量化，embedding数据的本地储存，以及知识库文本召回
 """
 
+import asyncio
 import os
-from typing import List, Union
 
+import aiofiles.os as aios
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
-from langchain_core.documents import Document
 from python.knowledge_utils.custom_reranker import CustomCompressor
 from python.llm_utils.modelclient import bce_embedding_base
 
@@ -34,46 +34,6 @@ check_chars = frozenset(["。", "！", "？", ".", "!", "?"])
 check_type = frozenset(["NarrativeText", "ListItem"])
 
 
-async def get_document(file: str) -> List[Document]:
-    """读取并分割文档
-
-    按正则表达式分割为<=512字符的片段，避免超过bce-embedding上下文限制
-
-    Parameters
-    ----------
-    file: str
-        文件路径
-
-    Returns
-    ----------
-    List[Document]
-        文档片段列表
-    """
-    documents = await UnstructuredMarkdownLoader(file, mode="elements").aload()
-    return text_splitter.split_documents(documents)
-
-
-async def get_retriever(file: str) -> Union[FAISS, None]:
-    """将本地文件向量化，返回召回器
-
-    Parameters
-    ----------
-    file: str
-        文件路径
-
-    Returns
-    ----------
-    Union[FAISS, None]
-        召回器。若文件为空，则返回None
-    """
-    if total_texts := await get_document(file):
-        return await FAISS.afrom_documents(
-            total_texts,
-            bce_embedding_base,
-            distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
-        )
-
-
 async def save_retriever(file: str, current_dir: str) -> None:
     """将召回器保存至本地
 
@@ -86,32 +46,29 @@ async def save_retriever(file: str, current_dir: str) -> None:
     """
     # 处理未知错误
     try:
-        retriever = await get_retriever(f"{current_dir}/knowledgeBase/{file}.md")
-        if retriever is not None:
+        documents = await UnstructuredMarkdownLoader(
+            f"{current_dir}/knowledgeBase/{file}.md", mode="elements"
+        ).aload()
+        if total_texts := text_splitter.split_documents(documents):
+            retriever = await FAISS.afrom_documents(
+                total_texts,
+                bce_embedding_base,
+                distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+            )
             retriever.save_local(f"{current_dir}/retrievers", file)
     except Exception as e:
         print(f"An error occurred: {e}")
 
 
-def remove_retriever(file: str, current_dir: str) -> None:
-    """删除本地指定召回器
-
-    Parameters
-    ----------
-    file: str
-        文件名
-    current_dir: str
-        当前用户根目录
-    """
-    # 在demo.py中，由于文件删除键的渲染慢于IO，用户重复点击可导致报错，忽略
+async def remove_retriever(file: str, current_dir: str) -> None:
     retrievers_dir = os.path.join(current_dir, "retrievers")
-    try:
-        os.remove(
-            os.path.join(retrievers_dir, f"{file}.pkl"),
-        )
-        os.remove(os.path.join(retrievers_dir, f"{file}.faiss"))
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    pkl_file = os.path.join(retrievers_dir, f"{file}.pkl")
+    faiss_file = os.path.join(retrievers_dir, f"{file}.faiss")
+
+    if await aios.path.exists(pkl_file):
+        await aios.remove(pkl_file)
+    if await aios.path.exists(faiss_file):
+        await aios.remove(faiss_file)
 
 
 async def update(current_dir: str) -> None:
@@ -125,17 +82,21 @@ async def update(current_dir: str) -> None:
         当前用户根目录
     """
     knowledgeBase = {
-        os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/knowledgeBase")
+        os.path.splitext(entry.name)[0]
+        for entry in os.scandir(f"{current_dir}/knowledgeBase")
     }
     retrievers = {
-        os.path.splitext(file)[0] for file in os.listdir(f"{current_dir}/retrievers")
+        os.path.splitext(entry.name)[0]
+        for entry in os.scandir(f"{current_dir}/retrievers")
     }
     # 保存上传、生成的文件
-    for file in knowledgeBase - retrievers:
-        await save_retriever(file, current_dir)
-    # 移除已删除的文件
-    for file in retrievers - knowledgeBase:
-        remove_retriever(file, current_dir)
+    save_tasks = [
+        save_retriever(file, current_dir) for file in knowledgeBase - retrievers
+    ]
+    remove_tasks = [
+        remove_retriever(file, current_dir) for file in retrievers - knowledgeBase
+    ]
+    await asyncio.gather(*save_tasks, *remove_tasks)
 
 
 def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
@@ -161,7 +122,7 @@ def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
             allow_dangerous_deserialization=True,
         )
         for file in {
-            os.path.splitext(file)[0] for file in os.listdir(retriever_directory)
+            os.path.splitext(entry.name)[0] for entry in os.scandir(retriever_directory)
         }
     ]
     # 知识库为空的情况，将会在get_response处理
@@ -226,8 +187,7 @@ async def get_response(query: str, current_dir: str) -> str:
         content = document.page_content.strip()
         if not is_valid_document(document.metadata["category"], content):
             continue
-        source = os.path.basename(document.metadata["source"])
-        source = os.path.splitext(source)[0]
+        source = os.path.splitext(os.path.basename(document.metadata["source"]))[0]
         text_response.append(f"{content} [Source: {source}]")
         if len(text_response) > 9:
             break

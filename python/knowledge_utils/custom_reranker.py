@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import aiohttp
 import orjson
+import uvloop
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain_core.documents import Document
@@ -19,6 +20,7 @@ HEADERS = {
 }
 
 """全局reranker session"""
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 _reranker_session = None
 _reranker_session_lock = asyncio.Lock()
 
@@ -42,7 +44,7 @@ async def get_rerank(
     List[Dict[str, Union[int, Dict[str, str]]]]
         rerank结果
     """
-    global _reranker_session, _reranker_session_lock, HEADERS, BASE_URL
+    global _reranker_session, _reranker_session_lock
     async with _reranker_session_lock:
         if _reranker_session is None or _reranker_session.closed:
             connector = aiohttp.TCPConnector(
@@ -121,7 +123,6 @@ class CustomCompressor(BaseDocumentCompressor):
         passages = []
         valid_doc_list = []
         invalid_doc_list = []
-        # if isinstance(passage, str) and len(passage) > 0:
         for d in documents:
             if passage := d.page_content:
                 passages.append(passage.replace("\n", " "))
@@ -149,13 +150,12 @@ class CustomCompressor(BaseDocumentCompressor):
         final_results: List[Document]
             最终结果列表。注入该函数的全局变量，该函数直接修改final_results
         """
-        valid_docs = valid_doc_list
         score_key = "relevance_score"
         index_key = "index"
         for item in rerank_result:
             score = item[score_key]
             doc_id = item[index_key]
-            doc = valid_docs[doc_id]
+            doc = valid_doc_list[doc_id]
             meta = doc.metadata
             meta[score_key] = score
             meta[index_key] = doc_id
@@ -176,33 +176,6 @@ class CustomCompressor(BaseDocumentCompressor):
         for doc in invalid_doc_list:
             doc.metadata["relevance_score"] = 0
             final_results.append(doc)
-
-    def process_docs(
-        self,
-        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]],
-        valid_doc_list: List[Document],
-        invalid_doc_list: List[Document],
-    ) -> List[Document]:
-        """处理bce-reranker返回的结果
-
-        Parameters
-        ----------
-        rerank_result: List[Dict[str, Union[int, Dict[str, str]]]]
-            bce-reranker返回的结果
-        valid_doc_list: List[Document]
-            有效文档列表
-        invalid_doc_list: List[Document]
-            无效文档列表
-
-        Returns
-        ----------
-        List[Document]
-            最终结果列表
-        """
-        final_results = []
-        self.process_valid_docs(rerank_result, valid_doc_list, final_results)
-        self.process_invalid_docs(invalid_doc_list, final_results)
-        return final_results
 
     def compress_documents(
         self,
@@ -235,7 +208,10 @@ class CustomCompressor(BaseDocumentCompressor):
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
         rerank_result = asyncio.run(get_rerank(query, passages, self.top_n))
-        return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
+        final_results = []
+        self.process_valid_docs(rerank_result, valid_doc_list, final_results)
+        self.process_invalid_docs(invalid_doc_list, final_results)
+        return final_results
 
     async def acompress_documents(
         self,
@@ -268,7 +244,10 @@ class CustomCompressor(BaseDocumentCompressor):
         doc_list = list(documents)
         passages, valid_doc_list, invalid_doc_list = self.filter_documents(doc_list)
         rerank_result = await get_rerank(query, passages, self.top_n)
-        return self.process_docs(rerank_result, valid_doc_list, invalid_doc_list)
+        final_results = []
+        self.process_valid_docs(rerank_result, valid_doc_list, final_results)
+        self.process_invalid_docs(invalid_doc_list, final_results)
+        return final_results
 
 
 async def shutdown_reranker_session():
