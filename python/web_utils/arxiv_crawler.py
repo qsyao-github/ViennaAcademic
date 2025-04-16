@@ -27,32 +27,6 @@ HEADERS = {
 }
 
 
-def process_html_arxiv(html: str) -> str:
-    """解析为markdown并清洗
-
-    Parameters
-    ----------
-    html: str
-        html内容
-
-    Returns
-    ----------
-    str
-        markdown内容
-    """
-    markdown_content = md(
-        html,
-        heading_style="ATX",  # 使用#标题
-        bullets="-*+",  # 支持多种列表符号
-        code_language="latex",  # 识别代码块语言
-        auto_links=False,
-    )
-    markdown_content = remove_images.sub("", markdown_content)
-    markdown_content = remove_hyperlink.sub(r"[\1", markdown_content)
-    markdown_content = remove_consecutive_newlines.sub("\n\n", markdown_content)
-    return markdown_content.strip()
-
-
 async def process_pdf_arxiv(arxiv_num: str, current_dir: str) -> str:
     """下载pdf并解析为markdown
 
@@ -133,8 +107,17 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str) -> str:
     target_html = etree.tostring(
         article_node[0], encoding="unicode", method="html", pretty_print=True
     )
-
-    return process_html_arxiv(target_html)
+    markdown_content = md(
+        target_html,
+        heading_style="ATX",  # 使用#标题
+        bullets="-*+",  # 支持多种列表符号
+        code_language="latex",  # 识别代码块语言
+        auto_links=False,
+    )
+    markdown_content = remove_images.sub("", markdown_content)
+    markdown_content = remove_hyperlink.sub(r"[\1", markdown_content)
+    markdown_content = remove_consecutive_newlines.sub("\n\n", markdown_content)
+    return markdown_content.strip()
 
 
 async def shutdown_arxiv_session():

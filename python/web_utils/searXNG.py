@@ -41,8 +41,6 @@ async def searxng_websearch(query: str) -> Generator[Tuple[str, str, str], None,
 async def searxng_academic_search(query: str) -> List[Tuple[str, str, str]]:
     """SearXNG学术搜索
 
-    crossref搜索结果可能包含html标签，需要去除
-
     Parameters
     ----------
     query: str
