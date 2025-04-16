@@ -41,7 +41,6 @@ glm_4v_flash = ChatOpenAI(
 )
 
 # 推理
-# ChatDeepSeek中base_url疑似没有作用，必须使用api_base
 deepseek_r1_671b = ChatOpenAI(
     model="deepseek-r1-minda",
     api_key=xkx_client_API_KEY,
@@ -49,15 +48,6 @@ deepseek_r1_671b = ChatOpenAI(
     temperature=0.6,
     max_tokens=16384,
 )
-
-"""qwq_32b = ChatOpenAI(
-    model="qwen-qwq-32b",
-    api_key=xkx_client_API_KEY,
-    base_url=xkx_client_BASE_URL,
-    top_p=0.95,
-    temperature=0.6,
-    presence_penalty=1.3,
-)"""
 
 glm_z1_flash = ChatOpenAI(
     model="glm-z1-flash",

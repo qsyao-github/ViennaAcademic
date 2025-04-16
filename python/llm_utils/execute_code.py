@@ -7,7 +7,6 @@ docker run --runtime=runsc --rm -d -p 127.0.0.1:8888:8888 --name scipy-notebook 
 
 import os
 import re
-from typing import List
 
 import docker
 
@@ -20,20 +19,6 @@ clean_output_pattern = re.compile(r"Out\[\d+\]:\s*")
 # 连接容器
 client = docker.from_env()
 container = client.containers.get("scipy-notebook")
-
-
-def get_png_files() -> List[str]:
-    """获取容器中的png文件
-
-    Returns
-    ----------
-    List[str]
-        png文件名列表
-    """
-    files = (
-        container.exec_run("sh -c 'ls -1 | grep png'").output.decode("utf-8").strip()
-    )
-    return files.split("\n")
 
 
 def delete_png_files() -> None:
@@ -70,7 +55,12 @@ def python_tool(code: str) -> str:
         else exec_id.output.decode("utf-8")
     )
     # png文件处理
-    png_files = get_png_files()
+    png_files = (
+        container.exec_run("sh -c 'ls -1 | grep png'")
+        .output.decode("utf-8")
+        .strip()
+        .split("\n")
+    )
     for png_file in png_files:
         if not os.path.exists(f"media/{png_file}"):
             with open(f"media/{png_file}", "wb") as f:
