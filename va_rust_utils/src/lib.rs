@@ -7,6 +7,10 @@ mod academic_utils {
 #[pymodule]
 fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(
+        academic_utils::paper::academic_utils_paper_attach,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
         academic_utils::paper::academic_utils_paper_chunk,
         m
     )?)?;

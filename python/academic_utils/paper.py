@@ -16,25 +16,8 @@ from python.llm_utils.system_prompt import (
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
 from python.semaphore import semaphore1024
+from va_rust_utils import academic_utils_paper_attach as attach
 from va_rust_utils import academic_utils_paper_chunk as chunk
-
-FILE_SUFFIX_TO_MARKDOWN = {
-    ".py": "python",
-    ".c": "c",
-    ".cpp": "cpp",
-    ".md": "markdown",
-    ".json": "json",
-    ".html": "html",
-    ".css": "css",
-    ".js": "javascript",
-    ".jinja2": "jinja2",
-    ".ts": "typescript",
-    ".yaml": "yaml",
-    ".dockerfile": "dockerfile",
-    ".sh": "shell",
-    ".r": "r",
-    ".sql": "sql",
-}
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
@@ -57,64 +40,6 @@ process_paper_prompt_template = ChatPromptTemplate.from_messages(
         ("user", "{content}"),
     ]
 )
-
-
-def attach(file: str, current_user_directory: str) -> str:
-    """附加文件内容
-
-    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
-
-    Parameters
-    ----------
-    file: str
-        文件名
-    current_user_directory: str
-        当前用户根目录
-
-    Returns
-    ----------
-    str
-        文件内容。若为代码则放入代码框
-    """
-    file_name, file_suffix = os.path.splitext(file)
-    knowledgeBase_path = os.path.join(
-        current_user_directory, "knowledgeBase", f"{file_name}.md"
-    )
-    if os.path.exists(knowledgeBase_path):
-        with open(knowledgeBase_path, "r", encoding="utf-8") as f:
-            return f.read()
-    code_path = os.path.join(current_user_directory, "code", file)
-    if os.path.exists(code_path):
-        with open(code_path, "r", encoding="utf-8") as f:
-            code = f.read()
-        return f"```{FILE_SUFFIX_TO_MARKDOWN.get(file_suffix, '')}\n{code}\n```"
-
-
-'''def chunk(content: str) -> List[str]:
-    """分段
-
-    按换行符分段，确保每段长度大于63个字符
-
-    Parameters
-    ----------
-    content: str
-        文本内容
-
-    Returns
-    ----------
-    final_list: List[str]
-        分段后的文本
-    """
-    temp_list = SPLIT_PARAGRAPH_PATTERN.split(content)
-    final_list = []
-    temp_string = ""
-    for string in temp_list:
-        if len(temp_string) > MIN_CHARACTER_THRESHOLD:
-            final_list.append(temp_string)
-            temp_string = ""
-        temp_string += string + "\n\n"
-    final_list.append(temp_string)
-    return final_list'''
 
 
 async def read_paper(

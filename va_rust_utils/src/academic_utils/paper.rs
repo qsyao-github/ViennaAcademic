@@ -1,16 +1,71 @@
+// use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use pyo3::prelude::*;
-
-use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 const MIN_CHARACTER_THRESHOLD: usize = 63;
 
-lazy_static! {
-    static ref RE: Regex = Regex::new(r"\s*\n+\s*").unwrap();
+static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
+    HashMap::from([
+        ("py", "python"),
+        ("c", "c"),
+        ("cpp", "cpp"),
+        ("md", "markdown"),
+        ("json", "json"),
+        ("html", "html"),
+        ("css", "css"),
+        ("js", "javascript"),
+        ("jinja2", "jinja2"),
+        ("ts", "typescript"),
+        ("yaml", "yaml"),
+        ("dockerfile", "dockerfile"),
+        ("sh", "shell"),
+        ("r", "r"),
+        ("sql", "sql"),
+    ])
+});
+
+static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
+
+#[pyfunction]
+pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
+    /*
+    附加文件内容
+
+    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
+
+    Parameters
+    ----------
+    file: &str
+        文件名
+    current_user_directory: &str
+        当前用户根目录
+
+    Returns
+    ----------
+    String
+        文件内容。若为代码则放入代码框
+    */
+    let path = Path::new(file);
+    let file_name = path.file_stem().unwrap().to_str().unwrap();
+    let file_suffix = path.extension().unwrap_or_default().to_str().unwrap();
+    let kb_path = Path::new(current_user_directory)
+        .join("knowledgeBase")
+        .join(format!("{}.md", file_name));
+    if kb_path.exists() {
+        return fs::read_to_string(kb_path).unwrap();
+    }
+
+    let code_path = Path::new(current_user_directory).join("code").join(file);
+
+    let code = fs::read_to_string(code_path).unwrap();
+    let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
+    format!("```{}\n{}\n```", lang, code)
 }
 
-// academic_utils
-// paper
 #[pyfunction]
 pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
     /*
