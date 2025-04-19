@@ -4,7 +4,6 @@
 
 import asyncio
 import os
-import re
 from io import StringIO
 from typing import AsyncGenerator, List, Literal
 
@@ -17,9 +16,8 @@ from python.llm_utils.system_prompt import (
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
 from python.semaphore import semaphore1024
+from va_rust_utils import academic_utils_paper_chunk as chunk
 
-"""chunk函数对文件分段，每段不宜小于63个字符"""
-MIN_CHARACTER_THRESHOLD = 63
 FILE_SUFFIX_TO_MARKDOWN = {
     ".py": "python",
     ".c": "c",
@@ -37,7 +35,6 @@ FILE_SUFFIX_TO_MARKDOWN = {
     ".r": "r",
     ".sql": "sql",
 }
-SPLIT_PARAGRAPH_PATTERN = re.compile(r"\s*\n+\s*")
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
@@ -93,7 +90,7 @@ def attach(file: str, current_user_directory: str) -> str:
         return f"```{FILE_SUFFIX_TO_MARKDOWN.get(file_suffix, '')}\n{code}\n```"
 
 
-def chunk(content: str) -> List[str]:
+'''def chunk(content: str) -> List[str]:
     """分段
 
     按换行符分段，确保每段长度大于63个字符
@@ -117,7 +114,7 @@ def chunk(content: str) -> List[str]:
             temp_string = ""
         temp_string += string + "\n\n"
     final_list.append(temp_string)
-    return final_list
+    return final_list'''
 
 
 async def read_paper(
@@ -141,8 +138,8 @@ async def read_paper(
         {"content": attach(file_path, current_user_directory)}
     )
     answer = StringIO()
-    async for chunk in deepseek_v3.astream(prompt):
-        answer.write(chunk.content)
+    async for answer_chunk in deepseek_v3.astream(prompt):
+        answer.write(answer_chunk.content)
         yield answer.getvalue()
     answer.close()
 

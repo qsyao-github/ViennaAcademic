@@ -1,0 +1,20 @@
+[package]
+name = "va_rust_utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "va_rust_utils"
+crate-type = ["cdylib"]
+
+[dependencies]
+lazy_static = "1.5.0"
+pyo3 = "0.24.0"
+regex = "1.11.1"
+
+[profile.release]
+opt-level = 3
+
+[profile.dev]
+opt-level = 3
