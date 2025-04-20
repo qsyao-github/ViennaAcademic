@@ -15,10 +15,16 @@ regex = "1.11.1"
 
 [profile.release]
 opt-level = 3
-lto = true
-target-cpu = "native"
+lto = "fat"
+codegen-units = 1
+panic= "abort"
+strip = "symbols"
+debug = false
 
 [profile.dev]
 opt-level = 3
-lto = true
-target-cpu = "native"
+lto = "fat"
+codegen-units = 1
+panic= "abort"
+strip = "symbols"
+debug = false

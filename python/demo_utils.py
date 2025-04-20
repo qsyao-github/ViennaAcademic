@@ -13,7 +13,11 @@ from python.academic_utils.paper import (
     translate_paper_to_English,
 )
 from python.academic_utils.wolfram import attach_hints
-from python.chat_utils.attachment_processor import process_attachments
+from va_rust_utils import (
+    chat_utils_attachment_processor_process_attachments as process_attachments,
+)
+
+# from python.chat_utils.attachment_processor import process_attachments
 from python.chat_utils.chat import ChatManager, SolveManager
 from python.chat_utils.memory import remove_thread_data
 from python.file_utils.file_conversion import (
@@ -140,7 +144,6 @@ async def check_delete(
                 )
                 if (now - file_mtime).days > 3:
                     os.remove(file_path)
-                    print(f"Deleted: {file_path}")
     await update(current_user)
     return (
         {"text": "", "files": []},

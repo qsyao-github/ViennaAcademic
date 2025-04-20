@@ -28,7 +28,7 @@ static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
     ])
 });
 
-static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
+static LINEBREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
 
 #[pyfunction]
 pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
@@ -60,10 +60,12 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
     }
 
     let code_path = Path::new(current_user_directory).join("code").join(file);
-
-    let code = fs::read_to_string(code_path).unwrap();
-    let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
-    format!("```{}\n{}\n```", lang, code)
+    if code_path.exists() {
+        let code = fs::read_to_string(code_path).unwrap();
+        let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
+        return format!("```{}\n{}\n```", lang, code);
+    }
+    "".to_string()
 }
 
 #[pyfunction]
@@ -87,7 +89,7 @@ pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
     let mut temp_string = String::new();
     let mut char_count = 0;
 
-    for para in RE.split(content) {
+    for para in LINEBREAK_RE.split(content) {
         let para_len = para.chars().count();
         temp_string.push_str(para);
         char_count += para_len;
