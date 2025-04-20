@@ -8,8 +8,10 @@ use crate::academic_utils::paper::academic_utils_paper_chunk;
 
 mod chat_utils {
     pub mod attachment_processor;
+    pub mod tool_formatter;
 }
 use crate::chat_utils::attachment_processor::chat_utils_attachment_processor_process_attachments;
+use crate::chat_utils::tool_formatter::chat_utils_tool_formatter_format_tools;
 
 #[pymodule]
 fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -19,5 +21,6 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
         chat_utils_attachment_processor_process_attachments,
         m
     )?)?;
+    m.add_function(wrap_pyfunction!(chat_utils_tool_formatter_format_tools, m)?)?;
     Ok(())
 }

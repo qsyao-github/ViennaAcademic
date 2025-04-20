@@ -9,8 +9,8 @@ from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from python.chat_utils.agent_backend import agent_app
 from python.chat_utils.chat_backend import solve_app
 from python.chat_utils.media_handler import create_image_component
-from python.chat_utils.tool_formatter import format_tools
 from python.web_utils.search import generate_academic_search_summary
+from va_rust_utils import chat_utils_tool_formatter_format_tools as format_tools
 
 
 class ChatManager:
@@ -182,7 +182,7 @@ class SolveManager:
         """
         split_result = content.rsplit("</think>", 1)
         if len(split_result) > 1:
-            return split_result[0][cls.LENGTH_OF_THINK_TAG:].strip(), split_result[-1]
+            return split_result[0][cls.LENGTH_OF_THINK_TAG :].strip(), split_result[-1]
         return "", content
 
     @classmethod
