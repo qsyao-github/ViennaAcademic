@@ -8,7 +8,7 @@ use std::path::Path;
 
 const MIN_CHARACTER_THRESHOLD: usize = 63;
 
-static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
+pub static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
     HashMap::from([
         ("py", "python"),
         ("c", "c"),
@@ -28,7 +28,7 @@ static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
     ])
 });
 
-static LINEBREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
+pub static LINEBREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
 
 #[pyfunction]
 pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {

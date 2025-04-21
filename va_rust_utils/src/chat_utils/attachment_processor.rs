@@ -4,7 +4,7 @@ use regex::Regex;
 
 use crate::academic_utils::paper;
 
-static ATTACH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"#attach\{([^}]+)\}").unwrap());
+pub static ATTACH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"#attach\{([^}]+)\}").unwrap());
 
 #[pyfunction]
 pub fn chat_utils_attachment_processor_process_attachments(

@@ -25,8 +25,10 @@ from python.demo_utils import (
 from python.knowledge_utils.custom_reranker import shutdown_reranker_session
 from python.private.auth import check_login
 from python.web_utils.arxiv_crawler import shutdown_arxiv_session
+from va_rust_utils import initialize_static
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+initialize_static()
 
 
 def handle_sigint(_signum, _frame):
