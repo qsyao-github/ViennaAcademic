@@ -15,7 +15,6 @@ from va_rust_utils import (
 marker_ext = frozenset([".pdf", ".pptx", ".xlsx"])
 # 清洗图片和引用
 remove_image_pattern = re.compile(r"!\[.*?\]\(.*?\)\s*(?:\{.*?\}\s*)?", re.DOTALL)
-remove_citation_pattern = re.compile(r"#cite\([^)]*\)")
 
 
 def pandoc_to_markdown(

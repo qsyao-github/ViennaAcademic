@@ -8,12 +8,26 @@ use std::process::{Command, Stdio};
 pub static REMOVE_CITATION_PATTERN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"#cite\([^)]*\)").unwrap());
 
-fn rust_pandoc_convert(
+fn pandoc_convert(
     file_basename: &str,
     original_file_path: &str,
     target_path: &str,
     target_ext: &str,
 ) {
+    /*
+    用pandoc转换文件
+
+    Parameters
+    ----------
+    file_basename: &str
+        文件名，不含后缀和根目录路径
+    original_file_path: &str
+        完整文件路径
+    target_path: &str
+        目标路径
+    target_ext: &str
+        目标文件后缀
+    */
     let output_path = Path::new(target_path).join(format!("{}.{}", file_basename, target_ext));
 
     let _ = Command::new("pandoc")
@@ -28,7 +42,22 @@ fn rust_pandoc_convert(
         .output();
 }
 
-fn rust_markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) {
+fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) {
+    /*
+    将markdown转换为pdf
+
+    采用pandoc转换为typst源文件，正则表达式清洗，由typst编译为pdf
+
+    Parameters
+    ----------
+    file_basename: &str
+        文件名，不含后缀和根目录路径
+    original_path: &str
+        完整文件路径
+    target_path: &str
+        目标路径
+    */
+
     // 执行pandoc并获取输出
     let pandoc_output = Command::new("pandoc")
         .args([
@@ -90,12 +119,26 @@ pub fn file_utils_file_conversion_markdown_to_everything(
     target_path: &str,
     target_ext: &str,
 ) {
+    /*
+    将markdown文件转换为其他格式
+
+    pdf使用typst编译，其他格式使用pandoc转换
+    Parameters
+    ----------
+    original_path: &str
+        原始文件路径
+    target_path: &str
+        目标路径
+    target_ext: &str
+        目标文件后缀
+    */
+
     let path = Path::new(original_path);
     let file_name = path.file_stem().unwrap().to_str().unwrap();
 
     if target_ext != "pdf" {
-        rust_pandoc_convert(file_name, original_path, target_path, target_ext);
+        pandoc_convert(file_name, original_path, target_path, target_ext);
     } else {
-        rust_markdown_to_pdf(file_name, original_path, target_path);
+        markdown_to_pdf(file_name, original_path, target_path);
     }
 }
