@@ -10,10 +10,12 @@ use crate::academic_utils::paper::SUFFIX_MAP;
 
 mod chat_utils {
     pub mod attachment_processor;
+    pub mod media_handler;
     pub mod tool_formatter;
 }
 use crate::chat_utils::attachment_processor::chat_utils_attachment_processor_process_attachments;
 use crate::chat_utils::attachment_processor::ATTACH_RE;
+use crate::chat_utils::media_handler::chat_utils_media_handler_encode_image;
 use crate::chat_utils::tool_formatter::chat_utils_tool_formatter_format_tools;
 use crate::chat_utils::tool_formatter::TOOL_CALL_PATTERN;
 
@@ -32,6 +34,9 @@ use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
 use crate::web_utils::arxiv_crawler::REMOVE_CONSECUTIVE_NEWLINES;
 use crate::web_utils::arxiv_crawler::REMOVE_HYPERLINK;
 
+/*
+预热正则
+*/
 #[pyfunction]
 fn initialize_static() {
     LINEBREAK_RE.split("Line1  \n\n  Line2");
@@ -57,6 +62,7 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
         chat_utils_attachment_processor_process_attachments,
         m
     )?)?;
+    m.add_function(wrap_pyfunction!(chat_utils_media_handler_encode_image, m)?)?;
     m.add_function(wrap_pyfunction!(chat_utils_tool_formatter_format_tools, m)?)?;
     m.add_function(wrap_pyfunction!(
         file_utils_file_conversion_markdown_to_everything,
