@@ -21,6 +21,8 @@ mod file_utils {
     pub mod file_conversion;
 }
 use crate::file_utils::file_conversion::file_utils_file_conversion_markdown_to_everything;
+use crate::file_utils::file_conversion::file_utils_file_conversion_pandoc_to_markdown;
+use crate::file_utils::file_conversion::IMAGE_PATTERN;
 use crate::file_utils::file_conversion::REMOVE_CITATION_PATTERN;
 
 #[pyfunction]
@@ -30,6 +32,11 @@ fn initialize_static() {
     ATTACH_RE.replace_all("#attach{some text}", "");
     TOOL_CALL_PATTERN.replace_all(r#"{ \n "tool_name": \n "arg_name""#, "");
     REMOVE_CITATION_PATTERN.replace_all("#cite(some text)", "");
+    IMAGE_PATTERN.replace_all(
+        r#"![](media/image1.png){width="6.718607830271216in"
+height="3.8802088801399823in"}"#,
+        "",
+    );
 }
 
 #[pymodule]
@@ -44,6 +51,10 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(chat_utils_tool_formatter_format_tools, m)?)?;
     m.add_function(wrap_pyfunction!(
         file_utils_file_conversion_markdown_to_everything,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        file_utils_file_conversion_pandoc_to_markdown,
         m
     )?)?;
     Ok(())

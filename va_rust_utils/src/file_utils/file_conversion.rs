@@ -8,6 +8,51 @@ use std::process::{Command, Stdio};
 pub static REMOVE_CITATION_PATTERN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"#cite\([^)]*\)").unwrap());
 
+pub static IMAGE_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?m)^!\[\]\([^)]+\)\{[^}]*\}").unwrap());
+
+/*
+用pandoc转换为markdown
+
+Parameters
+----------
+file_basename: &str
+    文件名，用于指定生成文件名
+original_file_path: &str
+    文件路径
+target_path: &str
+    目标路径
+*/
+#[pyfunction]
+pub fn file_utils_file_conversion_pandoc_to_markdown(
+    file_basename: &str,
+    original_file_path: &str,
+    target_path: &str,
+) {
+    let output_path = Path::new(target_path).join(format!("{}.md", file_basename));
+
+    let output = Command::new("pandoc")
+        .args(&[
+            "-s",
+            "--link-images=false",
+            "--reference-links=false",
+            "-t",
+            "markdown",
+            original_file_path,
+        ])
+        .output()
+        .unwrap();
+
+    if !output.status.success() {
+        eprintln!("Pandoc failed: {}", String::from_utf8_lossy(&output.stderr));
+        return;
+    }
+
+    let result = String::from_utf8(output.stdout).unwrap();
+    let cleaned_result = IMAGE_PATTERN.replace_all(&result, "").into_owned();
+    std::fs::write(output_path, cleaned_result).unwrap();
+}
+
 /*
 用pandoc转换文件
 

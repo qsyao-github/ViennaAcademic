@@ -1,5 +1,6 @@
-import aiosqlite
 import asyncio
+
+import aiosqlite
 import uvloop
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
