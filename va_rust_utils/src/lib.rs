@@ -25,6 +25,13 @@ use crate::file_utils::file_conversion::file_utils_file_conversion_pandoc_to_mar
 use crate::file_utils::file_conversion::IMAGE_PATTERN;
 use crate::file_utils::file_conversion::REMOVE_CITATION_PATTERN;
 
+mod web_utils {
+    pub mod arxiv_crawler;
+}
+use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
+use crate::web_utils::arxiv_crawler::REMOVE_CONSECUTIVE_NEWLINES;
+use crate::web_utils::arxiv_crawler::REMOVE_HYPERLINK;
+
 #[pyfunction]
 fn initialize_static() {
     LINEBREAK_RE.split("Line1  \n\n  Line2");
@@ -37,6 +44,8 @@ fn initialize_static() {
 height="3.8802088801399823in"}"#,
         "",
     );
+    REMOVE_CONSECUTIVE_NEWLINES.replace_all("Line1 \n\n\n Line2", "\n\n");
+    REMOVE_HYPERLINK.replace_all("[[13](some_link)]", "[$1]");
 }
 
 #[pymodule]
@@ -55,6 +64,10 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(
         file_utils_file_conversion_pandoc_to_markdown,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        web_utils_arxiv_crawler_process_markdown,
         m
     )?)?;
     Ok(())

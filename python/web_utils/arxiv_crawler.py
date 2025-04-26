@@ -4,22 +4,17 @@ arxiv爬虫
 
 import asyncio
 import os
-import re
 
 import aiofiles
 import aiohttp
 import pymupdf4llm
 from lxml import etree
 from markdownify import markdownify as md
+from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
 
 """全局session"""
 _arxiv_session = None
 _arxiv_session_lock = asyncio.Lock()
-
-"""清除重复换行，图片，超链接"""
-remove_consecutive_newlines = re.compile(r"\n{3,}")
-remove_images = re.compile(r"!\[.*?\]\(.*?\)")
-remove_hyperlink = re.compile(r"[\\]*[\[]+(.*?)\((.*?)\)[\]]*")
 
 
 HEADERS = {
@@ -110,14 +105,14 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str) -> str:
     markdown_content = md(
         target_html,
         heading_style="ATX",  # 使用#标题
-        bullets="-*+",  # 支持多种列表符号
         code_language="latex",  # 识别代码块语言
         auto_links=False,
+        escape_asterisks=False,
+        escape_underscores=False,
+        escape_misc=False,
+        strip=["img", "button"],
     )
-    markdown_content = remove_images.sub("", markdown_content)
-    markdown_content = remove_hyperlink.sub(r"[\1", markdown_content)
-    markdown_content = remove_consecutive_newlines.sub("\n\n", markdown_content)
-    return markdown_content.strip()
+    return process_markdown(markdown_content)
 
 
 async def shutdown_arxiv_session():
