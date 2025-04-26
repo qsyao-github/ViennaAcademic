@@ -37,6 +37,7 @@ LATEX_DELIMITERS = [
 def get_current_user(
     request: gr.Request,
 ) -> Tuple[str, List[str], List[str], List[str], List[str], List[str], List[str]]:
+    """登录后执行：获取当前用户名，以及用户目录下的文件列表"""
     username = request.username
     return (
         username,
@@ -57,6 +58,13 @@ def show_files(
     append: bool = True,
     with_folder_name: bool = False,
 ) -> None:
+    """
+    登录后，目录文件列表改变时：显示文件名，下载，删除键。
+
+    点击文件名可更新输入框的值
+
+    删除键触发知识库更新，对应文件列表更新
+    """
     folder_path = f"{current_dir}/{folder}"
     for file in os.listdir(folder_path):
         with gr.Row():
@@ -92,6 +100,11 @@ def show_files(
 def _paper_show_files(
     current_dir: str, file_list: gr.State, selected_paper: gr.Textbox
 ) -> None:
+    """
+    登录后，目录文件列表改变时：显示文件名，下载，删除键。（论文界面)
+
+    删除键触发知识库更新，对应文件列表更新。
+    """
     folder_path = f"{current_dir}/knowledgeBase"
     for file in os.listdir(folder_path):
         with gr.Row():
@@ -112,6 +125,7 @@ def _paper_show_files(
 async def clear_thread(
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
 ) -> None:
+    """点击聊天、解题界面的清除键：清空对应的历史记录。目前，thread_id设定为前端聊天中的第一条信息的str"""
     if chatbot:
         await remove_thread_data(str(chatbot[0]))
 
@@ -128,6 +142,7 @@ async def check_delete(
     List[str],
     List[str],
 ]:
+    """点击聊天界面清除键：移除media文件夹下的图片，清除对应的历史记录，清除用户文件夹下3天未修改的文件，更新知识库"""
     for file_path in glob.glob("media/*.png"):
         os.remove(file_path)
     delete_png_files()
@@ -157,6 +172,7 @@ async def check_delete(
 async def solve_delete(
     chatbot: List[Dict[str, Union[str, Dict[str, str], None]]],
 ) -> Tuple[str, List]:
+    """点击解题界面清除键：清除对应的历史记录"""
     await clear_thread(chatbot)
     return "", []
 
@@ -200,12 +216,27 @@ async def respond(
     ],
     None,
 ]:
+    """点击聊天界面发送键：
+
+    1. 预处理
+    - 知识库模式：在用户输入前加入知识库召回文本
+    - 网页搜索模式：在用户输入前加入searXNG搜索结果
+    - 处理用户输入中的#attach{}命令，将#attach{file_name.ext}替换为file_name.ext的内容
+    2. 前端初始化
+    - 更新用户输入和文件
+    - 暂定模型输出为空
+    3. 流式输出
+    - 将astream_response返回值赋值给chatbot[-1]["content"]
+    4. 后处理
+    - 检测media文件夹是否有模型绘图结果，若有则加入
+
+    期间清空输入框
+    """
     if msg["text"] or msg["files"]:
-        # Main processing logic
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
         possible_media_filename = f"media/{now_time}.png"
 
-        # Process incoming message
+        # 预处理
         text = msg["text"]
         web_search_result, reference = "", ""
         if chat_mode == "知识库":
@@ -216,11 +247,12 @@ async def respond(
             web_search_result = f"\n{web_search_result}\n\n"
             reference = f"\n\n参考文献\n\n{reference}"
         formatted_text = process_attachments(text, current_user_dir)
+        # 前端初始化
         append_text(chatbot, formatted_text, "user")
         append_files(chatbot, msg["files"], "user")
         append_text(chatbot, "", "assistant")
 
-        # Generate and stream responses
+        # 流式输出
         bot_response = ChatManager.astream_response(
             f"{web_search_result}{formatted_text}",
             msg["files"],
@@ -234,7 +266,7 @@ async def respond(
             yield {"text": "", "files": []}, chatbot
         chatbot[-1]["content"] += reference
 
-        # Handle generated media file if exists
+        # 后处理
         if os.path.exists(possible_media_filename):
             append_file(chatbot, possible_media_filename, "assistant")
 
@@ -246,20 +278,41 @@ async def academic_search(
 ) -> AsyncGenerator[
     Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None
 ]:
+    """点击聊天界面论文搜索键：
+
+    1. 前端初始化
+    - 更新用户输入
+    - 暂定模型输出为空
+    2. 流式输出
+    - 将append_search_result返回值赋值给chatbot[-1]["content"]
+
+    期间清空输入框
+    """
     if query:
+        # 前端初始化
         append_text(chatbot, f"搜索{query}相关论文", "user")
-        yield "", chatbot
+        append_text(chatbot, "", "assistant")
         academic_search_result = ChatManager.append_search_result(
             query, str(chatbot[0])
         )
-        append_text(chatbot, "", "assistant")
         async for chunk_result in academic_search_result:
             chatbot[-1]["content"] = chunk_result
             yield "", chatbot
 
 
 async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str]]:
+    """点击聊天界面论文上传键：
+
+    1. 输出提示信息
+    2. 重复上传检测
+    3. 将上传后的文件移动到paper文件夹下
+    4. 解析，写入knowledgeBase文件夹下
+    5. 更新知识库
+    6. 更新paper, knowledgeBase文件列表
+    """
+    # 输出提示信息
     gr.Info("已开始上传，请勿重复提交。10页的论文约需40s，请耐心等候")
+    # 重复上传检测
     file_base_name = os.path.basename(file)
     simpfile = os.path.splitext(file_base_name)[0]
     knowledge_base_files = set(os.listdir(f"{current_dir}/knowledgeBase"))
@@ -269,14 +322,15 @@ async def upload_paper(file: str, current_dir: str) -> Tuple[List[str], List[str
         or f"{simpfile}.txt" in knowledge_base_files
     ):
         return os.listdir(paper_directory), list(knowledge_base_files)
+    # 移动
     shutil.move(file, paper_directory)
+    # 解析
     everything_to_markdown(
         f"{current_dir}/paper/{file_base_name}", f"{current_dir}/knowledgeBase"
     )
-    """text = parse_everything(f"{current_dir}/paper/{file_base_name}")
-    with open(f"{current_dir}/knowledgeBase/{simpfile}.md", "w", encoding="utf-8") as f:
-        f.write(text)"""
+    # 更新知识库
     await update(current_dir)
+    # 更新paper, knowledgeBase文件列表
     return os.listdir(paper_directory), list(knowledge_base_files)
 
 
@@ -287,30 +341,65 @@ async def download_paper_chatbot(
 ) -> AsyncGenerator[
     Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]], List[str]], None
 ]:
+    """点击聊天界面的arxiv论文下载键：
+
+    1. 输出提示信息
+    2. 前端初始化
+    - 更新用户输入
+    - 暂定模型输出为空
+    3. 流式输出
+    - 将download_arxiv_paper返回值赋值给chatbot[-1]["content"]
+    4. 更新知识库
+    5. 更新knowledgeBase文件列表
+
+    期间清空输入框
+    """
+    # 输出提示信息
     gr.Info("正在下载，请耐心等候")
+    # 前端初始化
     append_text(chatbot, f"下载{arxiv_num}并翻译标题与摘要", "user")
-    yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
     append_text(chatbot, "", "assistant")
+    yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
+    # 流式输出
     async for chunk in download_arxiv_paper(arxiv_num, current_dir):
         chatbot[-1]["content"] = chunk
         yield "", chatbot, []
+    # 更新知识库
     await update(current_dir)
+    # 更新knowledgeBase文件列表
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
 
 
 async def download_paper_textbox(
     arxiv_num: str, current_dir: str
 ) -> AsyncGenerator[Tuple[str, str, List[str]], None]:
+    """
+    点击论文界面的arxiv论文下载键：
+
+    1. 输出提示信息
+    2. 流式输出
+    3. 更新知识库
+    4. 更新knowledgeBase文件列表
+    """
+    # 输出提示信息
     gr.Info("正在下载，请耐心等候")
+    # 流式输出
     answer = ""
     async for chunk in download_arxiv_paper(arxiv_num, current_dir):
         answer = chunk
         yield "", chunk, []
+    # 更新知识库
     await update(current_dir)
+    # 更新knowledgeBase文件列表
     yield "", answer, os.listdir(f"{current_dir}/knowledgeBase")
 
 
 def upload_code(file: str, current_dir: str) -> List[str]:
+    """
+    点击代码界面的上传代码键
+    1. 将代码文件移动到code文件夹
+    2. 更新code文件列表
+    """
     code_directory = f"{current_dir}/code"
     shutil.move(file, code_directory)
     return os.listdir(code_directory)
@@ -326,16 +415,31 @@ paper_function_map = {
 async def generate_paper_answer(
     selected_function: str, selected_paper: str, current_dir: str
 ) -> AsyncGenerator[Tuple[str, List[str]], None]:
+    """点击论文上传的发送键：
+
+    1. 文件不存在处理
+    2. 输出开始信息
+    3. 获取功能
+    4. 流式输出
+    5. 输出完成信息
+    6. 更新knowledgeBase文件列表
+    """
+    # 文件不存在处理
     if selected_paper not in os.listdir(f"{current_dir}/knowledgeBase"):
         yield "文件不存在", os.listdir(f"{current_dir}/knowledgeBase")
         return
+    # 输出开始信息
     gr.Info("正在生成答案，请耐心等候")
+    # 获取功能
     process_function = paper_function_map.get(selected_function, read_paper)
+    # 流式输出
     final_answer = ""
     async for chunk in process_function(selected_paper, current_dir):
         final_answer = chunk
         yield final_answer, []
+    # 输出完成信息
     gr.Info("已完成，请刷新")
+    # 更新knowledgeBase文件列表
     yield final_answer, os.listdir(f"{current_dir}/knowledgeBase")
 
 
@@ -348,10 +452,24 @@ async def solve_respond(
 ) -> AsyncGenerator[
     Tuple[str, List[Dict[str, Union[str, Dict[str, str], None]]]], None
 ]:
+    """点击解题界面的发送键：
+
+    1. 处理用户输入中的#attach{}命令，将#attach{file_name.ext}替换为file_name.ext的内容
+    2. 空输入处理
+    3. 前端初始化
+    - 更新用户输入
+    - 若开启wolfram，获取wolfram结果后加入用户输入前，再次更新
+    - 暂定模型思考、输出为空
+    4. 流式输出
+    - 将astream_response返回值赋值给chatbot[-2]["content"], chatbot[-1]["content"]，即思考与正文
+    """
+    # 附件处理
     solve_msg = process_attachments(solve_msg.strip(), current_dir)
+    # 空输入处理
     if not solve_msg:
         yield "", solve_chatbot
         return
+    # 前端初始化
     solve_chatbot.append(
         {"role": "user", "metadata": None, "content": solve_msg, "options": None}
     )
@@ -365,6 +483,7 @@ async def solve_respond(
             {"role": "assistant", "content": ""},
         ]
     )
+    # 流式输出
     answer = SolveManager.astream_response(solve_msg, str(solve_chatbot[0]), distill)
     yield "", solve_chatbot
     async for chunk in answer:
@@ -373,6 +492,7 @@ async def solve_respond(
 
 
 def convert_markdown_to(file_name: str, current_dir: str, target_ext: str) -> List[str]:
+    """点击格式转换界面的转换键：生成转换文件，更新convert文件列表"""
     markdown_to_everything(
         f"{current_dir}/{file_name}", f"{current_dir}/convert", target_ext
     )
