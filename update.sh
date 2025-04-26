@@ -5,4 +5,4 @@ conda install --update-all -c conda-forge pandoc
 rustup self update
 rustup update stable
 $HOME/typst-x86_64-unknown-linux-musl/typst update
-pip3 install -U --upgrade-strategy eager radon ruff langchain langchain-community langchain-mistralai langgraph-checkpoint-sqlite langchain-openai langchain-deepseek langgraph gradio faiss-cpu arxiv docker unstructured markdown pymupdf4llm accelerate uvloop marker-pdf[full] crawl4ai
+pip3 install -U --upgrade-strategy eager radon ruff langchain langchain-community langchain-mistralai langgraph-checkpoint-sqlite langchain-openai langchain-deepseek langgraph gradio faiss-cpu arxiv docker unstructured markdown pymupdf4llm uvloop crawl4ai maturin marker-pdf[full]

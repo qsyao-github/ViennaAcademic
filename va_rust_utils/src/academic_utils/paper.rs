@@ -30,25 +30,25 @@ pub static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|
 
 pub static LINEBREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
 
+/*
+附加文件内容
+
+在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
+
+Parameters
+----------
+file: &str
+    文件名
+current_user_directory: &str
+    当前用户根目录
+
+Returns
+----------
+String
+    文件内容。若为代码则放入代码框
+*/
 #[pyfunction]
 pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
-    /*
-    附加文件内容
-
-    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
-
-    Parameters
-    ----------
-    file: &str
-        文件名
-    current_user_directory: &str
-        当前用户根目录
-
-    Returns
-    ----------
-    String
-        文件内容。若为代码则放入代码框
-    */
     let path = Path::new(file);
     let file_name = path.file_stem().unwrap().to_str().unwrap();
     let file_suffix = path.extension().unwrap_or_default().to_str().unwrap();
@@ -68,23 +68,23 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
     "".to_string()
 }
 
+/*
+分段
+
+按换行符分段，确保每段长度大于63个字符
+
+Parameters
+----------
+content: &str
+    文本内容
+
+Returns
+----------
+final_list: Vec<String>
+    分段后的文本
+*/
 #[pyfunction]
 pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
-    /*
-    分段
-
-    按换行符分段，确保每段长度大于63个字符
-
-    Parameters
-    ----------
-    content: &str
-        文本内容
-
-    Returns
-    ----------
-    final_list: Vec<String>
-        分段后的文本
-    */
     let mut final_list = Vec::new();
     let mut temp_string = String::new();
     let mut char_count = 0;
