@@ -57,7 +57,7 @@ async def websearch(query: str) -> str:
 
 @tool
 def ipython(code: str) -> str:
-    """使用IPython。用numpy、scipy、sympy做数值、符号计算，用matplotlib绘图"""
+    """使用IPython。用numpy、scipy、sympy做数值/符号计算，pandas处理数据，matplotlib绘图"""
     return python_tool(code)
 
 

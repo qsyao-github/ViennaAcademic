@@ -1,5 +1,4 @@
 import datetime
-import glob
 import os
 import shutil
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
@@ -19,7 +18,6 @@ from python.file_utils.file_conversion import (
     everything_to_markdown,
 )
 from python.knowledge_utils.bce_inference import get_response, update
-from python.llm_utils.execute_code import delete_png_files
 from python.web_utils.search import attach_web_result
 from va_rust_utils import (
     chat_utils_attachment_processor_process_attachments as process_attachments,
@@ -144,22 +142,28 @@ async def check_delete(
     List[str],
     List[str],
 ]:
-    """点击聊天界面清除键：移除media文件夹下的图片，清除对应的历史记录，清除用户文件夹下3天未修改的文件，更新知识库"""
-    for file_path in glob.glob("media/*.png"):
-        os.remove(file_path)
-    delete_png_files()
+    """点击聊天界面清除键：清除对应的历史记录，移除media文件夹下1min未修改的图片，清除用户文件夹下3天未修改的文件，更新知识库"""
+    # 清除对应的历史记录
     await clear_thread(chatbot)
+    # 清除过时文件
     now = datetime.datetime.now()
+    # media文件夹
+    for root, _, files in os.walk("media"):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+            if (now - file_mtime).seconds > 60:
+                os.remove(file_path)
+    # 用户文件夹
     for root, _, files in os.walk(current_user):
         for file in files:
             file_path = os.path.join(root, file)
-            if os.path.isfile(file_path):
-                file_mtime = datetime.datetime.fromtimestamp(
-                    os.path.getmtime(file_path)
-                )
-                if (now - file_mtime).days > 3:
-                    os.remove(file_path)
+            file_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+            if (now - file_mtime).days > 3:
+                os.remove(file_path)
+    # 更新知识库
     await update(current_user)
+    # 更新文件列表
     return (
         {"text": "", "files": []},
         [],

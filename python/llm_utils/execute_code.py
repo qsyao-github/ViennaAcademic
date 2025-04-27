@@ -1,12 +1,13 @@
 """
-使用gVisor保护的scipy-notebook容器执行命令
+使用scipy-light容器执行命令，该容器由scipy-light/Dockerfile构建
 
 启动容器(先于demo.py)：
-docker run --runtime=runsc --rm -d -p 127.0.0.1:8888:8888 --name scipy-notebook quay.io/jupyter/scipy-notebook
+docker run -d --rm --name scipy-light scipy-light
 """
 
 import os
 import re
+import subprocess
 
 import docker
 
@@ -18,12 +19,7 @@ KILL_AFTER = 1
 clean_output_pattern = re.compile(r"Out\[\d+\]:\s*")
 # 连接容器
 client = docker.from_env()
-container = client.containers.get("scipy-notebook")
-
-
-def delete_png_files() -> None:
-    """删除容器中的png文件"""
-    container.exec_run("sh -c 'rm -f *.png'")
+container = client.containers.get("scipy-light")
 
 
 def python_tool(code: str) -> str:
@@ -41,7 +37,7 @@ def python_tool(code: str) -> str:
 
     Notes
     ----------
-    1. 对matplotlib生成图片，使用cat获取二进制流写入本地(gVisor限制docker cp)
+    1. 使用docker cp处理png文件，复制到容器外后迅速删除
     """
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
     exec_id = container.exec_run(
@@ -55,14 +51,25 @@ def python_tool(code: str) -> str:
         else exec_id.output.decode("utf-8")
     )
     # png文件处理
-    png_files = (
-        container.exec_run("sh -c 'ls -1 | grep png'")
-        .output.decode("utf-8")
-        .strip()
-        .split("\n")
+    container_png_files_str = (
+        container.exec_run("sh -c 'ls -1 | grep png'").output.decode("utf-8").strip()
     )
-    for png_file in png_files:
-        if not os.path.exists(f"media/{png_file}"):
-            with open(f"media/{png_file}", "wb") as f:
-                f.write(container.exec_run(f"cat /home/jovyan/{png_file}").output)
+    if not container_png_files_str:
+        return f'```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
+    container_png_files = set(container_png_files_str.split("\n"))
+    # 提前列出media下所有png文件
+    media_png_files = set(os.listdir("media"))
+    # 复制文件
+    if copy_files := container_png_files - media_png_files:
+        subprocess.run(
+            [
+                "sh",
+                "-c",
+                " && ".join(
+                    f"docker cp scipy-light:/home/jovyan/{f} media/{f}"
+                    for f in copy_files
+                ),
+            ]
+        )
+        container.exec_run(f"rm {' '.join(copy_files)}")
     return f'```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
