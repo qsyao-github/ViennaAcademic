@@ -14,7 +14,7 @@ from python.web_utils.arxiv_crawler import crawl_arxiv
 
 
 async def download_arxiv_paper(
-    arxiv_id: str, current_dir: str
+    arxiv_id: str, current_dir: str, for_user: bool = False, thread_id: str = ""
 ) -> AsyncGenerator[str, None]:
     """下载并处理arXiv论文，返回翻译后的标题和摘要
 
@@ -38,30 +38,37 @@ async def download_arxiv_paper(
         yield f"ID可能错误: {str(e)}"
         return
     user_message = f"下载{arxiv_id}并翻译标题与摘要"
-    thread_id = str(
-        {"role": "user", "metadata": None, "content": user_message, "options": None}
+    thread_id = (
+        thread_id
+        if thread_id
+        else str(
+            {"role": "user", "metadata": None, "content": user_message, "options": None}
+        )
     )
     arxiv_num = link.rsplit("/", 1)[-1]
-    content_task = asyncio.create_task(crawl_arxiv(arxiv_num, current_dir))
+    content_task = asyncio.create_task(crawl_arxiv(arxiv_num, current_dir, for_user))
     buffer = StringIO()
-    async for chunk, _ in agent_app.astream(
-        {
-            "messages": [
-                HumanMessage(
-                    content=[
-                        {
-                            "type": "text",
-                            "text": f"请翻译标题与摘要\n\n{title}\n\n{abstract}",
-                        }
-                    ]
-                )
-            ]
-        },
-        {"configurable": {"thread_id": thread_id, "mode": "常规", "now_time": ""}},
-        stream_mode="messages",
-    ):
-        buffer.write(chunk.content)
-        yield buffer.getvalue()
+    if for_user:
+        async for chunk, _ in agent_app.astream(
+            {
+                "messages": [
+                    HumanMessage(
+                        content=[
+                            {
+                                "type": "text",
+                                "text": f"请翻译标题与摘要\n\n{title}\n\n{abstract}",
+                            }
+                        ]
+                    )
+                ]
+            },
+            {"configurable": {"thread_id": thread_id, "mode": "常规", "now_time": ""}},
+            stream_mode="messages",
+        ):
+            buffer.write(chunk.content)
+            yield buffer.getvalue()
+    else:
+        yield ""
     content = await content_task
     with open(
         os.path.join(current_dir, "knowledgeBase", f"{title}.md"), "w", encoding="utf-8"

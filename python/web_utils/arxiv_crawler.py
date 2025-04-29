@@ -11,6 +11,7 @@ import pymupdf4llm
 from lxml import etree
 from markdownify import markdownify as md
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
+from python.file_utils.file_conversion import everything_to_markdown
 
 """全局session"""
 _arxiv_session = None
@@ -22,7 +23,9 @@ HEADERS = {
 }
 
 
-async def process_pdf_arxiv(arxiv_num: str, current_dir: str) -> str:
+async def process_pdf_arxiv(
+    arxiv_num: str, current_dir: str, for_user: bool = False
+) -> str:
     """下载pdf并解析为markdown
 
     Parameters
@@ -39,21 +42,26 @@ async def process_pdf_arxiv(arxiv_num: str, current_dir: str) -> str:
     """
     global _arxiv_session
     try:
+        pdf_path = f"{current_dir}/paper/{arxiv_num}.pdf"
+        if os.path.exists(pdf_path) and for_user:
+            return everything_to_markdown(pdf_path, f"{current_dir}/knowledgeBase")
         async with _arxiv_session.get(f"pdf/{arxiv_num}") as response:
             response.raise_for_status()
 
             async with aiofiles.open(f"{current_dir}/paper/{arxiv_num}.pdf", "wb") as f:
                 async for chunk in response.content.iter_chunked(256 * 1024):
                     await f.write(chunk)
-        result = pymupdf4llm.to_markdown(f"{arxiv_num}.pdf")
-        os.remove(f"{arxiv_num}.pdf")
+        if for_user:
+            return everything_to_markdown(pdf_path, f"{current_dir}/knowledgeBase")
+        result = pymupdf4llm.to_markdown(pdf_path)
+        os.remove(pdf_path)
         return result
     except Exception as e:
         print(e)
         return ""
 
 
-async def crawl_arxiv(arxiv_num: str, current_dir: str) -> str:
+async def crawl_arxiv(arxiv_num: str, current_dir: str, for_user: bool = False) -> str:
     """爬取arxiv
 
     Parameters
@@ -86,7 +94,8 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str) -> str:
                 headers=HEADERS,
             )
     async with _arxiv_session.get(f"html/{arxiv_num}") as response:
-        response.raise_for_status()
+        if response.status == 404:
+            return await process_pdf_arxiv(arxiv_num, current_dir, for_user)
         html = await response.text()
 
     parser = etree.HTMLParser(remove_comments=True, encoding="utf-8")
@@ -97,7 +106,7 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str) -> str:
     )
 
     if not article_node:
-        return await process_pdf_arxiv(arxiv_num, current_dir)
+        return await process_pdf_arxiv(arxiv_num, current_dir, for_user)
 
     target_html = etree.tostring(
         article_node[0], encoding="unicode", method="html", pretty_print=True

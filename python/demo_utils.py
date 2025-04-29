@@ -367,7 +367,9 @@ async def download_paper_chatbot(
     append_text(chatbot, "", "assistant")
     yield "", chatbot, os.listdir(f"{current_dir}/knowledgeBase")
     # 流式输出
-    async for chunk in download_arxiv_paper(arxiv_num, current_dir):
+    async for chunk in download_arxiv_paper(
+        arxiv_num, current_dir, for_user=True, thread_id=str(chatbot[0])
+    ):
         chatbot[-1]["content"] = chunk
         yield "", chatbot, []
     # 更新知识库
@@ -391,7 +393,7 @@ async def download_paper_textbox(
     gr.Info("正在下载，请耐心等候")
     # 流式输出
     answer = ""
-    async for chunk in download_arxiv_paper(arxiv_num, current_dir):
+    async for chunk in download_arxiv_paper(arxiv_num, current_dir, for_user=True):
         answer = chunk
         yield "", chunk, []
     # 更新知识库
