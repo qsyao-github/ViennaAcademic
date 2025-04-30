@@ -55,7 +55,7 @@ def python_tool(code: str) -> str:
         container.exec_run("sh -c 'ls -1 | grep png'").output.decode("utf-8").strip()
     )
     if not container_png_files_str:
-        return f'```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
+        return f'\n```\n{clean_output_pattern.sub("", output.strip())}\n```\n\n'
     container_png_files = set(container_png_files_str.split("\n"))
     # 提前列出media下所有png文件
     media_png_files = set(os.listdir("media"))
@@ -72,4 +72,4 @@ def python_tool(code: str) -> str:
             ]
         )
         container.exec_run(f"rm {' '.join(copy_files)}")
-    return f'\n```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
+    return f'\n```\n{clean_output_pattern.sub("", output.strip())}\n```\n\n'
