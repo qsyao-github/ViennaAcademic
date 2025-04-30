@@ -4,8 +4,10 @@
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from python.chat_utils.media_handler import create_image_component
 from python.llm_utils.modelclient import glm_4v_flash
+from va_rust_utils import (
+    chat_utils_media_handler_create_image_component as create_image_component,
+)
 
 ocr_prompt_template = ChatPromptTemplate(
     [

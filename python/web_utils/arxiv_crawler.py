@@ -10,8 +10,8 @@ import aiohttp
 import pymupdf4llm
 from lxml import etree
 from markdownify import markdownify as md
+from python.file_utils.marker_parser import apdf_to_markdown
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
-from python.file_utils.file_conversion import everything_to_markdown
 
 """全局session"""
 _arxiv_session = None
@@ -44,15 +44,15 @@ async def process_pdf_arxiv(
     try:
         pdf_path = f"{current_dir}/paper/{arxiv_num}.pdf"
         if os.path.exists(pdf_path) and for_user:
-            return everything_to_markdown(pdf_path, f"{current_dir}/knowledgeBase")
+            return await apdf_to_markdown(pdf_path)
         async with _arxiv_session.get(f"pdf/{arxiv_num}") as response:
             response.raise_for_status()
 
             async with aiofiles.open(f"{current_dir}/paper/{arxiv_num}.pdf", "wb") as f:
-                async for chunk in response.content.iter_chunked(256 * 1024):
+                async for chunk in response.content.iter_chunked(1024 * 1024):
                     await f.write(chunk)
         if for_user:
-            return everything_to_markdown(pdf_path, f"{current_dir}/knowledgeBase")
+            return await apdf_to_markdown(pdf_path)
         result = pymupdf4llm.to_markdown(pdf_path)
         os.remove(pdf_path)
         return result

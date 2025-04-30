@@ -8,8 +8,10 @@ from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from python.chat_utils.agent_backend import agent_app
 from python.chat_utils.chat_backend import solve_app
-from python.chat_utils.media_handler import create_image_component
 from python.web_utils.search import generate_academic_search_summary
+from va_rust_utils import (
+    chat_utils_media_handler_create_image_component as create_image_component,
+)
 from va_rust_utils import chat_utils_tool_formatter_format_tools as format_tools
 
 

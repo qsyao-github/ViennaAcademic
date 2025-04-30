@@ -13,7 +13,7 @@ from va_rust_utils import (
 marker_ext = frozenset([".pdf", ".pptx", ".xlsx"])
 
 
-def marker_parse(file_basename: str, original_file_path: str, target_path: str) -> str:
+def marker_parse(file_basename: str, original_file_path: str, target_path: str):
     """使用marker转换为markdown
 
     Parameters
@@ -29,10 +29,9 @@ def marker_parse(file_basename: str, original_file_path: str, target_path: str) 
     output_path = os.path.join(target_path, f"{file_basename}.md")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
-    return result
 
 
-def everything_to_markdown(original_path: str, target_path: str) -> str:
+def everything_to_markdown(original_path: str, target_path: str):
     """将任意格式转换为markdown的高级接口
 
     Parameters
@@ -50,6 +49,6 @@ def everything_to_markdown(original_path: str, target_path: str) -> str:
     file_name, ext = os.path.splitext(original_path)
     file_basename = os.path.basename(file_name)
     if ext in marker_ext:
-        return marker_parse(file_basename, original_path, target_path)
-    pandoc_to_markdown(file_basename, original_path, target_path)
-    return ""
+        marker_parse(file_basename, original_path, target_path)
+    else:
+        pandoc_to_markdown(file_basename, original_path, target_path)
