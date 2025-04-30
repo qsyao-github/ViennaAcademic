@@ -88,10 +88,12 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str, for_user: bool = False) 
                 keepalive_timeout=120,
                 ssl=False,
             )
+            timeout = aiohttp.ClientTimeout(connect=10, sock_read=20)
             _arxiv_session = aiohttp.ClientSession(
                 base_url="https://arxiv.org",
                 connector=connector,
                 headers=HEADERS,
+                timeout=timeout,
             )
     async with _arxiv_session.get(f"html/{arxiv_num}") as response:
         if response.status == 404:

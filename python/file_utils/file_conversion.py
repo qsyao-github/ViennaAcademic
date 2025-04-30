@@ -41,6 +41,11 @@ def everything_to_markdown(original_path: str, target_path: str) -> str:
         原文件路径
     target_path: str
         目标路径
+
+    Returns
+    ----------
+    str
+        解析结果
     """
     file_name, ext = os.path.splitext(original_path)
     file_basename = os.path.basename(file_name)
