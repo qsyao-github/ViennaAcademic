@@ -1,4 +1,3 @@
-// use lazy_static::lazy_static;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
@@ -65,7 +64,7 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
         let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
         return format!("```{}\n{}\n```", lang, code);
     }
-    "".to_string()
+    "".into()
 }
 
 /*

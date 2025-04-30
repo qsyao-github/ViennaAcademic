@@ -72,4 +72,4 @@ def python_tool(code: str) -> str:
             ]
         )
         container.exec_run(f"rm {' '.join(copy_files)}")
-    return f'```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'
+    return f'\n```\n{clean_output_pattern.sub("", output).strip()}\n```\n\n'

@@ -31,12 +31,13 @@ use crate::file_utils::file_conversion::REMOVE_CITATION_PATTERN;
 mod web_utils {
     pub mod arxiv_crawler;
 }
+use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_get_article_html;
 use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
 use crate::web_utils::arxiv_crawler::REMOVE_CONSECUTIVE_NEWLINES;
 use crate::web_utils::arxiv_crawler::REMOVE_HYPERLINK;
 
 /*
-预热正则
+预热全局变量
 */
 #[pyfunction]
 fn initialize_static() {
@@ -51,6 +52,7 @@ fn initialize_static() {
 height="3.8802088801399823in"}"#,
         "",
     );
+    web_utils_arxiv_crawler_process_markdown(r#"<article></article>"#);
     REMOVE_CONSECUTIVE_NEWLINES.replace_all("Line1 \n\n\n Line2", "\n\n");
     REMOVE_HYPERLINK.replace_all("[[13](some_link)]", "[$1]");
 }
@@ -75,6 +77,10 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(
         file_utils_file_conversion_pandoc_to_markdown,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        web_utils_arxiv_crawler_get_article_html,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(

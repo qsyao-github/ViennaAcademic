@@ -11,6 +11,7 @@ import pymupdf4llm
 from lxml import etree
 from markdownify import markdownify as md
 from python.file_utils.marker_parser import apdf_to_markdown
+from va_rust_utils import web_utils_arxiv_crawler_get_article_html as get_article_html
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
 
 """全局session"""
@@ -21,6 +22,7 @@ _arxiv_session_lock = asyncio.Lock()
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
 }
+parser = etree.HTMLParser(remove_comments=True, encoding="utf-8")
 
 
 async def process_pdf_arxiv(
@@ -100,19 +102,11 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str, for_user: bool = False) 
             return await process_pdf_arxiv(arxiv_num, current_dir, for_user)
         html = await response.text()
 
-    parser = etree.HTMLParser(remove_comments=True, encoding="utf-8")
-    tree = etree.fromstring(html, parser)
+    target_html = get_article_html(html)
 
-    article_node = tree.xpath(
-        '//*[@id="main"]/div/article | /html/body/div[1]/div/article'
-    )
-
-    if not article_node:
+    if not target_html:
         return await process_pdf_arxiv(arxiv_num, current_dir, for_user)
 
-    target_html = etree.tostring(
-        article_node[0], encoding="unicode", method="html", pretty_print=True
-    )
     markdown_content = md(
         target_html,
         heading_style="ATX",  # 使用#标题
