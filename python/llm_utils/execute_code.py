@@ -7,7 +7,6 @@ docker run -d --rm --name scipy-light scipy-light
 
 import os
 import re
-import subprocess
 
 import docker
 
@@ -37,39 +36,30 @@ def python_tool(code: str) -> str:
 
     Notes
     ----------
-    1. 使用docker cp处理png文件，复制到容器外后迅速删除
+    1. 使用get_archive处理png文件，复制到容器外后迅速删除
     """
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
     exec_id = container.exec_run(
         f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace("\"", "\'")}"'
     )
     # 获取执行结果，处理超时
-    timeout = exec_id.exit_code == 124
-    output = (
-        f"执行超时：用时超过{TIMEOUT}s，请勿重试"
-        if timeout
-        else exec_id.output.decode("utf-8")
-    )
+    if exec_id.exit_code == 124:
+        return f"执行超时：用时超过{TIMEOUT}s，请勿重试"
+    output = f'\n```\n{clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())}\n```\n\n'
     # png文件处理
-    container_png_files_str = (
-        container.exec_run("sh -c 'ls -1 | grep png'").output.decode("utf-8").strip()
-    )
+    container_png_files_str = container.exec_run(
+        "sh -c 'ls -1 | grep png'"
+    ).output.decode("utf-8")
     if not container_png_files_str:
-        return f'\n```\n{clean_output_pattern.sub("", output.strip())}\n```\n\n'
-    container_png_files = set(container_png_files_str.split("\n"))
+        return output
+    container_png_files = set(container_png_files_str.strip().split("\n"))
     # 提前列出media下所有png文件
     media_png_files = set(os.listdir("media"))
     # 复制文件
-    if copy_files := container_png_files - media_png_files:
-        subprocess.run(
-            [
-                "sh",
-                "-c",
-                " && ".join(
-                    f"docker cp scipy-light:/home/jovyan/{f} media/{f}"
-                    for f in copy_files
-                ),
-            ]
-        )
-        container.exec_run(f"rm {' '.join(copy_files)}")
-    return f'\n```\n{clean_output_pattern.sub("", output.strip())}\n```\n\n'
+    for png_file in (copy_files := container_png_files - media_png_files):
+        with open(f"media/{png_file}", "wb") as f:
+            bits, _ = container.get_archive(f"/home/jovyan/{png_file}")
+            for chunk in bits:
+                f.write(chunk)
+    container.exec_run(f"rm {' '.join(copy_files)}")
+    return output
