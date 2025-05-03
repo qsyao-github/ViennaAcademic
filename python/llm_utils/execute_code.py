@@ -5,7 +5,7 @@
 docker run -d --rm --name scipy-light scipy-light
 """
 
-import os
+import subprocess
 import re
 
 import docker
@@ -53,13 +53,18 @@ def python_tool(code: str) -> str:
     if not container_png_files_str:
         return output
     container_png_files = set(container_png_files_str.strip().split("\n"))
-    # 提前列出media下所有png文件
-    media_png_files = set(os.listdir("media"))
     # 复制文件
-    for png_file in (copy_files := container_png_files - media_png_files):
-        with open(f"media/{png_file}", "wb") as f:
-            bits, _ = container.get_archive(f"/home/jovyan/{png_file}")
-            for chunk in bits:
-                f.write(chunk)
-    container.exec_run(f"rm {' '.join(copy_files)}")
+    subprocess.run(
+        [
+            "sh",
+            "-c",
+            " && ".join(
+                [
+                    f"docker cp scipy-light:/home/jovyan/{png_file} media/{png_file}"
+                    for png_file in container_png_files
+                ]
+            ),
+        ]
+    )
+    container.exec_run(f"rm {' '.join(container_png_files)}")
     return output

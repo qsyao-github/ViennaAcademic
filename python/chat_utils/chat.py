@@ -2,6 +2,7 @@
 主页面聊天和解题/代码聊天后端
 """
 
+import glob
 from io import StringIO
 from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 
@@ -60,11 +61,12 @@ class ChatManager:
         1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
         2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
         """
-        image_path = f"media/{timestamp}.png"
-        if image_component := create_image_component(image_path):
-            await agent_app.aupdate_state(
-                chat_config, {"messages": HumanMessage([image_component])}
-            )
+        image_paths = glob.glob(f"media/{timestamp}*.png")
+        for image_component in (create_image_component(f) for f in image_paths):
+            if image_component:
+                await agent_app.aupdate_state(
+                    chat_config, {"messages": HumanMessage([image_component])}
+                )
 
     @staticmethod
     async def astream_response(

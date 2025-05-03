@@ -1,4 +1,5 @@
 import datetime
+import glob
 import os
 import shutil
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
@@ -240,7 +241,6 @@ async def respond(
     """
     if msg["text"] or msg["files"]:
         now_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
-        possible_media_filename = f"media/{now_time}.png"
 
         # 预处理
         text = msg["text"]
@@ -273,8 +273,8 @@ async def respond(
         chatbot[-1]["content"] += reference
 
         # 后处理
-        if os.path.exists(possible_media_filename):
-            append_file(chatbot, possible_media_filename, "assistant")
+        for media_file in glob.glob(f"media/{now_time}*.png"):
+            append_file(chatbot, media_file, "assistant")
 
     yield {"text": "", "files": []}, chatbot
 
