@@ -24,10 +24,10 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     . "${HOME}/conda/etc/profile.d/mamba.sh" && \
     rm Miniforge3.sh && \
     # Conda镜像
-    ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main && \
-    ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r && \
-    ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2 && \
-    ${HOME}/conda/bin/conda config --set show_channel_urls yes && \
+    # ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main && \
+    # ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r && \
+    # ${HOME}/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2 && \
+    # ${HOME}/conda/bin/conda config --set show_channel_urls yes && \
     # 配置conda & mamba
     ${HOME}/conda/bin/conda init bash && \
     ${HOME}/conda/bin/mamba shell init --shell bash --root-prefix=${HOME}/.local/share/mamba && \
