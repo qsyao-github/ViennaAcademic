@@ -1,9 +1,9 @@
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04
 
-ENV PATH="/home/vienna_beta/conda/bin:/root/.cargo/bin:${PATH}" \
-    HOME="/home/vienna_beta"
+ENV PATH="/root/conda/bin:/root/.cargo/bin:${PATH}" \
+    HOME="/root"
 
-COPY requirements.txt /home/vienna_beta/requirements.txt
+COPY requirements.txt /root/requirements.txt
 
 # apt镜像
 RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && \
@@ -15,7 +15,9 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     curl \
     pkg-config \
     libssl-dev \
-    build-essential && \
+    build-essential \
+    fontconfig \ 
+    fonts-noto-cjk && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     # miniforge
     wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" && \
@@ -38,18 +40,14 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     # pip镜像 & 依赖
     mamba run -n vienna_beta pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     mamba run -n vienna_beta pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 && \
-    mamba run -n vienna_beta pip3 install --no-cache-dir -r /home/vienna_beta/requirements.txt && \
+    mamba run -n vienna_beta pip3 install --no-cache-dir -r /root/requirements.txt && \
     mamba clean --all -f -y && \
-    rm /home/vienna_beta/requirements.txt && \
+    rm /root/requirements.txt && \
     # Rust & typst
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     . "$HOME/.cargo/env" && \
-    cargo install --locked typst-cli && \
-    # 非root用户
-    useradd -m -s /bin/bash vienna_beta && \
-    chown -R vienna_beta:vienna_beta /home/vienna_beta
+    cargo install --locked typst-cli
 
-USER vienna_beta
-WORKDIR /home/vienna_beta
+WORKDIR /root
 
 CMD ["tail", "-f", "/dev/null"]
