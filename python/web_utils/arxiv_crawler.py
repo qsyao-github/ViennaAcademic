@@ -11,7 +11,7 @@ import pymupdf4llm
 from lxml import etree
 from markdownify import markdownify as md
 from python.file_utils.marker_parser import apdf_to_markdown
-from va_rust_utils import web_utils_arxiv_crawler_get_article_html as get_article_html
+from va_rust_utils import web_utils_arxiv_crawler_extract_article as extract_article
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
 
 """全局session"""
@@ -102,7 +102,7 @@ async def crawl_arxiv(arxiv_num: str, current_dir: str, for_user: bool = False) 
             return await process_pdf_arxiv(arxiv_num, current_dir, for_user)
         html = await response.text()
 
-    target_html = get_article_html(html)
+    target_html = extract_article(html)
 
     if not target_html:
         return await process_pdf_arxiv(arxiv_num, current_dir, for_user)

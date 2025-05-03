@@ -1,25 +1,39 @@
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
-use scraper::{Html, Selector};
 
 pub static REMOVE_HYPERLINK: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\[{1,2}([^\]]*)\]\([^)]*\)\]?").unwrap());
 
 pub static REMOVE_CONSECUTIVE_NEWLINES: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{3,}").unwrap());
-static ARTICLE_SELECTOR: Lazy<Selector> = Lazy::new(|| Selector::parse("article").unwrap());
 
+/*
+提取Arxiv论文正文部分
+
+Parameters
+----------
+html: &str
+    完整html
+
+Returns
+----------
+&str
+    正文html，若没有正文则为空字符串
+*/
 #[pyfunction]
-pub fn web_utils_arxiv_crawler_get_article_html(html_str: &str) -> String {
-    // 解析HTML文档
-    let document = Html::parse_document(html_str);
-
-    // 查找匹配的元素
-    document
-        .select(&ARTICLE_SELECTOR)
-        .next()
-        .map(|e| e.html())
-        .unwrap_or_default()
+pub fn web_utils_arxiv_crawler_extract_article(html: &str) -> &str {
+    let start = match html.find("<article") {
+        Some(pos) => pos,
+        None => return "",
+    };
+    let body_start = match html[start..].find('>') {
+        Some(pos) => start + pos + 2,
+        None => return "",
+    };
+    match html[body_start..].find("</article>") {
+        Some(end) => &html[body_start..body_start + end - 1],
+        None => "",
+    }
 }
 
 /*

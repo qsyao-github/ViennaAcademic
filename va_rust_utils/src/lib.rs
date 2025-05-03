@@ -31,7 +31,7 @@ use crate::file_utils::file_conversion::REMOVE_CITATION_PATTERN;
 mod web_utils {
     pub mod arxiv_crawler;
 }
-use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_get_article_html;
+use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_extract_article;
 use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
 use crate::web_utils::arxiv_crawler::REMOVE_CONSECUTIVE_NEWLINES;
 use crate::web_utils::arxiv_crawler::REMOVE_HYPERLINK;
@@ -80,7 +80,7 @@ fn va_rust_utils(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
-        web_utils_arxiv_crawler_get_article_html,
+        web_utils_arxiv_crawler_extract_article,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(
