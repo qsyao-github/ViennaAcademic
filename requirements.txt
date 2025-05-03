@@ -1,0 +1,16 @@
+langchain
+langchain
+langchain-community
+langchain-mistralai
+langgraph-checkpoint-sqlite
+langchain-openai
+langchain-deepseek
+langgraph
+arxiv
+docker
+unstructured
+markdown
+uvloop
+crawl4ai
+maturin
+marker-pdf[full]
