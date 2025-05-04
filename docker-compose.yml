@@ -1,0 +1,21 @@
+services:
+  scipy-light:
+    build: ./scipy-light
+    image: scipy-light
+    container_name: scipy-light
+    networks:
+      - va-network
+
+  vienna_gpu:
+    build: ./
+    container_name: vienna_gpu
+    volumes:
+      - ./:/root/ViennaAcademic
+    networks:
+      - va-network
+    depends_on:
+      - scipy-light
+
+networks:
+  va-network:
+    driver: bridge
