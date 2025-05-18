@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::Read;
+use std::io::Read as _;
 use std::path::Path;
 
 pub static VALID_EXTS: std::sync::LazyLock<HashSet<&'static str>> =

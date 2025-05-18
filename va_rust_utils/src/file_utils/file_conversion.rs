@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use regex::Regex;
-use std::io::Write;
+use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
 

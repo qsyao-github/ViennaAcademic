@@ -52,7 +52,7 @@ fn initialize_static() {
 height="3.8802088801399823in"}"#,
         "",
     );
-    web_utils_arxiv_crawler_process_markdown(r"<article></article>");
+    web_utils_arxiv_crawler_process_markdown("<article></article>");
     REMOVE_CONSECUTIVE_NEWLINES.replace_all("Line1 \n\n\n Line2", "\n\n");
     REMOVE_HYPERLINK.replace_all("[[13](some_link)]", "[$1]");
 }
