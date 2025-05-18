@@ -1,10 +1,10 @@
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
 
 use crate::academic_utils::paper;
 
-pub static ATTACH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"#attach\{([^}]+)\}").unwrap());
+pub static ATTACH_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"#attach\{([^}]+)\}").unwrap());
 
 /*
 将#attach{}命令替换为对应文件全文

@@ -1,15 +1,14 @@
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-pub static REMOVE_CITATION_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"#cite\([^)]*\)").unwrap());
+pub static REMOVE_CITATION_PATTERN: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"#cite\([^)]*\)").unwrap());
 
-pub static IMAGE_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?m)^!\[\]\([^)]+\)\{[^}]*\}").unwrap());
+pub static IMAGE_PATTERN: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?m)^!\[\]\([^)]+\)\{[^}]*\}").unwrap());
 
 /*
 用pandoc转换为markdown
@@ -29,10 +28,10 @@ pub fn file_utils_file_conversion_pandoc_to_markdown(
     original_file_path: &str,
     target_path: &str,
 ) {
-    let output_path = Path::new(target_path).join(format!("{}.md", file_basename));
+    let output_path = Path::new(target_path).join(format!("{file_basename}.md"));
 
     let output = Command::new("pandoc")
-        .args(&[
+        .args([
             "-s",
             "--link-images=false",
             "--reference-links=false",
@@ -73,10 +72,10 @@ fn pandoc_convert(
     target_path: &str,
     target_ext: &str,
 ) {
-    let output_path = Path::new(target_path).join(format!("{}.{}", file_basename, target_ext));
+    let output_path = Path::new(target_path).join(format!("{file_basename}.{target_ext}"));
 
     let _ = Command::new("pandoc")
-        .args(&[
+        .args([
             "-s",
             "--link-images=false",
             "--reference-links=false",
@@ -141,7 +140,7 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
         .args([
             "compile",
             "-",
-            &format!("{}/{}.pdf", target_path, file_basename),
+            &format!("{target_path}/{file_basename}.pdf"),
         ])
         .stdin(Stdio::piped())
         .spawn()
@@ -179,9 +178,9 @@ pub fn file_utils_file_conversion_markdown_to_everything(
     let path = Path::new(original_path);
     let file_name = path.file_stem().unwrap().to_str().unwrap();
 
-    if target_ext != "pdf" {
-        pandoc_convert(file_name, original_path, target_path, target_ext);
-    } else {
+    if target_ext == "pdf" {
         markdown_to_pdf(file_name, original_path, target_path);
+    } else {
+        pandoc_convert(file_name, original_path, target_path, target_ext);
     }
 }

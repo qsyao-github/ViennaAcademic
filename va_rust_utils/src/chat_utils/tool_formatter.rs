@@ -1,9 +1,9 @@
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::{Captures, Regex};
 
-pub static TOOL_CALL_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\{\s*"([^"]+)"\s*:\s*"((?:\\"|[^"])*)"\s*\}"#).unwrap());
+pub static TOOL_CALL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"\{\s*"([^"]+)"\s*:\s*"((?:\\"|[^"])*)"\s*\}"#).unwrap()
+});
 
 /*
 替换工具调用内容
@@ -22,11 +22,11 @@ String
 */
 fn replace_tag(caps: &Captures) -> String {
     let tool_type = &caps[1];
-    let content = caps[2].replace(r#"\n"#, "\n").replace(r#"\""#, "\"");
+    let content = caps[2].replace(r"\n", "\n").replace(r#"\""#, "\"");
 
     match tool_type {
-        "query" => format!("\n```\n{}\n```\n", content),
-        "code" => format!("\n```python\n{}\n```\n", content),
+        "query" => format!("\n```\n{content}\n```\n"),
+        "code" => format!("\n```python\n{content}\n```\n"),
         _ => caps[0].to_string(),
     }
 }

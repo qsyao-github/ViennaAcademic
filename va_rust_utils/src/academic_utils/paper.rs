@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
@@ -7,27 +6,29 @@ use std::path::Path;
 
 const MIN_CHARACTER_THRESHOLD: usize = 63;
 
-pub static SUFFIX_MAP: Lazy<std::collections::HashMap<&str, &str>> = Lazy::new(|| {
-    HashMap::from([
-        ("py", "python"),
-        ("c", "c"),
-        ("cpp", "cpp"),
-        ("md", "markdown"),
-        ("json", "json"),
-        ("html", "html"),
-        ("css", "css"),
-        ("js", "javascript"),
-        ("jinja2", "jinja2"),
-        ("ts", "typescript"),
-        ("yaml", "yaml"),
-        ("dockerfile", "dockerfile"),
-        ("sh", "shell"),
-        ("r", "r"),
-        ("sql", "sql"),
-    ])
-});
+pub static SUFFIX_MAP: std::sync::LazyLock<std::collections::HashMap<&str, &str>> =
+    std::sync::LazyLock::new(|| {
+        HashMap::from([
+            ("py", "python"),
+            ("c", "c"),
+            ("cpp", "cpp"),
+            ("md", "markdown"),
+            ("json", "json"),
+            ("html", "html"),
+            ("css", "css"),
+            ("js", "javascript"),
+            ("jinja2", "jinja2"),
+            ("ts", "typescript"),
+            ("yaml", "yaml"),
+            ("dockerfile", "dockerfile"),
+            ("sh", "shell"),
+            ("r", "r"),
+            ("sql", "sql"),
+        ])
+    });
 
-pub static LINEBREAK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s*\n+\s*").unwrap());
+pub static LINEBREAK_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"\s*\n+\s*").unwrap());
 
 /*
 附加文件内容
@@ -53,7 +54,7 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
     let file_suffix = path.extension().unwrap_or_default().to_str().unwrap();
     let kb_path = Path::new(current_user_directory)
         .join("knowledgeBase")
-        .join(format!("{}.md", file_name));
+        .join(format!("{file_name}.md"));
     if kb_path.exists() {
         return fs::read_to_string(kb_path).unwrap();
     }
@@ -62,9 +63,9 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
     if code_path.exists() {
         let code = fs::read_to_string(code_path).unwrap();
         let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
-        return format!("```{}\n{}\n```", lang, code);
+        return format!("```{lang}\n{code}\n```");
     }
-    "".into()
+    String::new()
 }
 
 /*

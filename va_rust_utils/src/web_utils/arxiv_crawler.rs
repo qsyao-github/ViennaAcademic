@@ -1,11 +1,11 @@
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use regex::Regex;
 
-pub static REMOVE_HYPERLINK: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\[{1,2}([^\]]*)\]\([^)]*\)\]?").unwrap());
+pub static REMOVE_HYPERLINK: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"\[{1,2}([^\]]*)\]\([^)]*\)\]?").unwrap());
 
-pub static REMOVE_CONSECUTIVE_NEWLINES: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{3,}").unwrap());
+pub static REMOVE_CONSECUTIVE_NEWLINES: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"\n{3,}").unwrap());
 
 /*
 提取Arxiv论文正文部分
@@ -22,18 +22,16 @@ Returns
 */
 #[pyfunction]
 pub fn web_utils_arxiv_crawler_extract_article(html: &str) -> &str {
-    let start = match html.find("<article") {
-        Some(pos) => pos,
-        None => return "",
+    let Some(start) = html.find("<article") else {
+        return "";
     };
     let body_start = match html[start..].find('>') {
         Some(pos) => start + pos + 2,
         None => return "",
     };
-    match html[body_start..].find("</article>") {
-        Some(end) => &html[body_start..body_start + end - 1],
-        None => "",
-    }
+    html[body_start..]
+        .find("</article>")
+        .map_or("", |end| &html[body_start..body_start + end - 1])
 }
 
 /*

@@ -218,7 +218,6 @@ name = "va_rust_utils"
 version = "0.1.0"
 dependencies = [
  "base64",
- "once_cell",
  "pyo3",
  "regex",
 ]
