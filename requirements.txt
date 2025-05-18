@@ -14,3 +14,5 @@ uvloop
 crawl4ai
 maturin
 marker-pdf[full]
+pymupdf4llm
+fastapi
