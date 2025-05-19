@@ -60,7 +60,7 @@ def python_tool(code: str) -> str:
             "-c",
             " && ".join(
                 [
-                    f"docker cp scipy-light:/home/jovyan/{png_file} media/{png_file}"
+                    f"docker cp scipy-light:/root/{png_file} media/{png_file}"
                     for png_file in container_png_files
                 ]
             ),

@@ -20,11 +20,8 @@ RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple &&
     'sympy' \
     'xlrd' \
     'ipython' \
-    'numpy' && \
-    useradd -m -s /bin/bash jovyan && \
-    chown -R jovyan:jovyan /home/jovyan
+    'numpy'
 
-USER jovyan
-WORKDIR /home/jovyan
+WORKDIR /root
 
 CMD ["tail", "-f", "/dev/null"]
