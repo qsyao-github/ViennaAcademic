@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const MIN_CHARACTER_THRESHOLD: usize = 63;
 
@@ -49,20 +49,30 @@ String
 */
 #[pyfunction]
 pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
-    let path = Path::new(file);
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
-    let file_suffix = path.extension().unwrap_or_default().to_str().unwrap();
-    let kb_path = Path::new(current_user_directory)
+    // 构建知识库文件路径
+    let kb_path = PathBuf::from(current_user_directory)
         .join("knowledgeBase")
-        .join(format!("{file_name}.md"));
-    if kb_path.exists() {
-        return fs::read_to_string(kb_path).unwrap();
+        .join(Path::new(file).with_extension("md"));
+
+    // 优先检查知识库文件
+    if let Ok(content) = fs::read_to_string(&kb_path) {
+        return content;
     }
 
-    let code_path = Path::new(current_user_directory).join("code").join(file);
-    if code_path.exists() {
-        let code = fs::read_to_string(code_path).unwrap();
-        let lang = SUFFIX_MAP.get(file_suffix).copied().unwrap_or("");
+    // 构建代码文件路径
+    let code_path = PathBuf::from(current_user_directory)
+        .join("code")
+        .join(file);
+
+    // 检查并读取代码文件
+    if let Ok(code) = fs::read_to_string(&code_path) {
+        let lang = Path::new(file)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .and_then(|ext| SUFFIX_MAP.get(ext))
+            .copied()
+            .unwrap_or("");
+
         return format!("```{lang}\n{code}\n```");
     }
     String::new()
@@ -86,7 +96,7 @@ final_list: Vec<String>
 #[pyfunction]
 pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
     let mut final_list = Vec::new();
-    let mut temp_string = String::new();
+    let mut temp_string = String::with_capacity(MIN_CHARACTER_THRESHOLD * 2);
     let mut char_count = 0;
 
     for para in LINEBREAK_RE.split(content) {
@@ -94,8 +104,7 @@ pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
         temp_string.push_str(para);
         char_count += para_len;
         if char_count > MIN_CHARACTER_THRESHOLD {
-            final_list.push(temp_string.clone());
-            temp_string.clear();
+            final_list.push(std::mem::take(&mut temp_string));
             char_count = 0;
             continue;
         }

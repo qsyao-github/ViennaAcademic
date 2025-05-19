@@ -33,8 +33,6 @@ mod web_utils {
 }
 use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_extract_article;
 use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
-use crate::web_utils::arxiv_crawler::REMOVE_CONSECUTIVE_NEWLINES;
-use crate::web_utils::arxiv_crawler::REMOVE_HYPERLINK;
 
 /*
 预热全局变量
@@ -52,9 +50,7 @@ fn initialize_static() {
 height="3.8802088801399823in"}"#,
         "",
     );
-    web_utils_arxiv_crawler_process_markdown("<article></article>");
-    REMOVE_CONSECUTIVE_NEWLINES.replace_all("Line1 \n\n\n Line2", "\n\n");
-    REMOVE_HYPERLINK.replace_all("[[13](some_link)]", "[$1]");
+    web_utils_arxiv_crawler_process_markdown("[[13](some_link)]\n\n\n");
 }
 
 #[pymodule]

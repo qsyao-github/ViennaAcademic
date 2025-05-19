@@ -1,11 +1,8 @@
 use pyo3::prelude::*;
 use regex::Regex;
 
-pub static REMOVE_HYPERLINK: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"\[{1,2}([^\]]*)\]\([^)]*\)\]?").unwrap());
-
-pub static REMOVE_CONSECUTIVE_NEWLINES: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"\n{3,}").unwrap());
+static COMBINED_REGEX: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"\[{1,2}([^\]]*)\]\([^)]*\)\]?|\n{3,}").unwrap());
 
 /*
 提取Arxiv论文正文部分
@@ -30,7 +27,7 @@ pub fn web_utils_arxiv_crawler_extract_article(html: &str) -> &str {
         None => return "",
     };
     html[body_start..]
-        .find("</article>")
+        .rfind("</article>")
         .map_or("", |end| &html[body_start..body_start + end - 1])
 }
 
@@ -49,11 +46,13 @@ String
 */
 #[pyfunction]
 pub fn web_utils_arxiv_crawler_process_markdown(markdown_content: &str) -> String {
-    REMOVE_CONSECUTIVE_NEWLINES
-        .replace_all(
-            &REMOVE_HYPERLINK.replace_all(markdown_content, "[$1]"),
-            "\n\n",
-        )
+    COMBINED_REGEX
+        .replace_all(markdown_content, |caps: &regex::Captures| {
+            caps.get(1).map_or_else(
+                || "\n\n".to_string(),
+                |link_text| format!("[{}]", link_text.as_str()),
+            )
+        })
         .trim()
         .into()
 }

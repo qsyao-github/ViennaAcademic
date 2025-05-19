@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use regex::Regex;
+use std::io::BufWriter;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -43,13 +44,14 @@ pub fn file_utils_file_conversion_pandoc_to_markdown(
         .unwrap();
 
     if !output.status.success() {
-        eprintln!("Pandoc failed: {}", String::from_utf8_lossy(&output.stderr));
+        eprintln!("Pandoc failed: {:?}", output.stderr);
         return;
     }
 
     let result = String::from_utf8(output.stdout).unwrap();
-    let cleaned_result = IMAGE_PATTERN.replace_all(&result, "").into_owned();
-    std::fs::write(output_path, cleaned_result).unwrap();
+    let cleaned_result = IMAGE_PATTERN.replace_all(&result, "");
+    let mut writer = BufWriter::new(std::fs::File::create(output_path).unwrap());
+    writer.write_all(cleaned_result.as_bytes()).unwrap();
 }
 
 /*
@@ -83,7 +85,9 @@ fn pandoc_convert(
             output_path.to_str().unwrap(),
             original_file_path,
         ])
-        .output();
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
 }
 
 /*

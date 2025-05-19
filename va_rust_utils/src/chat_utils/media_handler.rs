@@ -29,7 +29,7 @@ String
     Base64编码的图像。若文件不存在，返回空字符串
 */
 fn chat_utils_media_handler_encode_image(image_path: &str) -> String {
-    let mut buffer = Vec::new();
+    let mut buffer = Vec::with_capacity(1024 * 1024);
     File::open(image_path)
         .and_then(|mut f| f.read_to_end(&mut buffer))
         .map(|_| STANDARD.encode(&buffer))
@@ -55,7 +55,7 @@ Py<PyDict>
 pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
     let dict = PyDict::new(py);
 
-    let Some(ext) = Path::new(&image_path).extension().and_then(|e| e.to_str()) else {
+    let Some(ext) = Path::new(image_path).extension().and_then(|e| e.to_str()) else {
         return dict.into();
     };
 
