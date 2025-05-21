@@ -51,7 +51,8 @@ def _pdf_to_markdown(pdf_path: str) -> str:
 
 
 def pdf_to_markdown(pdf_path: str) -> str:
-    return _pdf_to_markdown(pdf_path)
+    future = pdf_executor.submit(_pdf_to_markdown, pdf_path)
+    return future.result()
 
 
 async def apdf_to_markdown(pdf_path: str) -> str:
