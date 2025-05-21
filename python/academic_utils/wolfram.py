@@ -2,7 +2,7 @@
 WolframAlpha结果处理
 """
 
-from python.web_utils.crawler import get_wolfram
+from web_utils.crawler import get_wolfram
 
 
 async def attach_hints(query: str) -> str:

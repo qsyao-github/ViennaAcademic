@@ -4,7 +4,7 @@
 
 import os
 
-from python.file_utils.marker_parser import pdf_to_markdown
+from marker_parser import pdf_to_markdown
 from va_rust_utils import (
     file_utils_file_conversion_pandoc_to_markdown as pandoc_to_markdown,
 )

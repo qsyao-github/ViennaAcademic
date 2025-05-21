@@ -6,10 +6,10 @@ from io import StringIO
 from typing import AsyncGenerator, Callable, Generator, Iterator, List, Tuple
 
 from langchain_core.prompts import ChatPromptTemplate
-from python.llm_utils.modelclient import deepseek_v3
-from python.llm_utils.system_prompt import ACADEMIC_SEARCH
-from python.web_utils.academic_search import select_academic_search_result
-from python.web_utils.searXNG import searxng_websearch
+from llm_utils.modelclient import deepseek_v3
+from llm_utils.system_prompt import ACADEMIC_SEARCH
+from .academic_search import select_academic_search_result
+from .searXNG import searxng_websearch
 
 generate_summary_prompt_tempate = ChatPromptTemplate.from_messages(
     [

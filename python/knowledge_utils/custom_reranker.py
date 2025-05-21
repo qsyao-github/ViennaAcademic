@@ -11,7 +11,7 @@ import uvloop
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain_core.documents import Document
-from python.private.api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
+from private.api_keys import silicon_client_API_KEY, silicon_client_BASE_URL
 
 BASE_URL = f"{silicon_client_BASE_URL}/"
 HEADERS = {

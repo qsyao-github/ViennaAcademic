@@ -1,8 +1,6 @@
 """
 React Agent后端，处理ViennaAcademic中的主页面聊天部分
 """
-
-import asyncio
 from typing import Dict, List
 
 from langchain_core.messages import (
@@ -17,15 +15,16 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import tool
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
-from python.chat_utils.memory import checkpoint_connection
-from python.llm_utils.execute_code import python_tool
-from python.llm_utils.modelclient import deepseek_v3, mistral_small_latest
-from python.llm_utils.system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
-from python.web_utils.search import attach_web_result
+from llm_utils.execute_code import python_tool
+from llm_utils.modelclient import deepseek_v3, mistral_small_latest
+from llm_utils.system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
+from psycopg import AsyncConnection
+from psycopg.rows import dict_row
+from web_utils.search import attach_web_result
 
 empty_template = ChatPromptTemplate.from_messages(
     [MessagesPlaceholder(variable_name="messages")]
@@ -204,10 +203,24 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.set_entry_point("chatbot")
 
+DB_URI = "postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
+agent_app = None
+conn = None
 
-async def build_agent_app():
-    sqlite_checkpointer = AsyncSqliteSaver(checkpoint_connection)
-    return graph_builder.compile(checkpointer=sqlite_checkpointer)
+async def get_agent_app():
+    global agent_app, conn
+    if agent_app is None:
+        conn = await AsyncConnection.connect(
+            DB_URI, autocommit=True, prepare_threshold=0, row_factory=dict_row
+        )
+        postgres_checkpointer = AsyncPostgresSaver(conn=conn)
+        await postgres_checkpointer.setup()
+        agent_app = graph_builder.compile(checkpointer=postgres_checkpointer)
+        print("agent_app started")
+    return agent_app
 
 
-agent_app = asyncio.run(build_agent_app())
+async def close_conn():
+    global conn
+    conn.__aexit__()
+    print("agent_app stopped")

@@ -1,8 +1,7 @@
 langchain
-langchain
 langchain-community
 langchain-mistralai
-langgraph-checkpoint-sqlite
+langgraph-checkpoint-postgres
 langchain-openai
 langchain-deepseek
 langgraph
@@ -15,4 +14,4 @@ crawl4ai
 maturin
 marker-pdf[full]
 pymupdf4llm
-fastapi
+fastapi[standard]

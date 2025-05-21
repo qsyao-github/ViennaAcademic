@@ -8,9 +8,8 @@ import os
 import aiofiles
 import aiohttp
 import pymupdf4llm
-from lxml import etree
+from file_utils.marker_parser import apdf_to_markdown
 from markdownify import markdownify as md
-from python.file_utils.marker_parser import apdf_to_markdown
 from va_rust_utils import web_utils_arxiv_crawler_extract_article as extract_article
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
 
@@ -22,7 +21,6 @@ _arxiv_session_lock = asyncio.Lock()
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
 }
-parser = etree.HTMLParser(remove_comments=True, encoding="utf-8")
 
 
 async def process_pdf_arxiv(

@@ -5,12 +5,12 @@ Chatbot后端，处理ViennaAcademic解题功能
 import asyncio
 from typing import Dict
 
+from chat_utils.memory import checkpoint_connection
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import START, MessagesState, StateGraph
-from python.chat_utils.memory import checkpoint_connection
-from python.llm_utils.modelclient import deepseek_r1_671b, glm_z1_flash
+from llm_utils.modelclient import deepseek_r1_671b, glm_z1_flash
 
 select_model_from_num = {0: glm_z1_flash, 1: deepseek_r1_671b}
 

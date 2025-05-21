@@ -4,7 +4,7 @@
 
 from langchain_mistralai import ChatMistralAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from python.private.api_keys import (
+from private.api_keys import (
     laowei_mistral_client_API_KEY,
     silicon_client_API_KEY,
     silicon_client_BASE_URL,

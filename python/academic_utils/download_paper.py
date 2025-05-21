@@ -7,10 +7,10 @@ import os
 from io import StringIO
 from typing import AsyncGenerator
 
+from chat_utils.agent_backend import get_agent_app
 from langchain_core.messages import HumanMessage
-from python.chat_utils.agent_backend import agent_app
-from python.web_utils.academic_search import search_arxiv
-from python.web_utils.arxiv_crawler import crawl_arxiv
+from web_utils.academic_search import search_arxiv
+from web_utils.arxiv_crawler import crawl_arxiv
 
 
 async def download_arxiv_paper(
@@ -49,7 +49,7 @@ async def download_arxiv_paper(
     content_task = asyncio.create_task(crawl_arxiv(arxiv_num, current_dir, for_user))
     buffer = StringIO()
     if for_user:
-        async for chunk, _ in agent_app.astream(
+        async for chunk, _ in (await get_agent_app()).astream(
             {
                 "messages": [
                     HumanMessage(

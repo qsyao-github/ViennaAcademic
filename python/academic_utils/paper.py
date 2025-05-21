@@ -9,13 +9,13 @@ from typing import AsyncGenerator, List, Literal
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai.chat_models.base import BaseChatOpenAI
-from python.llm_utils.modelclient import deepseek_v3
-from python.llm_utils.system_prompt import (
+from llm_utils.modelclient import deepseek_v3
+from llm_utils.system_prompt import (
     POLISH_PROMPT,
     TRANSLATE_TO_CHINESE_PROMPT,
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
-from python.semaphore import semaphore1024
+from semaphore import semaphore1024
 from va_rust_utils import academic_utils_paper_attach as attach
 from va_rust_utils import academic_utils_paper_chunk as chunk
 

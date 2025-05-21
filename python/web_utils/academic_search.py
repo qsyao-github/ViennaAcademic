@@ -4,13 +4,13 @@
 
 from typing import Generator, Tuple
 
+from knowledge_utils.custom_reranker import CustomCompressor
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_community.retrievers import ArxivRetriever
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
-from python.knowledge_utils.custom_reranker import CustomCompressor
-from python.llm_utils.modelclient import bce_embedding_base
-from python.web_utils.searXNG import searxng_academic_search
+from llm_utils.modelclient import bce_embedding_base
+from .searXNG import searxng_academic_search
 
 retriever = ArxivRetriever()
 reranker = CustomCompressor()

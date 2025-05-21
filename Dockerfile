@@ -11,16 +11,20 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     # apt
     apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
+    ## miniforge & rust
     wget \
     curl \
     pkg-config \
     libssl-dev \
     build-essential \
+    ## typst
     fontconfig \ 
-    fonts-noto-cjk && \
+    fonts-noto-cjk \
+    ## postgres
+    libpq-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     # miniforge
-    wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" && \
+    wget -O Miniforge3.sh "https://bgithub.xyz/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" && \
     bash Miniforge3.sh -b -p "${HOME}/conda" && \
     . "${HOME}/conda/etc/profile.d/conda.sh" && \
     . "${HOME}/conda/etc/profile.d/mamba.sh" && \

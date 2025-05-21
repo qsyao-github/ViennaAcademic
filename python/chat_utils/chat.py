@@ -6,14 +6,14 @@ import glob
 from io import StringIO
 from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 
+from .agent_backend import get_agent_app
+# from .chat_backend import solve_app
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
-from python.chat_utils.agent_backend import agent_app
-from python.chat_utils.chat_backend import solve_app
-from python.web_utils.search import generate_academic_search_summary
 from va_rust_utils import (
     chat_utils_media_handler_create_image_component as create_image_component,
 )
 from va_rust_utils import chat_utils_tool_formatter_format_tools as format_tools
+from web_utils.search import generate_academic_search_summary
 
 
 class ChatManager:
@@ -64,7 +64,7 @@ class ChatManager:
         image_paths = glob.glob(f"media/{timestamp}*.png")
         for image_component in (create_image_component(f) for f in image_paths):
             if image_component:
-                await agent_app.aupdate_state(
+                await (await get_agent_app()).aupdate_state(
                     chat_config, {"messages": HumanMessage([image_component])}
                 )
 
@@ -101,7 +101,7 @@ class ChatManager:
         }
         content = ChatManager.build_message_content(text, files)
         buffer = StringIO()
-        async for chunk, _ in agent_app.astream(
+        async for chunk, _ in (await get_agent_app()).astream(
             {"messages": [HumanMessage(content=content)]},
             config=chat_config,
             stream_mode="messages",
@@ -144,7 +144,7 @@ class ChatManager:
         async for chunk_result in search_result:
             final_result = chunk_result
             yield final_result
-        await agent_app.aupdate_state(
+        await (await get_agent_app()).aupdate_state(
             {"configurable": {"thread_id": thread_id}},
             {
                 "messages": [
