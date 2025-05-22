@@ -8,7 +8,7 @@ import os
 import aiofiles
 import aiohttp
 import pymupdf4llm
-from file_utils.marker_parser import apdf_to_markdown
+from file_utils.marker_parser import pdf_to_markdown
 from markdownify import markdownify as md
 from va_rust_utils import web_utils_arxiv_crawler_extract_article as extract_article
 from va_rust_utils import web_utils_arxiv_crawler_process_markdown as process_markdown
@@ -44,7 +44,7 @@ async def process_pdf_arxiv(
     try:
         pdf_path = f"documents/{current_dir}/paper/{arxiv_num}.pdf"
         if os.path.exists(pdf_path) and for_user:
-            return await apdf_to_markdown(pdf_path)
+            return await pdf_to_markdown(pdf_path)
         async with _arxiv_session.get(f"pdf/{arxiv_num}") as response:
             response.raise_for_status()
 
@@ -52,7 +52,7 @@ async def process_pdf_arxiv(
                 async for chunk in response.content.iter_chunked(1048576):
                     await f.write(chunk)
         if for_user:
-            return await apdf_to_markdown(pdf_path)
+            return await pdf_to_markdown(pdf_path)
         result = pymupdf4llm.to_markdown(pdf_path)
         os.remove(pdf_path)
         return result

@@ -1,6 +1,7 @@
 """
 React Agent后端，处理ViennaAcademic中的主页面聊天部分
 """
+
 from typing import Dict, List
 
 from langchain_core.messages import (
@@ -180,7 +181,10 @@ async def chatbot(
     template = select_template_from_mode[mode]
     model = select_model_from_mode[mode]
     prompted_message = await template.ainvoke(
-        {"messages": state["messages"], "now_time": config["configurable"]["now_time"]}
+        {
+            "messages": state["messages"],
+            "image_prefix": config["configurable"]["image_prefix"],
+        }
     )
     # 仅多模态模式的模型支持多模态信息
     if mode != "多模态":
@@ -207,6 +211,7 @@ DB_URI = "postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
 agent_app = None
 conn = None
 
+
 async def get_agent_app():
     global agent_app, conn
     if agent_app is None:
@@ -222,5 +227,5 @@ async def get_agent_app():
 
 async def close_conn():
     global conn
-    conn.__aexit__()
+    await conn.close()
     print("agent_app stopped")

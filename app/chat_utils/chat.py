@@ -7,12 +7,12 @@ from io import StringIO
 from typing import Any, AsyncGenerator, Dict, Iterator, List, Tuple, Union
 
 from .agent_backend import get_agent_app
+
 # from .chat_backend import solve_app
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from va_rust_utils import (
     chat_utils_media_handler_create_image_component as create_image_component,
 )
-from va_rust_utils import chat_utils_tool_formatter_format_tools as format_tools
 from web_utils.search import generate_academic_search_summary
 
 
@@ -45,14 +45,14 @@ class ChatManager:
 
     @staticmethod
     async def handle_generated_image(
-        timestamp: str, chat_config: Dict[str, Dict[str, str]]
+        image_prefix: str, chat_config: Dict[str, Dict[str, str]]
     ) -> None:
         """处理生成的图片并更新状态
 
         Parameters
         ----------
-        timestamp : str
-            当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
+        image_prefix: str
+            要求模型生成图片名的前缀，用于识别当前线程产生的图片
         chat_config : Dict
             聊天配置，包含线程id。对指定线程的状态进行更新
 
@@ -61,7 +61,7 @@ class ChatManager:
         1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
         2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
         """
-        image_paths = glob.glob(f"media/{timestamp}*.png")
+        image_paths = glob.glob(f"media/{image_prefix}*.png")
         for image_component in (create_image_component(f) for f in image_paths):
             if image_component:
                 await (await get_agent_app()).aupdate_state(
@@ -70,7 +70,7 @@ class ChatManager:
 
     @staticmethod
     async def astream_response(
-        text: str, files: List[str], thread_id: str, mode: str, timestamp: str
+        text: str, files: List[str], thread_id: str, mode: str, image_prefix: str
     ) -> AsyncGenerator[str, None]:
         """流式处理聊天响应
 
@@ -81,43 +81,34 @@ class ChatManager:
         files: List[str]
             文件路径列表
         thread_id: str
-            线程id，langgraph底层对每个线程id分别维护状态(包括messages)。选用Gradio端的聊天记录中的第一个字典的字符串形式，保证每次聊天记录分开储存。
+            线程id，langgraph底层对每个线程id分别维护状态(包括messages)
         mode: str
             聊天模式：常规，工具，多模态，知识库，网页搜索
-        timestamp: str
-            当前时间戳，格式为%y%m%d%H%M%S，用于常规模式模型生成图片
+        image_prefix: str
+            要求模型生成图片名的前缀，用于识别当前线程产生的图片
 
         Yields
         ----------
         str
-            模型返回内容->工具调用排版。因Gradio不支持增量更新，所有返回的字符串均为完整的回复
+            模型返回内容，增量部分
         """
         chat_config = {
             "configurable": {
                 "thread_id": thread_id,
                 "mode": mode,
-                "now_time": timestamp,
+                "image_prefix": image_prefix,
             }
         }
         content = ChatManager.build_message_content(text, files)
-        buffer = StringIO()
         async for chunk, _ in (await get_agent_app()).astream(
             {"messages": [HumanMessage(content=content)]},
             config=chat_config,
             stream_mode="messages",
         ):
-            buffer.write(
-                chunk.content
-                or chunk.additional_kwargs.get(
-                    "tool_calls", [{"function": {"arguments": ""}}]
-                )[0]["function"]["arguments"]
-            )
-            yield buffer.getvalue()
-
-        final_response = format_tools(buffer.getvalue())
-        buffer.close()
-        await ChatManager.handle_generated_image(timestamp, chat_config)
-        yield final_response
+            yield chunk.content or chunk.additional_kwargs.get(
+                "tool_calls", [{"function": {"arguments": ""}}]
+            )[0]["function"]["arguments"]
+        await ChatManager.handle_generated_image(image_prefix, chat_config)
 
     @staticmethod
     async def append_search_result(

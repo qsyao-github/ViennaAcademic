@@ -19,7 +19,7 @@ def test_respond():
 
 
 def test_upload_image():
-    path = "test.xml"
+    path = "test.png"
     with open(path, "rb") as f:
         response = client.post(
             "/upload/image/123",
@@ -30,7 +30,7 @@ def test_upload_image():
 
 
 def test_upload_document():
-    path = "test.png"
+    path = "test.pdf"
     with open(path, "rb") as f:
         response = client.post(
             "/upload/document/laowei/paper",
@@ -39,4 +39,22 @@ def test_upload_document():
     print(response.json())
 
 
-test_upload_document()
+def test_media_files():
+    # Test accessing a file in the media directory
+    response = client.get("/media/123_test.png")
+    with open("retest.png", "wb") as f:
+        f.write(response.content)
+
+
+def test_documents_files():
+    # Test accessing a file in the documents directory
+    response = client.get("/documents/laowei/paper/test.xml")
+    with open("retest.xml", "wb") as f:
+        f.write(response.content)
+
+
+def test_list_files():
+    response = client.get(
+        "/list_files", params={"user": "laowei", "directory": "paper"}
+    )
+    print(response.json())
