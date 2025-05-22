@@ -42,14 +42,14 @@ async def process_pdf_arxiv(
     """
     global _arxiv_session
     try:
-        pdf_path = f"{current_dir}/paper/{arxiv_num}.pdf"
+        pdf_path = f"documents/{current_dir}/paper/{arxiv_num}.pdf"
         if os.path.exists(pdf_path) and for_user:
             return await apdf_to_markdown(pdf_path)
         async with _arxiv_session.get(f"pdf/{arxiv_num}") as response:
             response.raise_for_status()
 
             async with aiofiles.open(f"{current_dir}/paper/{arxiv_num}.pdf", "wb") as f:
-                async for chunk in response.content.iter_chunked(1024 * 1024):
+                async for chunk in response.content.iter_chunked(1048576):
                     await f.write(chunk)
         if for_user:
             return await apdf_to_markdown(pdf_path)

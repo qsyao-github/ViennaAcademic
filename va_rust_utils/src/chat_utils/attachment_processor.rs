@@ -11,14 +11,14 @@ pub static ATTACH_RE: std::sync::LazyLock<Regex> =
 
 Parameters
 ----------
-text: str
+text: &str
     待处理文本
-current_dir: str
+current_dir: &str
     当前用户根目录
 
 Returns
 ----------
-str
+String
     处理后文本
 */
 #[pyfunction]

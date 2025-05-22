@@ -51,7 +51,7 @@ def _pdf_to_markdown(pdf_path: str) -> str:
 
 
 def pdf_to_markdown(pdf_path: str) -> str:
-    return _pdf_to_markdown(pdf_path)
+    _pdf_to_markdown(pdf_path)
 
 
 async def apdf_to_markdown(pdf_path: str) -> str:

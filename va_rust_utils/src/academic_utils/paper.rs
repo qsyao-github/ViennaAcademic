@@ -50,7 +50,9 @@ String
 #[pyfunction]
 pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
     // 构建知识库文件路径
-    let kb_path = PathBuf::from(current_user_directory)
+    let base_path = PathBuf::from("documents");
+    let kb_path = base_path
+        .join(current_user_directory)
         .join("knowledgeBase")
         .join(Path::new(file).with_extension("md"));
 
@@ -60,7 +62,8 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
     }
 
     // 构建代码文件路径
-    let code_path = PathBuf::from(current_user_directory)
+    let code_path = base_path
+        .join(current_user_directory)
         .join("code")
         .join(file);
 
@@ -85,8 +88,10 @@ pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> 
 
 Parameters
 ----------
-content: &str
-    文本内容
+file: &str
+    文件名
+current_user_directory: &str
+    当前用户根目录
 
 Returns
 ----------
@@ -94,12 +99,13 @@ final_list: Vec<String>
     分段后的文本
 */
 #[pyfunction]
-pub fn academic_utils_paper_chunk(content: &str) -> Vec<String> {
+pub fn academic_utils_paper_chunk(file: &str, current_user_directory: &str) -> Vec<String> {
+    let content = academic_utils_paper_attach(file, current_user_directory);
     let mut final_list = Vec::new();
     let mut temp_string = String::with_capacity(MIN_CHARACTER_THRESHOLD * 2);
     let mut char_count = 0;
 
-    for para in LINEBREAK_RE.split(content) {
+    for para in LINEBREAK_RE.split(&content) {
         let para_len = para.chars().count();
         temp_string.push_str(para);
         char_count += para_len;

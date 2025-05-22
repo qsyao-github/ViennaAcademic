@@ -21,7 +21,9 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     fontconfig \ 
     fonts-noto-cjk \
     ## postgres
-    libpq-dev && \
+    libpq-dev \
+    ## 文件类型验证
+    libmagic1 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     # miniforge
     wget -O Miniforge3.sh "https://bgithub.xyz/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" && \

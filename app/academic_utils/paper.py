@@ -117,9 +117,9 @@ async def process_paper(
     # 初始化输出路径和内容块
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     knowledgeBase_file_path = (
-        f"{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
+        f"documents/{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
     )
-    document_chunks = chunk(attach(file_path, current_user_directory))
+    document_chunks = chunk(file_path, current_user_directory)
 
     # 并行处理文本块
     processed_chunks = [""] * len(document_chunks)
