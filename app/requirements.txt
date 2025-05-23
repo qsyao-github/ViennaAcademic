@@ -15,3 +15,5 @@ maturin
 marker-pdf[full]
 pymupdf4llm
 fastapi[standard]
+jwt
+passlib

@@ -1,12 +1,12 @@
 import psycopg
 
 conn = psycopg.connect(
-    conninfo="postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
+    conninfo="postgresql://vienna_academic:vienna_academic@postgres:5432/userdb"
 )
 cursor = conn.cursor()
 
 
-def delete_utils(thread_id):
+def delete_utils(thread_id=""):
     if thread_id:
         cursor.execute(
             "DELETE FROM checkpoints WHERE thread_id = %s",
@@ -27,16 +27,16 @@ def delete_utils(thread_id):
     conn.commit()
 
 
-def inspect_utils(thread_id):
+def inspect_utils(thread_id=""):
     if thread_id:
         cursor.execute(f"SELECT * FROM checkpoints WHERE thread_id = {thread_id};")
         print(cursor.fetchall())
     else:
-        cursor.execute("SELECT * FROM checkpoints;")
-        print("Hello")
+        cursor.execute("SELECT thread_id FROM checkpoints;")
         print(cursor.fetchall())
 
 
-inspect_utils("1")
+""" delete_utils("123")
+inspect_utils() """
 
 conn.close()

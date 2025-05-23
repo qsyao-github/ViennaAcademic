@@ -52,7 +52,10 @@ RUN sed -i 's@archive.ubuntu.com@mirrors.aliyun.com@g' /etc/apt/sources.list && 
     # Rust & typst
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     . "$HOME/.cargo/env" && \
-    cargo install --locked typst-cli
+    cargo install --locked typst-cli && \
+    # 更多cargo工具
+    cargo install cargo-update cargo-cache && \
+    cargo cache -a
 
 WORKDIR /root
 

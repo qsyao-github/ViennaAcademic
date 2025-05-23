@@ -43,7 +43,7 @@ fn initialize_static() {
     SUFFIX_MAP.get("py");
     ATTACH_RE.replace_all("#attach{some text}", "");
     TOOL_CALL_PATTERN.replace_all(r#"{ \n "tool_name": \n "arg_name""#, "");
-    VALID_EXTS.contains(&"png");
+    VALID_EXTS.contains_key(&"png");
     REMOVE_CITATION_PATTERN.replace_all("#cite(some text)", "");
     IMAGE_PATTERN.replace_all(
         r#"![](media/image1.png){width="6.718607830271216in"

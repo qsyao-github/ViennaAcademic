@@ -1,6 +1,8 @@
+import glob
 from typing import AsyncGenerator
 
 from chat_utils.chat import ChatManager
+from pydantic import BaseModel
 from va_rust_utils import (
     chat_utils_attachment_processor_process_attachments as process_attachments,
 )
@@ -24,14 +26,20 @@ ALLOWED_PAPER_TYPE = frozenset(
 )
 
 
+class ModelResponseChunk(BaseModel):
+    text: str
+    image_urls: list[str]
+
+
 async def respond_stream(
     query: str,
+    image_urls: list[str],
     thread_id: str,
     chat_mode: str,
     current_user: str,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[ModelResponseChunk, None]:
     if not query:
-        yield ""
+        yield None
         return
 
     # 预处理
@@ -40,10 +48,16 @@ async def respond_stream(
     # 流式输出
     bot_response = ChatManager.astream_response(
         formatted_text,
-        [],
+        image_urls,
         thread_id,
         chat_mode,
         thread_id,
     )
     async for response_chunk in bot_response:
-        yield response_chunk
+        yield ModelResponseChunk(text=response_chunk, image_urls=[])
+
+    # 附加图片
+    yield ModelResponseChunk(
+        text="",
+        image_urls=[f"/{path}" for path in glob.glob(f"media/{thread_id}*.png")],
+    )

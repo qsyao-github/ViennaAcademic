@@ -7,7 +7,7 @@ services:
       - vienna_net
 
   vienna_gpu:
-    build: ./
+    build: ./app
     container_name: vienna_gpu
     volumes:
       - ./:/root/ViennaAcademic
@@ -27,6 +27,7 @@ services:
       POSTGRES_DB: vadb
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     networks:

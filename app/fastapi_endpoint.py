@@ -6,16 +6,20 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 from typing import Literal
+from typing import Annotated
 
 import aiofiles
 import magic
 import uvloop
 from chat_utils.agent_backend import close_conn, get_agent_app
 from endpoint_utils import ALLOWED_IMAGE_TYPE, ALLOWED_PAPER_TYPE, respond_stream
-from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import ORJSONResponse, StreamingResponse
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
+from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from file_utils.file_conversion import everything_to_markdown
+from .auth import Token, authenticate_user
+
+# from file_utils.file_conversion import everything_to_markdown
 from pydantic import BaseModel
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -28,7 +32,7 @@ async def lifespan(app: FastAPI):
     await close_conn()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, default_response_class=ORJSONResponse)
 
 app.mount("/media", StaticFiles(directory="media"), name="media")
 app.mount("/documents", StaticFiles(directory="documents"), name="documents")
@@ -37,7 +41,7 @@ app.mount("/documents", StaticFiles(directory="documents"), name="documents")
 # 文件系统
 
 
-@app.post("/upload/image/{thread_id}", response_class=ORJSONResponse)
+@app.post("/upload/image/{thread_id}", response_class=PlainTextResponse)
 async def upload_image(file: UploadFile, thread_id: str):
     # 类型验证
     chunk = await file.read(2048)
@@ -54,10 +58,10 @@ async def upload_image(file: UploadFile, thread_id: str):
     async with aiofiles.open(final_path, "wb") as f:
         while chunk := await file.read(8192):
             await f.write(chunk)
-    return {"url": final_path}
+    return f"/{final_path}"
 
 
-@app.post("/upload/document/{user}/paper", response_class=ORJSONResponse)
+""" @app.post("/upload/document/{user}/paper", response_class=PlainTextResponse)
 async def upload_paper(file: UploadFile, user: str):
     # 重复上传保护
     final_path = os.path.join("documents", user, "paper", file.filename)
@@ -81,15 +85,15 @@ async def upload_paper(file: UploadFile, user: str):
     if detected_mime != "text/plain":
         knowledgeBase_path = os.path.join("documents", user, "knowledgeBase")
         await everything_to_markdown(final_path, knowledgeBase_path)
-    return {"url": final_path}
+    return f"/{final_path}" """
 
 
-@app.post("/upload/document/{user}/code", response_class=ORJSONResponse)
+@app.post("/upload/document/{user}/code", response_class=PlainTextResponse)
 async def upload_code(file: UploadFile, user: str):
     # 重复上传保护
     final_path = os.path.join("documents", user, "code", file.filename)
     if os.path.exists(final_path):
-        return {"url": final_path}
+        return f"/{final_path}"
 
     # 类型验证
     chunk = await file.read(2048)
@@ -106,10 +110,10 @@ async def upload_code(file: UploadFile, user: str):
     async with aiofiles.open(final_path, "wb") as f:
         while chunk := await file.read(8192):
             await f.write(chunk)
-    return {"url": final_path}
+    return f"/{final_path}"
 
 
-@app.get("/list_files/{user}/{directory}", response_class=ORJSONResponse)
+@app.get("/list_files/{user}/{directory}")
 async def list_directory(
     user: str,
     directory: Literal["paper", "knowledgeBase", "code", "tempest", "convert"],
@@ -124,6 +128,7 @@ async def list_directory(
 
 class ChatQuery(BaseModel):
     query: str
+    image_urls: list[str]
     chat_mode: Literal["常规", "工具", "多模态", "知识库", "网页搜索"]
     current_user: str
 
@@ -133,8 +138,27 @@ async def respond(thread_id: str, chat_query: ChatQuery):
     return StreamingResponse(
         respond_stream(
             chat_query.query,
+            chat_query.image_urls,
             thread_id,
             chat_query.chat_mode,
             chat_query.current_user,
         )
     )
+
+
+@app.post("/token")
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
