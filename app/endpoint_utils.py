@@ -1,8 +1,9 @@
 import glob
+import orjson
 from typing import AsyncGenerator
 
 from chat_utils.chat import ChatManager
-from pydantic import BaseModel
+from typing import TypedDict
 from va_rust_utils import (
     chat_utils_attachment_processor_process_attachments as process_attachments,
 )
@@ -26,7 +27,7 @@ ALLOWED_PAPER_TYPE = frozenset(
 )
 
 
-class ModelResponseChunk(BaseModel):
+class ModelResponseChunk(TypedDict):
     text: str
     image_urls: list[str]
 
@@ -37,7 +38,7 @@ async def respond_stream(
     thread_id: str,
     chat_mode: str,
     current_user: str,
-) -> AsyncGenerator[ModelResponseChunk, None]:
+) -> AsyncGenerator[bytes, None]:
     if not query:
         yield None
         return
@@ -54,10 +55,12 @@ async def respond_stream(
         thread_id,
     )
     async for response_chunk in bot_response:
-        yield ModelResponseChunk(text=response_chunk, image_urls=[])
+        yield orjson.dumps(ModelResponseChunk(text=response_chunk, image_urls=[]))
 
     # 附加图片
-    yield ModelResponseChunk(
-        text="",
-        image_urls=[f"/{path}" for path in glob.glob(f"media/{thread_id}*.png")],
+    yield orjson.dumps(
+        ModelResponseChunk(
+            text="",
+            image_urls=[f"/{path}" for path in glob.glob(f"media/{thread_id}*.png")],
+        )
     )
