@@ -56,7 +56,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     echo '[source.crates-io]\nreplace-with = "ustc"\n\n[source.ustc]\nregistry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"\n\n[registries.ustc]\nindex = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"' > root/.cargo/config.toml
 RUN cargo install --locked typst-cli
 # 更多cargo工具
-RUN cargo install cargo-update cargo-cache && \
+RUN cargo install cargo-update cargo-cache cargo-edit && \
     cargo cache -a
 
 WORKDIR /root
