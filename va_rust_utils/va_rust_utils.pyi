@@ -7,18 +7,16 @@ def initialize_static() -> None:
 
 ## paper
 
-def academic_utils_paper_attach(file: str, current_user_directory: str) -> str:
+def academic_utils_paper_attach(file_path: str) -> str:
     """
     附加文件内容
 
-    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中。由于参数是由Gradio端根据文件列表生成的，不应出现文件不存在的情况
+    在knowledgeBase和code目录下查找文件。代码文件放入对应代码框中
 
     Parameters
     ----------
-    file: str
-        文件名
-    current_user_directory: str
-        当前用户根目录
+    file_path: str
+        文件路径
 
     Returns
     ----------
@@ -34,10 +32,8 @@ def academic_utils_paper_chunk(file: str, current_user_directory: str) -> list[s
 
     Parameters
     ----------
-    file: str
-        文件名
-    current_user_directory: str
-        当前用户根目录
+    file_path: str
+        文件路径
 
     Returns
     ----------
@@ -51,17 +47,17 @@ def academic_utils_paper_chunk(file: str, current_user_directory: str) -> list[s
 
 def chat_utils_attachment_processor_process_attachments(
     text: str,
-    current_dir: str,
+    file_urls: list[str],
 ) -> str:
     """
-    将#attach{}命令替换为对应文件全文
+    将要引用的文件格式化放到用户输入前
 
     Parameters
     ----------
     text: str
-        待处理文本
-    current_dir: str
-        当前用户根目录
+        用户输入
+    file_urls: list[str]
+        所有引用文件
 
     Returns
     ----------

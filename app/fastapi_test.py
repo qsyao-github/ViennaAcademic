@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 from fastapi_endpoint import app
-from va_rust_utils import chat_utils_media_handler_create_image_component as create_image_component
 
 client = TestClient(app)
 

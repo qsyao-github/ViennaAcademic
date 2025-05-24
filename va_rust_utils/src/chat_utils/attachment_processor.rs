@@ -1,10 +1,6 @@
 use pyo3::prelude::*;
-use regex::Regex;
 
-use crate::academic_utils::paper;
-
-pub static ATTACH_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"#attach\{([^}]+)\}").unwrap());
+use crate::academic_utils::paper::academic_utils_paper_attach;
 
 /*
 将#attach{}命令替换为对应文件全文
@@ -24,11 +20,15 @@ String
 #[pyfunction]
 pub fn chat_utils_attachment_processor_process_attachments(
     text: &str,
-    current_dir: &str,
+    file_urls: Vec<String>,
 ) -> String {
-    ATTACH_RE
-        .replace_all(text, |caps: &regex::Captures| {
-            paper::academic_utils_paper_attach(&caps[1], current_dir)
-        })
-        .to_string()
+    let mut new_text = String::with_capacity(512);
+    for file in file_urls {
+        let content = academic_utils_paper_attach(&file);
+        if !content.is_empty() {
+            new_text.push_str(&academic_utils_paper_attach(&file));
+        }
+    }
+    new_text.push_str(text);
+    new_text
 }

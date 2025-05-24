@@ -1,4 +1,5 @@
 """
+运行：
 uvicorn fastapi_endpoint:app --host 0.0.0.0 --port 8000 --loop uvloop
 """
 
@@ -75,7 +76,7 @@ async def register(username: str, password: str):
 
 
 @app.post("/upload/image/{thread_id}", response_class=PlainTextResponse)
-async def upload_image(file: UploadFile, thread_id: str):
+async def upload_image(file: UploadFile, thread_id: str, _user: Annotated[User, Depends(get_current_user)]):
     # 类型验证
     chunk = await file.read(2048)
 
@@ -156,7 +157,7 @@ async def list_directory(
     directory: Literal["paper", "knowledgeBase", "code", "tempest", "convert"],
 ):
     dir_path = os.path.join("documents", user.username, directory)
-    return [entry.name for entry in os.scandir(dir_path)]
+    return [f"/documents/{user.username}/{directory}/{entry.name}" for entry in os.scandir(dir_path)]
 
 
 # 模型回复
@@ -165,6 +166,7 @@ async def list_directory(
 class ChatQuery(BaseModel):
     query: str
     image_urls: list[str]
+    file_urls: list[str]
     chat_mode: Literal["常规", "工具", "多模态", "知识库", "网页搜索"]
 
 
@@ -172,14 +174,16 @@ class ChatQuery(BaseModel):
 async def respond(
     thread_id: str,
     chat_query: ChatQuery,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _user: Annotated[User, Depends(get_current_user)],
 ):
+    if not (chat_query.query or chat_query.image_urls or chat_query.file_urls):
+        raise HTTPException(400, detail="Empty query")
     return StreamingResponse(
         respond_stream(
             chat_query.query,
             chat_query.image_urls,
+            chat_query.file_urls,
             thread_id,
             chat_query.chat_mode,
-            current_user.username,
         ),
     )

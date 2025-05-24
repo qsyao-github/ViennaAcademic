@@ -14,7 +14,6 @@ mod chat_utils {
     pub mod tool_formatter;
 }
 use crate::chat_utils::attachment_processor::chat_utils_attachment_processor_process_attachments;
-use crate::chat_utils::attachment_processor::ATTACH_RE;
 use crate::chat_utils::media_handler::chat_utils_media_handler_create_image_component;
 use crate::chat_utils::media_handler::VALID_EXTS;
 use crate::chat_utils::tool_formatter::chat_utils_tool_formatter_format_tools;
@@ -41,7 +40,6 @@ use crate::web_utils::arxiv_crawler::web_utils_arxiv_crawler_process_markdown;
 fn initialize_static() {
     LINEBREAK_RE.split("Line1  \n\n  Line2");
     SUFFIX_MAP.get("py");
-    ATTACH_RE.replace_all("#attach{some text}", "");
     TOOL_CALL_PATTERN.replace_all(r#"{ \n "tool_name": \n "arg_name""#, "");
     VALID_EXTS.contains_key(&"png");
     REMOVE_CITATION_PATTERN.replace_all("#cite(some text)", "");

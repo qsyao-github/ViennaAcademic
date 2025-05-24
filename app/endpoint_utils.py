@@ -1,13 +1,12 @@
 import glob
+from datetime import datetime
+from typing import AsyncGenerator, TypedDict
+
 import orjson
-from typing import AsyncGenerator
-from fastapi import HTTPException
 from chat_utils.chat import ChatManager
-from typing import TypedDict
 from va_rust_utils import (
     chat_utils_attachment_processor_process_attachments as process_attachments,
 )
-from datetime import datetime
 
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
 ALLOWED_PAPER_TYPE = frozenset(
@@ -36,15 +35,14 @@ class ModelResponseChunk(TypedDict):
 async def respond_stream(
     query: str,
     image_urls: list[str],
+    file_urls: list[str],
     thread_id: str,
     chat_mode: str,
-    current_user: str,
 ) -> AsyncGenerator[bytes, None]:
-    if not (query or image_urls):
-        raise HTTPException(400, detail="Empty query")
+    
 
     # 预处理
-    formatted_text = process_attachments(query, current_user)
+    formatted_text = process_attachments(query, file_urls)
     timestamp = f"{datetime.now().timestamp() * 100 % 8640000:7.0f}"
     # 流式输出
     bot_response = ChatManager.astream_response(

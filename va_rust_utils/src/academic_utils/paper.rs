@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, PathBuf};
 
 const MIN_CHARACTER_THRESHOLD: usize = 63;
 
@@ -48,35 +48,33 @@ String
     文件内容。若为代码则放入代码框
 */
 #[pyfunction]
-pub fn academic_utils_paper_attach(file: &str, current_user_directory: &str) -> String {
+pub fn academic_utils_paper_attach(file_path: &str) -> String {
+    let trimmed_path = PathBuf::from(file_path.trim_start_matches('/'));
     // 构建知识库文件路径
-    let base_path = PathBuf::from("documents");
-    let kb_path = base_path
-        .join(current_user_directory)
-        .join("knowledgeBase")
-        .join(Path::new(file).with_extension("md"));
-
-    // 优先检查知识库文件
-    if let Ok(content) = fs::read_to_string(&kb_path) {
-        return content;
+    let mut components: Vec<_> = trimmed_path.components().collect();
+    if components.len() != 4 {
+        return String::new();
+    }
+    if components[2] == Component::Normal("paper".as_ref()) {
+        components[2] = Component::Normal("knowledgeBase".as_ref());
+        let mut kb_path: PathBuf = components.iter().collect();
+        kb_path.set_extension("md");
+        if let Ok(content) = fs::read_to_string(&kb_path) {
+            return format!("```\n{content}\n```\n\n");
+        }
+        return String::new();
     }
 
-    // 构建代码文件路径
-    let code_path = base_path
-        .join(current_user_directory)
-        .join("code")
-        .join(file);
-
     // 检查并读取代码文件
-    if let Ok(code) = fs::read_to_string(&code_path) {
-        let lang = Path::new(file)
+    if let Ok(content) = fs::read_to_string(&trimmed_path) {
+        let lang = trimmed_path
             .extension()
             .and_then(|ext| ext.to_str())
             .and_then(|ext| SUFFIX_MAP.get(ext))
             .copied()
             .unwrap_or("");
 
-        return format!("```{lang}\n{code}\n```");
+        return format!("```{lang}\n{content}\n```\n\n");
     }
     String::new()
 }
@@ -99,8 +97,8 @@ final_list: Vec<String>
     分段后的文本
 */
 #[pyfunction]
-pub fn academic_utils_paper_chunk(file: &str, current_user_directory: &str) -> Vec<String> {
-    let content = academic_utils_paper_attach(file, current_user_directory);
+pub fn academic_utils_paper_chunk(file_path: &str) -> Vec<String> {
+    let content = academic_utils_paper_attach(file_path);
     let mut final_list = Vec::new();
     let mut temp_string = String::with_capacity(MIN_CHARACTER_THRESHOLD * 2);
     let mut char_count = 0;
