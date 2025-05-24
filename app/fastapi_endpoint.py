@@ -26,7 +26,8 @@ from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from file_utils.file_conversion import everything_to_markdown
+
+# from file_utils.file_conversion import everything_to_markdown
 from pydantic import BaseModel
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -93,7 +94,7 @@ async def upload_image(file: UploadFile, thread_id: str):
     return f"/{final_path}"
 
 
-@app.post("/upload/document/paper", response_class=PlainTextResponse)
+""" @app.post("/upload/document/paper", response_class=PlainTextResponse)
 async def upload_paper(
     file: UploadFile, user: Annotated[User, Depends(get_current_user)]
 ):
@@ -119,7 +120,7 @@ async def upload_paper(
     if detected_mime != "text/plain":
         knowledgeBase_path = os.path.join("documents", user, "knowledgeBase")
         await everything_to_markdown(final_path, knowledgeBase_path)
-    return f"/{final_path}"
+    return f"/{final_path}" """
 
 
 @app.post("/upload/document/code", response_class=PlainTextResponse)
@@ -180,5 +181,5 @@ async def respond(
             thread_id,
             chat_query.chat_mode,
             current_user.username,
-        )
+        ),
     )

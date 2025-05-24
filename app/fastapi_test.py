@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from fastapi_endpoint import app
+from va_rust_utils import chat_utils_media_handler_create_image_component as create_image_component
 
 client = TestClient(app)
 
@@ -14,8 +15,8 @@ def test_respond():
             "current_user": "laowei",
         },
     )
-    for chunk in response.iter_text():
-        print(chunk, end="\n")
+    for chunk in response.iter_raw():
+        print(chunk)
 
 
 def test_upload_image():

@@ -5,8 +5,11 @@
 docker run -d --rm --name scipy-light scipy-light
 """
 
-import subprocess
+import os
 import re
+import tarfile
+from io import BytesIO
+from tarfile import TarInfo
 
 import docker
 
@@ -19,6 +22,11 @@ clean_output_pattern = re.compile(r"Out\[\d+\]:\s*")
 # 连接容器
 client = docker.from_env()
 container = client.containers.get("scipy-light")
+
+
+def get_base_path(tar_info: TarInfo):
+    tar_info.path = os.path.basename(tar_info.path)
+    return tar_info
 
 
 def python_tool(code: str) -> str:
@@ -36,7 +44,7 @@ def python_tool(code: str) -> str:
 
     Notes
     ----------
-    1. 使用get_archive处理png文件，复制到容器外后迅速删除
+    1. 使用get_archive打包png文件为tar，复制到容器外后解压，删除容器内的png
     """
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
     exec_id = container.exec_run(
@@ -52,19 +60,24 @@ def python_tool(code: str) -> str:
     ).output.decode("utf-8")
     if not container_png_files_str:
         return output
-    container_png_files = set(container_png_files_str.strip().split("\n"))
-    # 复制文件
-    subprocess.run(
-        [
-            "sh",
-            "-c",
-            " && ".join(
-                [
-                    f"docker cp scipy-light:/root/{png_file} media/{png_file}"
-                    for png_file in container_png_files
-                ]
-            ),
-        ]
+    # 创建临时文件夹并移动文件
+    container.exec_run("mkdir -p /tmp/png_output")  # 创建专用目录
+    container.exec_run(
+        "sh -c 'mv /root/*.png /tmp/png_output/'",
+        workdir="/root",
     )
-    container.exec_run(f"rm {' '.join(container_png_files)}")
+    # 获取整个文件夹的tar流
+    stream, _ = container.get_archive("/tmp/png_output")
+    # 解压到本地
+    tar_data = BytesIO()
+    for chunk in stream:
+        tar_data.write(chunk)
+    tar_data.seek(0)
+    with tarfile.open(fileobj=tar_data) as tar:
+        tar.extractall(
+            "media",
+            members=[get_base_path(m) for m in tar if m.isfile()],
+            numeric_owner=True,
+        )
+    container.exec_run("rm -rf /tmp/png_output")
     return output

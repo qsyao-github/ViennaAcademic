@@ -54,10 +54,8 @@ Py<PyDict>
 #[pyfunction]
 pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
     let dict = PyDict::new(py);
-    let Some(ext) = Path::new(image_path.trim_start_matches('/'))
-        .extension()
-        .and_then(|e| e.to_str())
-    else {
+    let trimmed_path = image_path.trim_start_matches('/');
+    let Some(ext) = Path::new(trimmed_path).extension().and_then(|e| e.to_str()) else {
         return dict.into();
     };
 
@@ -65,7 +63,7 @@ pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &
         return dict.into();
     };
 
-    let encoded = encode_image(image_path);
+    let encoded = encode_image(trimmed_path);
     if encoded.is_empty() {
         return dict.into();
     }

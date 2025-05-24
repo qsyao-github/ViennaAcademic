@@ -1,12 +1,13 @@
 import glob
 import orjson
 from typing import AsyncGenerator
-
+from fastapi import HTTPException
 from chat_utils.chat import ChatManager
 from typing import TypedDict
 from va_rust_utils import (
     chat_utils_attachment_processor_process_attachments as process_attachments,
 )
+from datetime import datetime
 
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
 ALLOWED_PAPER_TYPE = frozenset(
@@ -39,20 +40,19 @@ async def respond_stream(
     chat_mode: str,
     current_user: str,
 ) -> AsyncGenerator[bytes, None]:
-    if not query:
-        yield None
-        return
+    if not (query or image_urls):
+        raise HTTPException(400, detail="Empty query")
 
     # 预处理
     formatted_text = process_attachments(query, current_user)
-
+    timestamp = f"{datetime.now().timestamp() * 100 % 8640000:7.0f}"
     # 流式输出
     bot_response = ChatManager.astream_response(
         formatted_text,
         image_urls,
         thread_id,
         chat_mode,
-        thread_id,
+        timestamp,
     )
     async for response_chunk in bot_response:
         yield orjson.dumps(ModelResponseChunk(text=response_chunk, image_urls=[]))
@@ -61,6 +61,6 @@ async def respond_stream(
     yield orjson.dumps(
         ModelResponseChunk(
             text="",
-            image_urls=[f"/{path}" for path in glob.glob(f"media/{thread_id}*.png")],
+            image_urls=[f"/{path}" for path in glob.glob(f"media/{timestamp}*.png")],
         )
     )
