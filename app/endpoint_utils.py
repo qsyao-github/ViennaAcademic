@@ -1,13 +1,12 @@
 import glob
 from datetime import datetime
-from typing import AsyncGenerator, TypedDict
+from typing import AsyncGenerator, List
 
 import orjson
-from chat_utils.chat import ChatManager
-from va_rust_utils import (
-    chat_utils_attachment_processor_process_attachments as process_attachments,
-)
+from chat_utils.chat import astream_response
+from llm_utils.modelclient import model_type
 
+# 文件类型
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
 ALLOWED_PAPER_TYPE = frozenset(
     [
@@ -27,38 +26,68 @@ ALLOWED_PAPER_TYPE = frozenset(
 )
 
 
-class ModelResponseChunk(TypedDict):
-    text: str
-    image_urls: list[str]
-
-
 async def respond_stream(
     query: str,
-    image_urls: list[str],
-    file_urls: list[str],
+    image_urls: List[str],
+    file_urls: List[str],
     thread_id: str,
-    chat_mode: str,
+    model: str,
+    enable_tool: bool,
+    enable_thinking: bool,
+    multimodal: bool,
 ) -> AsyncGenerator[bytes, None]:
-    
+    """
+    生成模型回复字节流
 
-    # 预处理
-    formatted_text = process_attachments(query, file_urls)
-    timestamp = f"{datetime.now().timestamp() * 100 % 8640000:7.0f}"
+    Parameters
+    ----------
+    query: str
+        用户文本输入
+    image_urls: List[str]
+        用户上传的图片url列表
+    file_urls: List[str]
+        用户引用的文件url列表
+    thread_id:
+        线程唯一标识符
+    model: str
+        模型名称
+    enable_tool: bool
+        启用工具调用
+    enable_thinking: bool
+        启用思考
+    multimodal: bool
+        支持多模态
+
+    Yields
+    ----------
+    bytes
+        模型回复字节流
+
+    Notes
+    ----------
+    1. 当前可用的模型列表中未能找到模型名称和模型类型匹配的模型，返回{"ERROR": "No such model"}
+    2. 正常返回值有
+        - {"content": "正文片段"}
+        - {"tool_calls": "工具调用json字符串片段"}
+        - {"reasoning_content": "推理片段"}
+        - {"image_urls": ["/path/to/model/generated/image_1", "/path/to/model/generated/image_2"]}
+    """
+    # 生成精度为1cs，周期为1天的时间标识符，作为模型生成图片文件的名称前缀
+    timestamp = f"{datetime.now().timestamp() * 100 % 8640000:.0f}"
     # 流式输出
-    bot_response = ChatManager.astream_response(
-        formatted_text,
+    bot_response = astream_response(
+        query,
         image_urls,
+        file_urls,
         thread_id,
-        chat_mode,
+        model,
+        model_type(enable_tool, enable_thinking, multimodal),
         timestamp,
     )
     async for response_chunk in bot_response:
-        yield orjson.dumps(ModelResponseChunk(text=response_chunk, image_urls=[]))
+        yield orjson.dumps(response_chunk)
 
     # 附加图片
     yield orjson.dumps(
-        ModelResponseChunk(
-            text="",
-            image_urls=[f"/{path}" for path in glob.glob(f"media/{timestamp}*.png")],
-        )
+        {"image_urls": [f"/{path}" for path in glob.glob(f"media/{timestamp}*.png")]}
     )

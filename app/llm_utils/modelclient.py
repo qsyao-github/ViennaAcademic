@@ -21,23 +21,20 @@ deepseek_v3 = ChatOpenAI(
     model="deepseek-v3-250324",
     api_key=volcano_client_API_KEY,
     base_url=volcano_client_BASE_URL,
+    logprobs=False,
 )
 
 # 多模态
 mistral_small_latest = ChatMistralAI(
-    model="mistral-small-latest", api_key=laowei_mistral_client_API_KEY
-)
-
-pixtral_large_latest = ChatOpenAI(
-    model="pixtral-large-latest",
-    api_key=xkx_client_API_KEY,
-    base_url=xkx_client_BASE_URL,
+    model="mistral-small-latest",
+    api_key=laowei_mistral_client_API_KEY,
 )
 
 glm_4v_flash = ChatOpenAI(
     model="glm-4v-flash",
     api_key=zhipu_client_API_KEY,
     base_url=zhipu_client_BASE_URL,
+    logprobs=False,
 )
 
 # 推理
@@ -47,6 +44,7 @@ deepseek_r1_671b = ChatOpenAI(
     base_url=xkx_client_BASE_URL,
     temperature=0.6,
     max_tokens=16384,
+    logprobs=False,
 )
 
 glm_z1_flash = ChatOpenAI(
@@ -56,13 +54,7 @@ glm_z1_flash = ChatOpenAI(
     temperature=0.6,
     top_p=0.95,
     max_completion_tokens=30000,
-)
-
-# 代码
-codestral_latest = ChatOpenAI(
-    model="codestral-latest",
-    api_key=xkx_client_API_KEY,
-    base_url=xkx_client_BASE_URL,
+    logprobs=False,
 )
 
 # 嵌入
@@ -74,3 +66,25 @@ bce_embedding_base = OpenAIEmbeddings(
     chunk_size=32,
     check_embedding_ctx_length=False,
 )
+
+
+def model_type(enable_tool: bool, enable_thinking: bool, multimodal: bool):
+    """根据模型属性返回位掩码
+
+    用位掩码表征模型是否支持工具调用、推理、多模态
+
+    Parameters
+    ----------
+    enable_tool: bool
+        是否支持工具调用
+    enable_thinking: bool
+        是否进行推理
+    multimodal: bool
+        是否支持多模态
+
+    Returns
+    ----------
+    int
+        位掩码
+    """
+    return (enable_tool << 2) | (enable_thinking << 1) | multimodal

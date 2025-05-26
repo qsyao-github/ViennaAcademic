@@ -29,6 +29,27 @@ def get_base_path(tar_info: TarInfo):
     return tar_info
 
 
+def copy_file(stream):
+    """
+    将png文件夹tar流解压并写入本地
+
+    Parameters
+    ----------
+    stream: Incomplete
+        tar流
+    """
+    tar_data = BytesIO()
+    for chunk in stream:
+        tar_data.write(chunk)
+    tar_data.seek(0)
+    with tarfile.open(fileobj=tar_data) as tar:
+        tar.extractall(
+            "media",
+            members=[get_base_path(m) for m in tar if m.isfile()],
+            numeric_owner=True,
+        )
+
+
 def python_tool(code: str) -> str:
     """通过容器执行Python代码
 
@@ -61,23 +82,12 @@ def python_tool(code: str) -> str:
     if not container_png_files_str:
         return output
     # 创建临时文件夹并移动文件
-    container.exec_run("mkdir -p /tmp/png_output")  # 创建专用目录
     container.exec_run(
-        "sh -c 'mv /root/*.png /tmp/png_output/'",
+        "sh -c 'mkdir -p /tmp/png_output && mv /root/*.png /tmp/png_output/'",
         workdir="/root",
     )
     # 获取整个文件夹的tar流
     stream, _ = container.get_archive("/tmp/png_output")
-    # 解压到本地
-    tar_data = BytesIO()
-    for chunk in stream:
-        tar_data.write(chunk)
-    tar_data.seek(0)
-    with tarfile.open(fileobj=tar_data) as tar:
-        tar.extractall(
-            "media",
-            members=[get_base_path(m) for m in tar if m.isfile()],
-            numeric_owner=True,
-        )
+    copy_file(stream)
     container.exec_run("rm -rf /tmp/png_output")
     return output

@@ -1,5 +1,5 @@
 """
-React Agent后端，处理ViennaAcademic中的主页面聊天部分
+React Agent后端，处理ViennaAcademic中的聊天部分
 """
 
 from typing import Dict, List
@@ -18,36 +18,38 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
 from llm_utils.execute_code import python_tool
-from llm_utils.modelclient import deepseek_v3, mistral_small_latest
-from llm_utils.system_prompt import KNOWLEDGEBASE, REGEX_TOOLCALL, WEB_SEARCH
+from llm_utils.modelclient import (
+    deepseek_r1_671b,
+    deepseek_v3,
+    glm_z1_flash,
+    mistral_small_latest,
+    model_type,
+)
+from llm_utils.system_prompt import REGEX_TOOLCALL
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from web_utils.search import attach_web_result
 
+# 工具/推理/多模态位掩码
+ENABLE_TOOL = model_type(True, False, False)
+ENABLE_REASONING = model_type(False, True, False)
+MULTIMODAL = model_type(False, False, True)
+
+
+# 提示词模板
 empty_template = ChatPromptTemplate.from_messages(
     [MessagesPlaceholder(variable_name="messages")]
 )
 regex_toolcall_template = ChatPromptTemplate.from_messages(
     [("system", REGEX_TOOLCALL), MessagesPlaceholder(variable_name="messages")]
 )
-web_search_template = ChatPromptTemplate.from_messages(
-    [("system", WEB_SEARCH), MessagesPlaceholder(variable_name="messages")]
-)
-knowledgebase_template = ChatPromptTemplate.from_messages(
-    [("system", KNOWLEDGEBASE), MessagesPlaceholder(variable_name="messages")]
-)
-select_template_from_mode = {
-    "常规": empty_template,
-    "工具": regex_toolcall_template,
-    "多模态": empty_template,
-    "知识库": knowledgebase_template,
-    "网页搜索": web_search_template,
-}
 
 
+# 绑定工具
 @tool
 async def websearch(query: str) -> str:
     """使用搜索引擎"""
@@ -62,26 +64,21 @@ def ipython(code: str) -> str:
 
 
 graph_builder = StateGraph(AgentState)
-tools = [ipython, websearch]
+tools = [ipython]
 deepseek_v3_with_tools = deepseek_v3.bind_tools(tools)
-select_model_from_mode = {
-    "常规": deepseek_v3,
-    "工具": deepseek_v3_with_tools,
-    "多模态": mistral_small_latest,
-    "知识库": deepseek_v3,
-    "网页搜索": deepseek_v3,
-}
 
-# 没有文本情况下的默认提示
-NO_TEXT_FALLBACK = [
-    {
-        "type": "text",
-        "text": "系统提示：用户没有输入任何内容，请要求用户输入文本或使用多模态模式",
-    }
+# 模型, 位掩码(enable_tool, enable_thinking, multimodal), 模型简称
+models = [
+    (deepseek_v3, model_type(False, False, False), "deepseek-v3"),
+    (deepseek_v3_with_tools, model_type(True, False, False), "deepseek-v3"),
+    (deepseek_r1_671b, model_type(False, True, False), "deepseek-r1"),
+    (mistral_small_latest, model_type(False, False, True), "mistral-small"),
+    (glm_z1_flash, model_type(False, True, False), "glm-z1-flash"),
 ]
+models.sort(key=lambda x: (x[2], x[1]))
 
 
-# 以下两个函数参考langchain_core.messages.filter_messages
+# 自定义信息过滤器，参考langchain_core.messages.filter_messages
 def filter_tools(messages: PromptValue) -> List[BaseMessage]:
     """过滤messages中的工具调用
 
@@ -112,10 +109,10 @@ def filter_tools(messages: PromptValue) -> List[BaseMessage]:
 
 def _filter_multimodal_human_message(
     content: List[str | Dict[str, str]],
-) -> List[str | Dict[str, str]]:
+) -> str:
     """过滤HumanMessage中的多模态部分
 
-    当过滤后没有文本部分，则返回一个默认提示
+    一个HumanMessage中至多有一个文本部分，直接用next获取返回字符串
 
     Parameters
     ----------
@@ -124,10 +121,10 @@ def _filter_multimodal_human_message(
 
     Returns
     ----------
-    List[str | Dict[str, str]]
-        过滤后的内容
+    str
+        文本内容
     """
-    return [chunk for chunk in content if chunk["type"] == "text"] or NO_TEXT_FALLBACK
+    return next((chunk["text"] for chunk in content if chunk["type"] == "text"), "")
 
 
 def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
@@ -147,17 +144,45 @@ def filter_multimodal(messages: PromptValue) -> List[BaseMessage]:
     ----------
     目前只有HumanMessage有可能出现多模态内容
     """
+    filtered: list[BaseMessage] = []
     messages = convert_to_messages(messages)
-    return [
-        (
-            HumanMessage(content=_filter_multimodal_human_message(message.content))
-            if isinstance(message, HumanMessage)
-            else message
-        )
-        for message in messages
-    ]
+    for message in messages:
+        if isinstance(message, HumanMessage):
+            if text := _filter_multimodal_human_message(message.content):
+                filtered.append(HumanMessage(content=text))
+        else:
+            filtered.append(message)
+    return filtered
 
 
+def apply_safety_filter(
+    model_type: int, prompted_message: PromptValue
+) -> List[BaseMessage]:
+    """
+    根据模型类型，过滤不能处理的信息
+
+    Parameters
+    ----------
+    model_type: int
+        模型类型位掩码
+    prompted_message: PromptValue
+        提示词
+
+    Returns
+    ----------
+    prompted_message: List[BaseMessage]
+        过滤后的信息列表
+    """
+    # 若非多模态模型，过滤多模态信息
+    if not (model_type & MULTIMODAL):
+        prompted_message = filter_multimodal(prompted_message)
+    # 若非工具模型，过滤工具信息
+    if not (model_type & ENABLE_TOOL):
+        prompted_message = filter_tools(prompted_message)
+    return prompted_message
+
+
+# 模型调用
 async def chatbot(
     state: AgentState, config: RunnableConfig
 ) -> Dict[str, List[BaseMessage]]:
@@ -177,26 +202,27 @@ async def chatbot(
     ----------
     对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     """
-    mode = config["configurable"].get("mode", "常规")
-    template = select_template_from_mode[mode]
-    model = select_model_from_mode[mode]
+    # 获取模型名称和位掩码
+    model_type = config["configurable"].get(
+        "model_type",
+    )
+    model_name = config["configurable"].get("model")
+    # 获取模型与对应的提示词
+    template = regex_toolcall_template if model_type & ENABLE_TOOL else empty_template
+    model = [m[0] for m in models if m[1] == model_type and m[2] == model_name][0]
     prompted_message = await template.ainvoke(
         {
             "messages": state["messages"],
             "image_prefix": config["configurable"]["image_prefix"],
         }
     )
-    # 仅多模态模式的模型支持多模态信息
-    if mode != "多模态":
-        prompted_message = filter_multimodal(prompted_message)
-    # 仅工具模式的模型支持工具信息
-    if mode != "工具":
-        prompted_message = filter_tools(prompted_message)
-    merged = merge_message_runs(prompted_message)
+    # 过滤无法处理的信息并合并来自同一主体的连续信息
+    merged = merge_message_runs(apply_safety_filter(model_type, prompted_message))
     response = await model.ainvoke(merged)
     return {"messages": [response]}
 
 
+# Agent构建
 graph_builder.add_node("chatbot", chatbot)
 tool_node = ToolNode(tools=tools)
 graph_builder.add_node("tools", tool_node)
@@ -212,7 +238,12 @@ agent_app = None
 conn = None
 
 
-async def get_agent_app():
+async def get_agent_app() -> CompiledStateGraph:
+    """
+    获取全局agent_app
+
+    当agent_app未初始化，建立与数据库的连接并构建。应于程序运行后尽快调用
+    """
     global agent_app, conn
     if agent_app is None:
         conn = await AsyncConnection.connect(
@@ -225,7 +256,12 @@ async def get_agent_app():
     return agent_app
 
 
-async def close_conn():
+async def close_conn() -> None:
+    """
+    关闭与数据库的连接
+
+    应于程序结束前调用
+    """
     global conn
     await conn.close()
     print("agent_app stopped")

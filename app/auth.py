@@ -1,6 +1,6 @@
 import subprocess
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 import jwt
 import psycopg
@@ -10,11 +10,13 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
+# 连接用户数据库
 conn = psycopg.connect(
     conninfo="postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
 )
 cursor = conn.cursor()
 
+# 初始化表
 cursor.execute(
     """
     CREATE TABLE IF NOT EXISTS users (
@@ -25,6 +27,7 @@ cursor.execute(
 """
 )
 
+# 初始化密钥，数据类型，token有效期
 SECRET_KEY = subprocess.run(
     ["openssl", "rand", "-hex", "32"], capture_output=True
 ).stdout.decode("utf-8")
@@ -56,7 +59,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def get_user(username: str):
+def get_user(username: str) -> Optional[User]:
+    """
+    从数据库中获取用户名和哈希加密密码
+
+    若不存在，返回None
+    """
     cursor.execute(
         """SELECT username, password_hash FROM users WHERE username = %s;""",
         (username,),
@@ -65,7 +73,12 @@ def get_user(username: str):
         return User(username=result[0], hashed_password=result[1])
 
 
-def authenticate_user(username: str, password: str):
+def authenticate_user(username: str, password: str) -> Optional[User]:
+    """
+    通过用户名或密码认证用户，获取用户信息
+
+    若认证未通过，返回None
+    """
     user = get_user(username)
     if not user:
         return None
@@ -75,6 +88,9 @@ def authenticate_user(username: str, password: str):
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    """
+    获取jwt token
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -86,6 +102,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    """
+    根据jwt token获取认证用户
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -106,6 +125,9 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 
 async def create_user(username: str, password: str):
+    """
+    创建新用户
+    """
     cursor.execute("SELECT username FROM users WHERE username = %s", (username,))
     if cursor.fetchone() is not None:
         raise HTTPException(

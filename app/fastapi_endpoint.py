@@ -21,15 +21,22 @@ from auth import (
     create_user,
     get_current_user,
 )
-from chat_utils.agent_backend import close_conn, get_agent_app
+from chat_utils.agent_backend import (
+    ENABLE_REASONING,
+    ENABLE_TOOL,
+    MULTIMODAL,
+    close_conn,
+    get_agent_app,
+    models,
+)
 from endpoint_utils import ALLOWED_IMAGE_TYPE, ALLOWED_PAPER_TYPE, respond_stream
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 # from file_utils.file_conversion import everything_to_markdown
-from pydantic import BaseModel
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -53,6 +60,9 @@ app.mount("/documents", StaticFiles(directory="documents"), name="documents")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
+    """
+    获取jwt token
+    """
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -69,6 +79,9 @@ async def login_for_access_token(
 
 @app.post("/register", response_class=PlainTextResponse)
 async def register(username: str, password: str):
+    """
+    注册新用户
+    """
     return await create_user(username, password)
 
 
@@ -76,7 +89,17 @@ async def register(username: str, password: str):
 
 
 @app.post("/upload/image/{thread_id}", response_class=PlainTextResponse)
-async def upload_image(file: UploadFile, thread_id: str, _user: Annotated[User, Depends(get_current_user)]):
+async def upload_image(
+    file: UploadFile, thread_id: str, _user: Annotated[User, Depends(get_current_user)]
+):
+    """
+    在{thread_id}对话中上传图片
+
+    示例输出：
+    ```json
+    "/media/somethread_imagename"
+    ```
+    """
     # 类型验证
     chunk = await file.read(2048)
 
@@ -95,10 +118,18 @@ async def upload_image(file: UploadFile, thread_id: str, _user: Annotated[User, 
     return f"/{final_path}"
 
 
-""" @app.post("/upload/document/paper", response_class=PlainTextResponse)
+''' @app.post("/upload/document/paper", response_class=PlainTextResponse)
 async def upload_paper(
     file: UploadFile, user: Annotated[User, Depends(get_current_user)]
 ):
+    """
+    用户上传论文，支持纯文本, html, xml, epub, json, rtf, docx, xlsx, pptx, odt, pdf
+
+    示例输出：
+    ```json
+    "/documents/example_user/paper/filename.pdf"
+    ```
+    """
     # 重复上传保护
     final_path = os.path.join("documents", user.username, "paper", file.filename)
 
@@ -121,13 +152,21 @@ async def upload_paper(
     if detected_mime != "text/plain":
         knowledgeBase_path = os.path.join("documents", user, "knowledgeBase")
         await everything_to_markdown(final_path, knowledgeBase_path)
-    return f"/{final_path}" """
+    return f"/{final_path}" '''
 
 
 @app.post("/upload/document/code", response_class=PlainTextResponse)
 async def upload_code(
     file: UploadFile, user: Annotated[User, Depends(get_current_user)]
 ):
+    """
+    用户上传代码，支持文本文件
+
+    示例输出：
+    ```json
+    "/documents/example_user/code/program.py"
+    ```
+    """
     # 重复上传保护
     final_path = os.path.join("documents", user.username, "code", file.filename)
     if os.path.exists(final_path):
@@ -156,8 +195,21 @@ async def list_directory(
     user: Annotated[User, Depends(get_current_user)],
     directory: Literal["paper", "knowledgeBase", "code", "tempest", "convert"],
 ):
+    """
+    列出用户的{directory}内的所有文件
+
+    示例输出：
+    ```json
+    [
+        "/documents/example_user/code/backend.rs",
+        "/documents/example_user/code/frontend.py"
+    ]
+    """
     dir_path = os.path.join("documents", user.username, directory)
-    return [f"/documents/{user.username}/{directory}/{entry.name}" for entry in os.scandir(dir_path)]
+    return [
+        f"/documents/{user.username}/{directory}/{entry.name}"
+        for entry in os.scandir(dir_path)
+    ]
 
 
 # 模型回复
@@ -167,16 +219,53 @@ class ChatQuery(BaseModel):
     query: str
     image_urls: list[str]
     file_urls: list[str]
-    chat_mode: Literal["常规", "工具", "多模态", "知识库", "网页搜索"]
+    model: str
+    enable_tool: bool = False
+    enable_thinking: bool = False
+    multimodal: bool = False
 
 
 @app.post("/chat/{thread_id}")
 async def respond(
-    thread_id: str,
-    chat_query: ChatQuery,
     _user: Annotated[User, Depends(get_current_user)],
+    thread_id,
+    chat_query: ChatQuery,
 ):
-    if not (chat_query.query or chat_query.image_urls or chat_query.file_urls):
+    """
+    聊天请求
+
+    输入示例：
+    ```json
+    {
+        "query": "请帮我看一下这段代码生成的图片",
+        "image_urls": [
+            "/media/code_generated_image.png"
+        ],
+        "file_urls": [
+            "/documents/example_user/code/plot.py"
+        ],
+        "model": "mistral-small",
+        "enable_tool": false,
+        "enable_thinking": false,
+        "multimodal": true
+    }
+    ```
+
+    Notes
+    ----------
+    1. 当前可用的模型列表中未能找到模型名称和模型类型匹配的模型，返回{"ERROR": "No such model"}{"image_urls": []}
+    2. 正常返回片段有
+        - {"content": "正文片段"}
+        - {"tool_calls": "工具调用json字符串片段"}
+        - {"reasoning_content": "推理片段"}
+        - {"image_urls": ["/path/to/model/generated/image_1", "/path/to/model/generated/image_2"]}
+    3. 返回上述json的字节流，需前端实现处理各种类型回复以及增量更新的逻辑
+    """
+    if not (
+        chat_query.query
+        or (chat_query.image_urls and chat_query.multimodal)
+        or chat_query.file_urls
+    ):
         raise HTTPException(400, detail="Empty query")
     return StreamingResponse(
         respond_stream(
@@ -184,6 +273,42 @@ async def respond(
             chat_query.image_urls,
             chat_query.file_urls,
             thread_id,
-            chat_query.chat_mode,
+            chat_query.enable_tool,
+            chat_query.enable_thinking,
+            chat_query.multimodal,
         ),
     )
+
+
+@app.get("/models")
+async def get_model_list():
+    """
+    获取当且可用的模型及其类型
+
+    示例输出：
+    ```json
+    [
+        {
+            "model_name": "deepseek-v3",
+            "enable_tool": false,
+            "enable_reasoning": false,
+            "multimodal": false
+        },
+        {
+            "model_name": "deepseek-v3",
+            "enable_tool": true,
+            "enable_reasoning": false,
+            "multimodal": false
+        },
+    ]
+    ```
+    """
+    return [
+        {
+            "model_name": model[2],
+            "enable_tool": bool(model[1] & ENABLE_TOOL),
+            "enable_reasoning": bool(model[1] & ENABLE_REASONING),
+            "multimodal": bool(model[1] & MULTIMODAL),
+        }
+        for model in models
+    ]
