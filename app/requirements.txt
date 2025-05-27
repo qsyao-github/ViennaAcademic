@@ -4,8 +4,6 @@ docker
 fastapi[standard]
 langchain
 langchain-community
-langchain-deepseek
-langchain-mistralai
 langchain-openai
 langgraph
 langgraph-checkpoint-postgres

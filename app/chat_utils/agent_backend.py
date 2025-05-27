@@ -27,9 +27,9 @@ from llm_utils.modelclient import (
     deepseek_v3,
     glm_z1_flash,
     mistral_small_latest,
+    model_type,
     qwen3_235B_A22B_no_thinking,
     qwen3_235B_A22B_thinking,
-    model_type,
 )
 from llm_utils.system_prompt import REGEX_TOOLCALL
 from psycopg import AsyncConnection
@@ -83,7 +83,7 @@ models = [
     (qwen3_235B_A22B_thinking, model_type(False, True, False), "qwen3"),
     (qwen3_235B_A22B_thinking_with_tools, model_type(True, True, False), "qwen3"),
 ]
-models.sort(key=lambda x: (x[1], x[2]))
+models.sort(key=lambda x: x[2])
 
 
 # 自定义信息过滤器，参考langchain_core.messages.filter_messages

@@ -34,8 +34,8 @@ from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from llm_utils.modelclient import close_models, init_models
 from pydantic import BaseModel
-from llm_utils.modelclient import init_models, close_models
 
 # from file_utils.file_conversion import everything_to_markdown
 
@@ -286,32 +286,65 @@ async def respond(
 @app.get("/models")
 async def get_model_list():
     """
-    获取当且可用的模型及其类型
+    获取各种类型的可用模型
 
     示例输出：
     ```json
     [
         {
-            "model_name": "deepseek-v3",
             "enable_tool": false,
             "enable_reasoning": false,
-            "multimodal": false
+            "multimodal": false,
+            "models": [
+                "deepseek-v3",
+                "qwen3"
+            ]
         },
         {
-            "model_name": "deepseek-v3",
+            "enable_tool": false,
+            "enable_reasoning": false,
+            "multimodal": true,
+            "models": [
+                "mistral-small"
+            ]
+        },
+        {
+            "enable_tool": false,
+            "enable_reasoning": true,
+            "multimodal": false,
+            "models": [
+                "deepseek-r1",
+                "glm-z1-flash",
+                "qwen3"
+            ]
+        },
+        {
             "enable_tool": true,
             "enable_reasoning": false,
-            "multimodal": false
+            "multimodal": false,
+            "models": [
+                "deepseek-v3",
+                "qwen3"
+            ]
         },
+        {
+            "enable_tool": true,
+            "enable_reasoning": true,
+            "multimodal": false,
+            "models": [
+                "qwen3"
+            ]
+        }
     ]
     ```
     """
     return [
         {
-            "model_name": model[2],
-            "enable_tool": bool(model[1] & ENABLE_TOOL),
-            "enable_reasoning": bool(model[1] & ENABLE_REASONING),
-            "multimodal": bool(model[1] & MULTIMODAL),
+            "enable_tool": bool(code & ENABLE_TOOL),
+            "enable_reasoning": bool(code & ENABLE_REASONING),
+            "multimodal": bool(code & MULTIMODAL),
+            "models": selected_models,
         }
-        for model in models
+        for code in range(8)
+        if (selected_models := [model[2] for model in models if model[1] == code])
     ]

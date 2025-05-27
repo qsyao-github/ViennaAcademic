@@ -1,6 +1,11 @@
 import asyncio
-from collections.abc import AsyncIterator
-from typing import Any, Dict, Optional
+from collections.abc import AsyncIterator, Mapping
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    cast,
+)
 
 import aiohttp
 import httpx
@@ -13,17 +18,16 @@ from langchain_core.messages import (
     AIMessageChunk,
     BaseMessage,
     BaseMessageChunk,
+    ChatMessageChunk,
+    FunctionMessageChunk,
     HumanMessageChunk,
     SystemMessageChunk,
-    FunctionMessageChunk,
     ToolMessageChunk,
-    ChatMessageChunk,
 )
 from langchain_core.messages.ai import (
-    InputTokenDetails,
-    OutputTokenDetails,
     UsageMetadata,
 )
+from langchain_core.messages.tool import tool_call_chunk
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from langchain_openai.chat_models.base import (
     BaseChatOpenAI,
@@ -32,21 +36,9 @@ from langchain_openai.chat_models.base import (
     generate_from_stream,
 )
 from pydantic import Field
-from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Literal,
-    Optional,
-    TypedDict,
-    TypeVar,
-    Union,
-    cast,
-)
-from langchain_core.messages.tool import tool_call_chunk
 
 
+# 参考langchain_openai.chat_models.base._convert_delta_to_message_chunk，增加处理reasoning_content的逻辑
 def _convert_delta_to_message_chunk(
     _dict: Mapping[str, Any], default_class: type[BaseMessageChunk]
 ) -> BaseMessageChunk:
@@ -74,6 +66,7 @@ def _convert_delta_to_message_chunk(
             ]
         except KeyError:
             pass
+    # 新增reasoning_content字段处理，放于additional_kwargs中
     if reasoning_content := _dict.get("reasoning_content"):
         additional_kwargs["reasoning_content"] = reasoning_content
 
@@ -107,14 +100,28 @@ def _convert_delta_to_message_chunk(
 
 
 class CustomOpenAI(BaseChatOpenAI):
+    """
+    基本兼容langchain接口，支持自定义字段&更好推理处理的自定义OpenAI类
+
+    继承自BaseChatOpenAI，同步非流式用httpx，异步(非)流式用aiohttp，连接全局复用。支持enable_thinking, min_p, top_k等OpenAI官方sdk不支持的参数。支持处理部分推理模型返回的reasoning_content字段
+
+    需手动调用init初始化和close关闭Client
+    """
+
     api_key: str
     base_url: str
+    # 同步连接
     httpx_session: httpx.Client = Field(default=None, exclude=True)
+    # 异步连接
     aiohttp_session: aiohttp.ClientSession = Field(default=None, exclude=True)
     aiohttp_session_lock: asyncio.Lock = Field(default=asyncio.Lock(), exclude=True)
+    # 请求头，包含api_key
     headers: Dict[str, str] = Field(default=None, exclude=True)
 
     async def init(self):
+        """
+        初始化同步/异步Session
+        """
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -137,11 +144,15 @@ class CustomOpenAI(BaseChatOpenAI):
             )
 
     async def close(self):
+        """
+        关闭同步/异步Session
+        """
         if self.aiohttp_session and not self.aiohttp_session.closed:
             await self.aiohttp_session.close()
         if self.httpx_session and not self.httpx_session.is_closed:
             self.httpx_session.close()
 
+    # 参考super()._convert_chunk_to_generation_chunk，但重写_convert_delta_to_message_chunk处理reasoning_content
     def _convert_chunk_to_generation_chunk(
         self,
         chunk: dict,
@@ -197,6 +208,7 @@ class CustomOpenAI(BaseChatOpenAI):
         )
         return generation_chunk
 
+    # 以下函数参考ChatOpenAI类的实现，删去了暂时不需要的逻辑，改用httpx, aiohttp session
     def _generate(
         self,
         messages: list[BaseMessage],
@@ -293,35 +305,3 @@ class CustomOpenAI(BaseChatOpenAI):
                     generation_chunk.text, chunk=generation_chunk
                 )
             yield generation_chunk
-
-
-'''
-test = CustomOpenAI(
-    model="deepseek-v3-250324",
-    api_key=volcano_client_API_KEY,
-    base_url=volcano_client_BASE_URL,
-    streaming=True,
-)
-
-from langchain_core.tools import tool
-from execute_code import python_tool
-
-
-@tool
-def ipython(code: str) -> str:
-    """使用IPython。用!执行命令，用numpy, scipy, sympy做数值/符号计算，pandas处理数据，matplotlib绘图"""
-    return python_tool(code)
-
-
-tools = [ipython]
-tool_test = test.bind_tools(tools)
-
-
-async def main():
-    await test.init()
-    tool_test = test.bind_tools(tools)
-    print(await tool_test.ainvoke([HumanMessage(r"用sympy求\int \frac{1}{x^2-1}")]))
-    await test.close()
-
-
-asyncio.run(main())'''

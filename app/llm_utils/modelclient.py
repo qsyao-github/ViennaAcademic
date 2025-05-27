@@ -56,7 +56,7 @@ glm_z1_flash = CustomOpenAI(
 )
 
 qwen3_235B_A22B_no_thinking = CustomOpenAI(
-    model="Qwen/Qwen3-8B",
+    model="Qwen/Qwen3-235B-A22B",
     api_key=silicon_client_API_KEY,
     base_url=silicon_client_BASE_URL,
     temperature=0.7,
@@ -65,7 +65,7 @@ qwen3_235B_A22B_no_thinking = CustomOpenAI(
 )
 
 qwen3_235B_A22B_thinking = CustomOpenAI(
-    model="Qwen/Qwen3-8B",
+    model="Qwen/Qwen3-235B-A22B",
     api_key=silicon_client_API_KEY,
     base_url=silicon_client_BASE_URL,
     temperature=0.6,
@@ -107,6 +107,9 @@ def model_type(enable_tool: bool, enable_thinking: bool, multimodal: bool):
 
 
 async def init_models():
+    """
+    初始化当前可用的所有模型
+    """
     await deepseek_v3.init()
     await mistral_small_latest.init()
     await glm_4v_flash.init()
@@ -117,6 +120,9 @@ async def init_models():
 
 
 async def close_models():
+    """
+    关闭所有模型内的Client
+    """
     await deepseek_v3.close()
     await mistral_small_latest.close()
     await glm_4v_flash.close()
