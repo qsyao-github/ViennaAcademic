@@ -46,6 +46,6 @@ def inspect_utils(thread_id=""):
         print(cursor.fetchall())
 
 
-inspect_utils()
+inspect_utils("test")
 delete_utils()
 conn.close()

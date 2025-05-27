@@ -27,6 +27,8 @@ from llm_utils.modelclient import (
     deepseek_v3,
     glm_z1_flash,
     mistral_small_latest,
+    qwen3_235B_A22B_no_thinking,
+    qwen3_235B_A22B_thinking,
     model_type,
 )
 from llm_utils.system_prompt import REGEX_TOOLCALL
@@ -66,6 +68,8 @@ def ipython(code: str) -> str:
 graph_builder = StateGraph(AgentState)
 tools = [ipython]
 deepseek_v3_with_tools = deepseek_v3.bind_tools(tools)
+qwen3_235B_A22B_no_thinking_with_tools = qwen3_235B_A22B_no_thinking.bind_tools(tools)
+qwen3_235B_A22B_thinking_with_tools = qwen3_235B_A22B_thinking.bind_tools(tools)
 
 # 模型, 位掩码(enable_tool, enable_thinking, multimodal), 模型简称
 models = [
@@ -74,8 +78,12 @@ models = [
     (deepseek_r1_671b, model_type(False, True, False), "deepseek-r1"),
     (mistral_small_latest, model_type(False, False, True), "mistral-small"),
     (glm_z1_flash, model_type(False, True, False), "glm-z1-flash"),
+    (qwen3_235B_A22B_no_thinking, model_type(False, False, False), "qwen3"),
+    (qwen3_235B_A22B_no_thinking_with_tools, model_type(True, False, False), "qwen3"),
+    (qwen3_235B_A22B_thinking, model_type(False, True, False), "qwen3"),
+    (qwen3_235B_A22B_thinking_with_tools, model_type(True, True, False), "qwen3"),
 ]
-models.sort(key=lambda x: (x[2], x[1]))
+models.sort(key=lambda x: (x[1], x[2]))
 
 
 # 自定义信息过滤器，参考langchain_core.messages.filter_messages

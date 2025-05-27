@@ -35,6 +35,7 @@ from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingRespon
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from llm_utils.modelclient import init_models, close_models
 
 # from file_utils.file_conversion import everything_to_markdown
 
@@ -43,8 +44,10 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_models()
     await get_agent_app()
     yield
+    await close_models()
     await close_conn()
 
 
