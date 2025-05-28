@@ -100,7 +100,7 @@ async def upload_image(
 
     示例输出：
     ```json
-    "/media/somethread_imagename"
+    "/media/somethread/imagename"
     ```
     """
     # 类型验证
@@ -114,7 +114,9 @@ async def upload_image(
     await file.seek(0)
 
     # 异步流式上传
-    final_path = os.path.join("media", f"{thread_id}_{file.filename}")
+    folder_path = os.path.join("media", thread_id)
+    final_path = os.path.join(folder_path, file.filename)
+    os.makedirs(folder_path, exist_ok=True)
     async with aiofiles.open(final_path, "wb") as f:
         while chunk := await file.read(8192):
             await f.write(chunk)

@@ -47,14 +47,14 @@ def build_message_content(
 
 
 async def handle_generated_image(
-    image_prefix: str, chat_config: Dict[str, Dict[str, str]]
+    thread_id: str, chat_config: Dict[str, Dict[str, str]]
 ) -> None:
     """处理生成的图片并更新状态
 
     Parameters
     ----------
-    image_prefix: str
-        要求模型生成图片名的前缀，用于识别当前线程产生的图片
+    thread_id: str
+        当前线程
     chat_config : Dict
         聊天配置，包含线程id。对指定线程的状态进行更新
 
@@ -63,7 +63,7 @@ async def handle_generated_image(
     1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
     """
-    image_paths = glob.glob(f"media/{image_prefix}*.png")
+    image_paths = glob.glob(f"media/{thread_id}/*.png")
     for image_component in (create_image_component(f) for f in image_paths):
         if image_component:
             await (await get_agent_app()).aupdate_state(
@@ -144,7 +144,6 @@ async def astream_response(
     thread_id: str,
     model: str,
     model_type_code: int,
-    image_prefix: str,
 ) -> AsyncGenerator[Dict[str, str], None]:
     """流式处理聊天响应
 
@@ -162,8 +161,6 @@ async def astream_response(
         模型名称
     model_type_code: int
         模型类型位掩码
-    image_prefix: str
-        要求模型生成图片名的前缀，用于识别当前线程产生的图片
 
     Yields
     ----------
@@ -181,7 +178,6 @@ async def astream_response(
             "thread_id": thread_id,
             "model": model,
             "model_type": model_type_code,
-            "image_prefix": image_prefix,
         }
     }
     # 预处理：处理文本和图片
@@ -197,7 +193,7 @@ async def astream_response(
     # 推理模型特殊处理：移除<think></think>内容
     await process_reasoning(chat_config)
     # 工具模型特殊处理：可能生成图片，需加入历史对话
-    await handle_generated_image(image_prefix, chat_config)
+    await handle_generated_image(thread_id, chat_config)
 
 
 async def append_search_result(query: str, thread_id: str) -> AsyncGenerator[str, None]:

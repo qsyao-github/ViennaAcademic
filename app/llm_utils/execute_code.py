@@ -45,12 +45,12 @@ def copy_file(stream):
     with tarfile.open(fileobj=tar_data) as tar:
         tar.extractall(
             "media",
-            members=[get_base_path(m) for m in tar if m.isfile()],
+            members=tar,
             numeric_owner=True,
         )
 
 
-def python_tool(code: str) -> str:
+def python_tool(code: str, thread_id) -> str:
     """通过容器执行Python代码
 
     Parameters
@@ -67,9 +67,13 @@ def python_tool(code: str) -> str:
     ----------
     1. 使用get_archive打包png文件为tar，复制到容器外后解压，删除容器内的png
     """
+    # 单独为线程分配工作目录
+    workdir = f"/root/{thread_id}"
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
+    exec_id = container.exec_run(f"mkdir -p {thread_id}")
     exec_id = container.exec_run(
-        f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace("\"", "\'")}"'
+        f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace("\"", "\'")}"',
+        workdir=workdir,
     )
     # 获取执行结果，处理超时
     if exec_id.exit_code == 124:
@@ -77,17 +81,13 @@ def python_tool(code: str) -> str:
     output = f'\n```\n{clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())}\n```\n\n'
     # png文件处理
     container_png_files_str = container.exec_run(
-        "sh -c 'ls -1 | grep png'"
+        "sh -c 'ls -1 | grep *.png'", workdir=workdir
     ).output.decode("utf-8")
     if not container_png_files_str:
         return output
-    # 创建临时文件夹并移动文件
-    container.exec_run(
-        "sh -c 'mkdir -p /tmp/png_output && mv /root/*.png /tmp/png_output/'",
-        workdir="/root",
-    )
     # 获取整个文件夹的tar流
-    stream, _ = container.get_archive("/tmp/png_output")
+    stream, _ = container.get_archive(workdir)
     copy_file(stream)
-    container.exec_run("rm -rf /tmp/png_output")
+    # 删除线程目录
+    container.exec_run(f"rm -rf {thread_id}")
     return output

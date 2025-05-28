@@ -2,7 +2,7 @@
 React Agent后端，处理ViennaAcademic中的聊天部分
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from langchain_core.messages import (
     AIMessage,
@@ -14,8 +14,9 @@ from langchain_core.messages import (
 )
 from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import chain, Runnable
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tools import tool
+from langchain_core.tools import InjectedToolArg, tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -34,6 +35,7 @@ from llm_utils.modelclient import (
 from llm_utils.system_prompt import REGEX_TOOLCALL
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from typing_extensions import Annotated
 from web_utils.search import attach_web_result
 
 # 工具/推理/多模态位掩码
@@ -52,6 +54,33 @@ regex_toolcall_template = ChatPromptTemplate.from_messages(
 
 
 # 绑定工具
+
+
+def tool_argument_injector(injection_config: Dict[str, Dict[str, Any]]) -> Runnable:
+    """
+    生成自定义参数插入函数
+
+    Parameters
+    ----------
+    injection_config: Dict[str, Dict[str, Any]]
+        插入配置。其键为需要插入的工具名，其值为表征插入方式的字典。该字典键为要插入的字段名，值为插入的值
+
+    Returns
+    ----------
+    Runnable
+        langchain Runnable对象，负责完成字段插入。与有工具的模型通过langchain管道连接。
+    """
+
+    @chain
+    def injecter(ai_msg):
+        for tool_call in ai_msg.tool_calls:
+            if injections := injection_config.get(tool_call["name"]):
+                tool_call["args"].update(injections)
+        return ai_msg
+
+    return injecter
+
+
 @tool
 async def websearch(query: str) -> str:
     """使用搜索引擎"""
@@ -60,9 +89,9 @@ async def websearch(query: str) -> str:
 
 
 @tool
-def ipython(code: str) -> str:
+def ipython(code: str, thread_id: Annotated[str, InjectedToolArg]) -> str:
     """使用IPython。用!执行命令，用numpy, scipy, sympy做数值/符号计算，pandas处理数据，matplotlib绘图"""
-    return python_tool(code)
+    return python_tool(code, thread_id)
 
 
 graph_builder = StateGraph(AgentState)
@@ -215,15 +244,16 @@ async def chatbot(
         "model_type",
     )
     model_name = config["configurable"].get("model")
+    thread_id = config["configurable"].get("thread_id")
     # 获取模型与对应的提示词
-    template = regex_toolcall_template if model_type & ENABLE_TOOL else empty_template
     model = [m[0] for m in models if m[1] == model_type and m[2] == model_name][0]
-    prompted_message = await template.ainvoke(
-        {
-            "messages": state["messages"],
-            "image_prefix": config["configurable"]["image_prefix"],
-        }
+    model = (
+        model | tool_argument_injector({"ipython": {"thread_id": thread_id}})
+        if model_type & ENABLE_TOOL
+        else model
     )
+    template = regex_toolcall_template if model_type & ENABLE_TOOL else empty_template
+    prompted_message = await template.ainvoke({"messages": state["messages"]})
     # 过滤无法处理的信息并合并来自同一主体的连续信息
     merged = merge_message_runs(apply_safety_filter(model_type, prompted_message))
     response = await model.ainvoke(merged)

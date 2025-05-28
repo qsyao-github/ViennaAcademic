@@ -1,5 +1,4 @@
 import glob
-from datetime import datetime
 from typing import AsyncGenerator, List
 
 import orjson
@@ -72,8 +71,6 @@ async def respond_stream(
         - {"reasoning_content": "推理片段"}
         - {"image_urls": ["/path/to/model/generated/image_1", "/path/to/model/generated/image_2"]}
     """
-    # 生成精度为1cs，周期为1天的时间标识符，作为模型生成图片文件的名称前缀
-    timestamp = f"{datetime.now().timestamp() * 100 % 8640000:.0f}"
     # 流式输出
     bot_response = astream_response(
         query,
@@ -82,12 +79,11 @@ async def respond_stream(
         thread_id,
         model,
         model_type(enable_tool, enable_thinking, multimodal),
-        timestamp,
     )
     async for response_chunk in bot_response:
         yield orjson.dumps(response_chunk)
 
     # 附加图片
     yield orjson.dumps(
-        {"image_urls": [f"/{path}" for path in glob.glob(f"media/{timestamp}*.png")]}
+        {"image_urls": [f"/{path}" for path in glob.glob(f"media/{thread_id}/*.png")]}
     )
