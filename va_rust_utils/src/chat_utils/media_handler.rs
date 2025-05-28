@@ -1,61 +1,63 @@
+//! `本地图片文件base64编码并整理为openai多模态请求格式`
+
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read as _;
+use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
-pub static VALID_EXTS: std::sync::LazyLock<HashMap<&'static str, &'static str>> =
-    std::sync::LazyLock::new(|| {
-        let mut map = HashMap::new();
-        map.insert("jpg", "jpeg");
-        map.insert("jpeg", "jpeg");
-        map.insert("png", "png");
-        map
-    });
+/// 将所有多模态模型接受的图片映射到其mime type
+///
+/// jpg, jpeg -> jpeg, png->png
+///
+/// # 示例
+/// ```
+/// VALID_EXTS.get(ext);
+/// ```
+pub static VALID_EXTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    map.insert("jpg", "jpeg");
+    map.insert("jpeg", "jpeg");
+    map.insert("png", "png");
+    map
+});
 
-/*
-Base64编码图像文件
-
-Parameters
-----------
-image_path: &str
-    图像文件路径
-
-Returns
-----------
-String
-    Base64编码的图像。若文件不存在，返回空字符串
-*/
+/// Base64编码图像文件
+///
+/// # 示例
+/// ```
+/// encode_image("media/filename.png");
+/// ```
+///
+/// # 参数
+/// * `image_path`: 图像文件路径
+///
+/// # 返回值
+/// Base64编码的图像。若文件不存在，返回空字符串
 fn encode_image(image_path: &str) -> String {
-    let mut buffer = Vec::with_capacity(1024 * 1024);
-    File::open(image_path)
-        .and_then(|mut f| f.read_to_end(&mut buffer))
-        .map(|_| STANDARD.encode(&buffer))
+    fs::read(image_path)
+        .map(|buffer| STANDARD.encode(&buffer))
         .unwrap_or_default()
 }
 
-/*
-创建多模态信息
-
-Parameters
-----------
-py: Python
-    Python接口
-image_path: &str
-    图像文件路径
-
-Returns
-----------
-Py<PyDict>
-    python字典：多模态信息，若文件不存在，则返回空字典
-*/
+/// 创建多模态信息
+///
+/// # 参数
+/// * `py`: Python接口
+/// * `image_path`: 图像文件路径
+///
+/// # 返回值
+/// python字典：多模态信息，若发生任何错误，返回空字典
 #[pyfunction]
 pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
     let dict = PyDict::new(py);
     let trimmed_path = image_path.trim_start_matches('/');
-    let Some(ext) = Path::new(trimmed_path).extension().and_then(|e| e.to_str()) else {
+    let Some(ext) = Path::new(trimmed_path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+    else {
         return dict.into();
     };
 
@@ -69,12 +71,19 @@ pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &
     }
 
     let image_url = PyDict::new(py);
-    image_url
+    if image_url
         .set_item("url", format!("data:image/{mime_type};base64,{encoded}"))
-        .unwrap();
+        .is_err()
+    {
+        return dict.into();
+    }
 
-    dict.set_item("type", "image_url").unwrap();
-    dict.set_item("image_url", image_url).unwrap();
+    if dict.set_item("type", "image_url").is_err() {
+        return PyDict::new(py).into();
+    }
+    if dict.set_item("image_url", image_url).is_err() {
+        return PyDict::new(py).into();
+    }
 
     dict.into()
 }

@@ -16,6 +16,7 @@ regex = "1.11.1"
 [lints.clippy]
 pedantic = "warn"
 nursery = "warn"
+# restriction="warn"
 
 [profile.release]
 opt-level = 3

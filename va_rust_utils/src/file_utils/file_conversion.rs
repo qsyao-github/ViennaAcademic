@@ -1,28 +1,60 @@
+//! `调用pandoc与typst完成格式转换`
+//!
+//! # Examples
+//! ```rust
+//! use crate::file_utils::file_conversion;
+//! file_conversion::file_utils_file_conversion_pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
+//! file_utils::file_utils_file_conversion_markdown_to_everything("path/to/file.md","convert/to","pdf");
+//! ```
 use pyo3::prelude::*;
 use regex::Regex;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write as _;
 use std::path::Path;
+use std::process;
 use std::process::{Command, Stdio};
+use std::sync::LazyLock;
 
-pub static REMOVE_CITATION_PATTERN: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"#cite\([^)]*\)").unwrap());
+/// 匹配typst引用
+///
+/// 用于去除typst不能处理的引用
+///
+/// # 示例
+/// ```
+/// REMOVE_CITATION_PATTERN.replace_all(typst_source, "");
+/// ```
+pub static REMOVE_CITATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"#cite\([^)]*\)").unwrap_or_else(|_| {
+        process::exit(1);
+    })
+});
 
-pub static IMAGE_PATTERN: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?m)^!\[\]\([^)]+\)\{[^}]*\}").unwrap());
+/// 匹配markdown图片
+///
+/// 用于去除pandoc/typst不能处理的图片
+///
+/// # 示例
+/// ```
+/// IMAGE_PATTERN.replace_all(markdown, "");
+/// ```
+pub static IMAGE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?m)^!\[\]\([^)]+\)\{[^}]*\}").unwrap_or_else(|_| {
+        process::exit(1);
+    })
+});
 
-/*
-用pandoc转换为markdown
-
-Parameters
-----------
-file_basename: &str
-    文件名，用于指定生成文件名
-original_file_path: &str
-    文件路径
-target_path: &str
-    目标路径
-*/
+/// 用pandoc转换为markdown
+///
+/// # 示例
+/// ```
+/// file_utils_file_conversion_pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
+/// ```
+///
+/// # 参数
+/// * `file_basename`: 文件名，用于指定生成文件名
+/// * `original_file_path`: 文件路径
+/// * `target_path`: 目标路径
 #[pyfunction]
 pub fn file_utils_file_conversion_pandoc_to_markdown(
     file_basename: &str,
@@ -31,7 +63,7 @@ pub fn file_utils_file_conversion_pandoc_to_markdown(
 ) {
     let output_path = Path::new(target_path).join(format!("{file_basename}.md"));
 
-    let output = Command::new("pandoc")
+    let Ok(output) = Command::new("pandoc")
         .args([
             "-s",
             "--link-images=false",
@@ -41,72 +73,86 @@ pub fn file_utils_file_conversion_pandoc_to_markdown(
             original_file_path,
         ])
         .output()
-        .unwrap();
+    else {
+        return;
+    };
 
     if !output.status.success() {
-        eprintln!("Pandoc failed: {:?}", output.stderr);
         return;
     }
 
-    let result = String::from_utf8(output.stdout).unwrap();
+    let Ok(result) = String::from_utf8(output.stdout) else {
+        return;
+    };
     let cleaned_result = IMAGE_PATTERN.replace_all(&result, "");
-    let mut writer = BufWriter::new(std::fs::File::create(output_path).unwrap());
-    writer.write_all(cleaned_result.as_bytes()).unwrap();
+    let Ok(file) = File::create(output_path) else {
+        return;
+    };
+    let mut writer = BufWriter::new(file);
+    if writer.write_all(cleaned_result.as_bytes()).is_err() {}
 }
 
-/*
-用pandoc转换文件
-
-Parameters
-----------
-file_basename: &str
-    文件名，不含后缀和根目录路径
-original_file_path: &str
-    完整文件路径
-target_path: &str
-    目标路径
-target_ext: &str
-    目标文件后缀
-*/
+/// 用pandoc转换文件
+///
+/// # 示例
+/// ```
+/// pandoc_convert("file", "path/to/file.md", "convert/to", "docx");
+/// ```
+///
+/// # 参数
+/// * `file_basename`: 文件名，不含后缀和根目录路径
+/// * `original_file_path`: 完整文件路径
+/// * `target_path`: 目标路径
+/// * `target_ext`: 目标文件后缀
 fn pandoc_convert(
     file_basename: &str,
     original_file_path: &str,
     target_path: &str,
     target_ext: &str,
 ) {
-    let output_path = Path::new(target_path).join(format!("{file_basename}.{target_ext}"));
+    let filename = format!("{file_basename}.{target_ext}");
+    let output_path = Path::new(target_path).join(&filename);
+    let Some(path_str) = output_path.to_str() else {
+        return;
+    };
 
-    let _ = Command::new("pandoc")
+    let Ok(_) = Command::new("pandoc")
         .args([
             "-s",
             "--link-images=false",
             "--reference-links=false",
             "-o",
-            output_path.to_str().unwrap(),
+            path_str,
             original_file_path,
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn();
+        .spawn()
+    else {
+        return;
+    };
 }
 
-/*
-将markdown转换为pdf
-
-采用pandoc转换为typst源文件，正则表达式清洗，由typst编译为pdf
-
-Parameters
-----------
-file_basename: &str
-    文件名，不含后缀和根目录路径
-original_path: &str
-    完整文件路径
-target_path: &str
-    目标路径
-*/
+/// 将markdown转换为pdf
+///
+/// 采用pandoc转换为typst源文件，正则表达式清洗，由typst编译为pdf
+///
+/// # 示例
+/// ```
+/// markdown_to_pdf("file", "path/to/file.md", "convert/to");
+/// ```
+///
+/// # 参数
+/// * `file_basename`: 文件名，不含后缀和根目录路径
+/// * `original_path`: 完整文件路径
+/// * `target_path`: 目标路径
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "输出长度不会超过usize::MAX，且索引由find获得，不会溢出"
+)]
 fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) {
     // 执行pandoc并获取输出
-    let pandoc_output = Command::new("pandoc")
+    let Ok(pandoc_output) = Command::new("pandoc")
         .args([
             "-s",
             "--link-images=false",
@@ -116,15 +162,18 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
             original_path,
         ])
         .output()
-        .unwrap();
+    else {
+        return;
+    };
 
     if !pandoc_output.status.success() {
-        eprintln!("{}", String::from_utf8_lossy(&pandoc_output.stderr));
         return;
     }
 
     // 处理内容
-    let mut content = String::from_utf8(pandoc_output.stdout).unwrap();
+    let Ok(mut content) = String::from_utf8(pandoc_output.stdout) else {
+        return;
+    };
 
     // 正则处理
     content = REMOVE_CITATION_PATTERN
@@ -140,7 +189,7 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
     }
 
     // 执行typst命令
-    let mut cmd = Command::new("/home/laowei/typst-x86_64-unknown-linux-musl/typst")
+    let Ok(mut cmd) = Command::new("typst")
         .args([
             "compile",
             "-",
@@ -148,31 +197,33 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
         ])
         .stdin(Stdio::piped())
         .spawn()
-        .unwrap();
+    else {
+        return;
+    };
 
     // 写入处理后的内容
     if let Some(mut stdin) = cmd.stdin.take() {
-        stdin.write_all(content.as_bytes()).unwrap();
+        if stdin.write_all(content.as_bytes()).is_err() {
+            return;
+        }
     }
-    let status = cmd.wait().unwrap();
-    if !status.success() {
-        eprintln!("Failed status code: {:?}", status.code());
-    }
+
+    if cmd.wait().is_err() {}
 }
 
-/*
-将markdown文件转换为其他格式
-
-pdf使用typst编译，其他格式使用pandoc转换
-Parameters
-----------
-original_path: &str
-    原始文件路径
-target_path: &str
-    目标路径
-target_ext: &str
-    目标文件后缀
-*/
+/// 将markdown文件转换为其他格式
+///
+/// pdf使用typst编译，其他格式使用pandoc转换
+///
+/// # 示例
+/// ```
+/// file_utils_file_conversion_markdown_to_everything("path/to/file.md","convert/to","pdf");
+/// ```
+///
+/// # 参数
+/// * `original_path`: 原始文件路径
+/// * `target_path`: 目标路径
+/// * `target_ext`: 目标文件后缀
 #[pyfunction]
 pub fn file_utils_file_conversion_markdown_to_everything(
     original_path: &str,
@@ -180,7 +231,9 @@ pub fn file_utils_file_conversion_markdown_to_everything(
     target_ext: &str,
 ) {
     let path = Path::new(original_path);
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
+    let Some(file_name) = path.file_stem().and_then(|stem| stem.to_str()) else {
+        return;
+    };
 
     if target_ext == "pdf" {
         markdown_to_pdf(file_name, original_path, target_path);

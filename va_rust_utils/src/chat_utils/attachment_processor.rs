@@ -1,22 +1,28 @@
+//! `处理引用本地文件`
+//!
+//! # Examples
+//! ```rust
+//! use crate::chat_utils::attachment_processor;
+//!
+//! attachment_processor::chat_utils_attachment_processor_process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
+//! ```
 use pyo3::prelude::*;
 
-use crate::academic_utils::paper::academic_utils_paper_attach;
+use crate::academic_utils::paper;
 
-/*
-将#attach{}命令替换为对应文件全文
-
-Parameters
-----------
-text: &str
-    待处理文本
-current_dir: &str
-    当前用户根目录
-
-Returns
-----------
-String
-    处理后文本
-*/
+/// 将要引用的文件格式化放到用户输入前
+///
+/// # 示例
+/// ```
+/// chat_utils_attachment_processor_process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
+/// ```
+///
+/// # 参数
+/// * `text`: 用户输入
+/// * `file_urls`: 所有引用文件
+///
+/// # 返回值
+/// 处理后文本
 #[pyfunction]
 pub fn chat_utils_attachment_processor_process_attachments(
     text: &str,
@@ -24,9 +30,9 @@ pub fn chat_utils_attachment_processor_process_attachments(
 ) -> String {
     let mut new_text = String::with_capacity(512);
     for file in file_urls {
-        let content = academic_utils_paper_attach(&file);
+        let content = paper::academic_utils_paper_attach(&file);
         if !content.is_empty() {
-            new_text.push_str(&academic_utils_paper_attach(&file));
+            new_text.push_str(&content);
         }
     }
     new_text.push_str(text);
