@@ -7,7 +7,7 @@ def initialize_static() -> None:
 
 ## paper
 
-def academic_utils_paper_attach(file_path: str) -> str:
+def attach(file_path: str) -> str:
     """
     附加文件内容
 
@@ -24,7 +24,7 @@ def academic_utils_paper_attach(file_path: str) -> str:
         文件内容。若为代码则放入代码框
     """
 
-def academic_utils_paper_chunk(file: str, current_user_directory: str) -> list[str]:
+def chunk(file: str, current_user_directory: str) -> list[str]:
     """
     分段
 
@@ -45,7 +45,7 @@ def academic_utils_paper_chunk(file: str, current_user_directory: str) -> list[s
 
 ## attachment_processor
 
-def chat_utils_attachment_processor_process_attachments(
+def process_attachments(
     text: str,
     file_urls: list[str],
 ) -> str:
@@ -66,7 +66,7 @@ def chat_utils_attachment_processor_process_attachments(
     """
 
 ## media_handler
-def chat_utils_media_handler_create_image_component(image_path: str) -> dict:
+def create_image_component(image_path: str) -> dict:
     """
     创建多模态信息
 
@@ -81,27 +81,11 @@ def chat_utils_media_handler_create_image_component(image_path: str) -> dict:
         多模态信息，若文件不存在，则返回空字典
     """
 
-## tool_formatter
-def chat_utils_tool_formatter_format_tools(text: str) -> str:
-    """
-    工具调用排版
-
-    Parameters
-    ----------
-    text: str
-        待处理文本
-
-    Returns
-    ----------
-    str
-        处理后文本
-    """
-
 # file_utils
 
 ## file_conversion
 
-def file_utils_file_conversion_pandoc_to_markdown(
+def pandoc_to_markdown(
     file_basename: str,
     original_file_path: str,
     target_path: str,
@@ -119,7 +103,7 @@ def file_utils_file_conversion_pandoc_to_markdown(
         目标路径
     """
 
-def file_utils_file_conversion_markdown_to_everything(
+def markdown_to_everything(
     original_path: str,
     target_path: str,
     target_ext: str,
@@ -142,7 +126,7 @@ def file_utils_file_conversion_markdown_to_everything(
 
 ## arxiv_crawler
 
-def web_utils_arxiv_crawler_extract_article(html: str) -> str:
+def extract_article(html: str) -> str:
     """
     提取Arxiv论文正文部分
 
@@ -157,7 +141,7 @@ def web_utils_arxiv_crawler_extract_article(html: str) -> str:
         正文html，若没有正文则为空字符串
     """
 
-def web_utils_arxiv_crawler_process_markdown(markdown_content: str) -> str:
+def process_markdown(markdown_content: str) -> str:
     """
     清洗markdonify解析内容中的超链接和连续空行
 

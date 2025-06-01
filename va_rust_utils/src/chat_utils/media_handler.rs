@@ -51,7 +51,7 @@ fn encode_image(image_path: &str) -> String {
 /// # 返回值
 /// python字典：多模态信息，若发生任何错误，返回空字典
 #[pyfunction]
-pub fn chat_utils_media_handler_create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
+pub fn create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
     let dict = PyDict::new(py);
     let trimmed_path = image_path.trim_start_matches('/');
     let Some(ext) = Path::new(trimmed_path)

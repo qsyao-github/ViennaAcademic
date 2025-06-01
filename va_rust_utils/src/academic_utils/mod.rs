@@ -6,7 +6,7 @@
 //! ```rust
 //! use crate::academic_utils::paper;
 //!
-//! paper::academic_utils_paper_attach("1706.03762.md");
-//! paper::academic_utils_paper_chunk("1706.03762.md");
+//! paper::attach("1706.03762.md");
+//! paper::chunk("1706.03762.md");
 //! ```
 pub mod paper;

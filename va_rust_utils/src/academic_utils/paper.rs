@@ -4,8 +4,8 @@
 //! ```rust
 //! use crate::academic_utils::paper;
 //!
-//! paper::academic_utils_paper_attach("1706.03762.md");
-//! paper::academic_utils_paper_chunk("1706.03762.md");
+//! paper::attach("1706.03762.md");
+//! paper::chunk("1706.03762.md");
 //! ```
 use core::mem;
 use pyo3::prelude::*;
@@ -65,7 +65,7 @@ pub static LINEBREAK_RE: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # 示例
 /// ```
-/// academic_utils_paper_attach("1706.03762.md");
+/// attach("1706.03762.md");
 /// ```
 ///
 /// # 参数
@@ -74,7 +74,7 @@ pub static LINEBREAK_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// # 返回值
 /// 文件内容。若为代码则放入代码框。发生任何错误返回空字符串
 #[pyfunction]
-pub fn academic_utils_paper_attach(file_path: &str) -> String {
+pub fn attach(file_path: &str) -> String {
     let trimmed_path = PathBuf::from(file_path.trim_start_matches('/'));
     // 构建知识库文件路径
     let mut components: Vec<_> = trimmed_path.components().collect();
@@ -113,7 +113,7 @@ pub fn academic_utils_paper_attach(file_path: &str) -> String {
 ///
 /// # 示例
 /// ```
-/// academic_utils_paper_chunk("1706.03762.md");
+/// chunk("1706.03762.md");
 /// ```
 ///
 /// # 参数
@@ -126,8 +126,8 @@ pub fn academic_utils_paper_attach(file_path: &str) -> String {
     reason = "文本长度不会超过usize::MAX，不会溢出"
 )]
 #[pyfunction]
-pub fn academic_utils_paper_chunk(file_path: &str) -> Vec<String> {
-    let content = academic_utils_paper_attach(file_path);
+pub fn chunk(file_path: &str) -> Vec<String> {
+    let content = attach(file_path);
     let mut final_list = Vec::new();
     let mut temp_string = String::with_capacity(MIN_CHARACTER_THRESHOLD * 2);
     let mut char_count = 0;

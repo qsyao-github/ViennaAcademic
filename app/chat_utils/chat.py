@@ -11,12 +11,7 @@ from langchain_core.messages import (
     RemoveMessage,
 )
 from pydantic import BaseModel
-from va_rust_utils import (
-    chat_utils_attachment_processor_process_attachments as process_attachments,
-)
-from va_rust_utils import (
-    chat_utils_media_handler_create_image_component as create_image_component,
-)
+from va_rust_utils import create_image_component, process_attachments
 from web_utils.search import generate_academic_search_summary
 
 from .agent_backend import ENABLE_REASONING, get_agent_app, models
@@ -182,14 +177,52 @@ async def astream_response(
     }
     # 预处理：处理文本和图片
     content = build_message_content(process_attachments(text, documents), images)
+    in_reasoning = False
+    start_chunks = True
+    content_buffer: str = ""
     async for chunk, _ in (await get_agent_app()).astream(
         {"messages": [HumanMessage(content=content)]},
         config=chat_config,
         stream_mode="messages",
     ):
         # 流式输出，空内容不输出
-        if content := extract_content(chunk):
-            yield content
+        if content := chunk.content:
+            content_buffer += content
+            if (current_length := len(content_buffer)) > 11:
+                if not in_reasoning:
+                    if start_chunks and content_buffer.startswith("<think>\n"):
+                        in_reasoning = True
+                        start_chunks = False
+                        content_buffer = content_buffer[8:]
+                    else:
+                        border = current_length - 11
+                        yield {"content": content_buffer[:border]}
+                        content_buffer = content_buffer[border:]
+                else:
+                    if (index := content_buffer.rfind("\n</think>\n")) != -1:
+                        in_reasoning = False
+                        yield {"reasoning_content": content_buffer[:index]}
+                        content_buffer = content_buffer[index + 10 :]
+                    else:
+                        border = current_length - 11
+                        yield {"reasoning_content": content_buffer[:border]}
+                        content_buffer = content_buffer[border:]
+        elif content := chunk.additional_kwargs.get("tool_calls", ""):
+            if content_buffer:
+                yield {"content": content_buffer}
+                content_buffer = ""
+            start_chunks = True
+            in_reasoning = False
+            yield {"tool_calls": content[0]["function"]["arguments"]}
+        elif content := chunk.additional_kwargs.get("reasoning_content", ""):
+            if content_buffer:
+                yield {"content": content_buffer}
+                content_buffer = ""
+            start_chunks = True
+            in_reasoning = False
+            yield {"reasoning_content": content}
+    if content_buffer:
+        yield {"content": content_buffer}
     # 推理模型特殊处理：移除<think></think>内容
     await process_reasoning(chat_config)
     # 工具模型特殊处理：可能生成图片，需加入历史对话

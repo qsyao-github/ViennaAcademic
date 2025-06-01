@@ -4,7 +4,7 @@
 //! ```rust
 //! use crate::chat_utils::tool_formatter;
 //!
-//! tool_formatter::chat_utils_tool_formatter_format_tools(r#"{ \n "tool_name": \n "arg_name""#);
+//! tool_formatter::format_tools(r#"{ \n "tool_name": \n "arg_name""#);
 //! ```
 use pyo3::prelude::*;
 use regex::{Captures, Regex};
@@ -47,7 +47,7 @@ fn replace_tag(caps: &Captures) -> String {
 ///
 /// # 示例
 /// ```
-/// chat_utils_tool_formatter_format_tools(r#"{ \n "tool_name": \n "arg_name""#);
+/// format_tools(r#"{ \n "tool_name": \n "arg_name""#);
 /// ```
 ///
 /// # 参数
@@ -56,6 +56,6 @@ fn replace_tag(caps: &Captures) -> String {
 /// # 返回值
 /// 处理后文本
 #[pyfunction]
-pub fn chat_utils_tool_formatter_format_tools(text: &str) -> String {
+pub fn format_tools(text: &str) -> String {
     TOOL_CALL_PATTERN.replace_all(text, replace_tag).to_string()
 }

@@ -3,8 +3,8 @@
 //! # Examples
 //! ```rust
 //! use crate::file_utils::file_conversion;
-//! file_conversion::file_utils_file_conversion_pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
-//! file_utils::file_utils_file_conversion_markdown_to_everything("path/to/file.md","convert/to","pdf");
+//! file_conversion::pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
+//! file_utils::markdown_to_everything("path/to/file.md","convert/to","pdf");
 //! ```
 use pyo3::prelude::*;
 use regex::Regex;
@@ -48,7 +48,7 @@ pub static IMAGE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # 示例
 /// ```
-/// file_utils_file_conversion_pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
+/// pandoc_to_markdown("file", "path/to/file.pdf", "convert/to");
 /// ```
 ///
 /// # 参数
@@ -56,11 +56,7 @@ pub static IMAGE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 /// * `original_file_path`: 文件路径
 /// * `target_path`: 目标路径
 #[pyfunction]
-pub fn file_utils_file_conversion_pandoc_to_markdown(
-    file_basename: &str,
-    original_file_path: &str,
-    target_path: &str,
-) {
+pub fn pandoc_to_markdown(file_basename: &str, original_file_path: &str, target_path: &str) {
     let output_path = Path::new(target_path).join(format!("{file_basename}.md"));
 
     let Ok(output) = Command::new("pandoc")
@@ -217,7 +213,7 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
 ///
 /// # 示例
 /// ```
-/// file_utils_file_conversion_markdown_to_everything("path/to/file.md","convert/to","pdf");
+/// markdown_to_everything("path/to/file.md","convert/to","pdf");
 /// ```
 ///
 /// # 参数
@@ -225,11 +221,7 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
 /// * `target_path`: 目标路径
 /// * `target_ext`: 目标文件后缀
 #[pyfunction]
-pub fn file_utils_file_conversion_markdown_to_everything(
-    original_path: &str,
-    target_path: &str,
-    target_ext: &str,
-) {
+pub fn markdown_to_everything(original_path: &str, target_path: &str, target_ext: &str) {
     let path = Path::new(original_path);
     let Some(file_name) = path.file_stem().and_then(|stem| stem.to_str()) else {
         return;

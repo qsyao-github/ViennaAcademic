@@ -244,7 +244,7 @@ async def respond(
     {
         "query": "请帮我看一下这段代码生成的图片",
         "image_urls": [
-            "/media/code_generated_image.png"
+            "/media/thread_id/code_generated_image.png"
         ],
         "file_urls": [
             "/documents/example_user/code/plot.py"

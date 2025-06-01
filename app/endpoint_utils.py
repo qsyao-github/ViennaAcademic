@@ -3,7 +3,7 @@ from typing import AsyncGenerator, List
 
 import orjson
 from chat_utils.chat import astream_response
-from llm_utils.modelclient import model_type
+from llm_utils.modelclient import model_type, init_models, close_models
 
 # 文件类型
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])

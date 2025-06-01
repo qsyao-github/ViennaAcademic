@@ -4,7 +4,7 @@
 //! ```rust
 //! use crate::chat_utils::attachment_processor;
 //!
-//! attachment_processor::chat_utils_attachment_processor_process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
+//! attachment_processor::process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
 //! ```
 use pyo3::prelude::*;
 
@@ -14,7 +14,7 @@ use crate::academic_utils::paper;
 ///
 /// # 示例
 /// ```
-/// chat_utils_attachment_processor_process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
+/// process_attachments("帮我看一下代码和依赖", ["code.py", "requirements.txt"]);
 /// ```
 ///
 /// # 参数
@@ -24,13 +24,10 @@ use crate::academic_utils::paper;
 /// # 返回值
 /// 处理后文本
 #[pyfunction]
-pub fn chat_utils_attachment_processor_process_attachments(
-    text: &str,
-    file_urls: Vec<String>,
-) -> String {
+pub fn process_attachments(text: &str, file_urls: Vec<String>) -> String {
     let mut new_text = String::with_capacity(512);
     for file in file_urls {
-        let content = paper::academic_utils_paper_attach(&file);
+        let content = paper::attach(&file);
         if !content.is_empty() {
             new_text.push_str(&content);
         }
