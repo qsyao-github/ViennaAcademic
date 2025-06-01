@@ -3,14 +3,13 @@
 """
 
 import glob
-from typing import AsyncGenerator, Dict, List, Optional, Union
+from typing import AsyncGenerator, Dict, List, Union
 
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
     RemoveMessage,
 )
-from pydantic import BaseModel
 from va_rust_utils import create_image_component, process_attachments
 from web_utils.search import generate_academic_search_summary
 
@@ -89,28 +88,6 @@ async def process_reasoning(chat_config: Dict[str, Dict[str, str]]) -> None:
         )
 
 
-def extract_content(chunk: BaseModel) -> Optional[Dict[str, str]]:
-    """
-    从流式返回结果中获取正文、工具调用、推理内容
-
-    Parameters
-    ----------
-    chunk: BaseModel
-        langgraph CompiledStateGraph流式推理返回的内容块
-
-    Returns
-    ----------
-    Optional[Dict[str, str]]
-        该内容块的类型与字符串内容。如果返回内容不属于下述三种类型，返回None
-    """
-    if content := chunk.content:
-        return {"content": chunk.content}
-    elif content := chunk.additional_kwargs.get("tool_calls", ""):
-        return {"tool_calls": content[0]["function"]["arguments"]}
-    elif content := chunk.additional_kwargs.get("reasoning_content", ""):
-        return {"reasoning_content": content}
-
-
 def get_available_model(model_type_code: int, model: str) -> List[str]:
     """
     获取满足条件的模型
@@ -185,29 +162,42 @@ async def astream_response(
         config=chat_config,
         stream_mode="messages",
     ):
-        # 流式输出，空内容不输出
+        # 流式输出，空内容不输出。<think> tag特殊处理
         if content := chunk.content:
+            # 通过buffer处理content中的<think> tag
             content_buffer += content
+            # 固定buffer长度为11，这是最小长度，减少find的开销
             if (current_length := len(content_buffer)) > 11:
+                # 未开始推理
                 if not in_reasoning:
+                    # 推理开始标志，think仅出现在回复流开头，不是开头可直接跳过startswith判断
                     if start_chunks and content_buffer.startswith("<think>\n"):
+                        # 更新状态：正在推理/非开头
                         in_reasoning = True
                         start_chunks = False
+                        # 去除<think> tag
                         content_buffer = content_buffer[8:]
                     else:
+                        # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
                         yield {"content": content_buffer[:border]}
                         content_buffer = content_buffer[border:]
+                # 已开始推理
                 else:
+                    # 推理结束标志
                     if (index := content_buffer.rfind("\n</think>\n")) != -1:
+                        # 更新状态：未开始推理
                         in_reasoning = False
+                        # 完整输出</think> tag前内容，去除</think> tag
                         yield {"reasoning_content": content_buffer[:index]}
                         content_buffer = content_buffer[index + 10 :]
                     else:
+                        # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
                         yield {"reasoning_content": content_buffer[:border]}
                         content_buffer = content_buffer[border:]
         elif content := chunk.additional_kwargs.get("tool_calls", ""):
+            # yield content_buffer中未输出的内容，状态复位
             if content_buffer:
                 yield {"content": content_buffer}
                 content_buffer = ""
@@ -215,12 +205,14 @@ async def astream_response(
             in_reasoning = False
             yield {"tool_calls": content[0]["function"]["arguments"]}
         elif content := chunk.additional_kwargs.get("reasoning_content", ""):
+            # yield content_buffer中未输出的内容，状态复位
             if content_buffer:
                 yield {"content": content_buffer}
                 content_buffer = ""
             start_chunks = True
             in_reasoning = False
             yield {"reasoning_content": content}
+    # yield content_buffer中未输出的内容
     if content_buffer:
         yield {"content": content_buffer}
     # 推理模型特殊处理：移除<think></think>内容

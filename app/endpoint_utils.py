@@ -3,7 +3,7 @@ from typing import AsyncGenerator, List
 
 import orjson
 from chat_utils.chat import astream_response
-from llm_utils.modelclient import model_type, init_models, close_models
+from llm_utils.modelclient import close_models, init_models, model_type
 
 # 文件类型
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
@@ -80,10 +80,17 @@ async def respond_stream(
         model,
         model_type(enable_tool, enable_thinking, multimodal),
     )
-    async for response_chunk in bot_response:
-        yield orjson.dumps(response_chunk)
+    try:
+        async for response_chunk in bot_response:
+            yield orjson.dumps(response_chunk)
 
-    # 附加图片
-    yield orjson.dumps(
-        {"image_urls": [f"/{path}" for path in glob.glob(f"media/{thread_id}/*.png")]}
-    )
+        # 附加图片
+        yield orjson.dumps(
+            {
+                "image_urls": [
+                    f"/{path}" for path in glob.glob(f"media/{thread_id}/*.png")
+                ]
+            }
+        )
+    except Exception as e:
+        yield orjson.dumps({"error": e})

@@ -1,15 +1,17 @@
-import subprocess
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 import jwt
 import psycopg
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
+load_dotenv()
 # 连接用户数据库
 conn = psycopg.connect(
     conninfo="postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
@@ -28,9 +30,7 @@ cursor.execute(
 )
 
 # 初始化密钥，数据类型，token有效期
-SECRET_KEY = subprocess.run(
-    ["openssl", "rand", "-hex", "32"], capture_output=True
-).stdout.decode("utf-8")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1080
 
@@ -122,25 +122,3 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     if user is None:
         raise credentials_exception
     return user
-
-
-async def create_user(username: str, password: str):
-    """
-    创建新用户
-    """
-    cursor.execute("SELECT username FROM users WHERE username = %s", (username,))
-    if cursor.fetchone() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        )
-
-    hashed_password = pwd_context.hash(password)
-
-    cursor.execute(
-        "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
-        (username, hashed_password),
-    )
-    conn.commit()
-
-    return username

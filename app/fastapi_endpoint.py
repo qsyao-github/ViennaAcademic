@@ -18,7 +18,6 @@ from auth import (
     User,
     authenticate_user,
     create_access_token,
-    create_user,
     get_current_user,
 )
 from chat_utils.agent_backend import (
@@ -44,6 +43,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     await init_models()
     await get_agent_app()
     yield
@@ -78,14 +78,6 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
-
-
-@app.post("/register", response_class=PlainTextResponse)
-async def register(username: str, password: str):
-    """
-    注册新用户
-    """
-    return await create_user(username, password)
 
 
 # 文件系统
@@ -255,16 +247,6 @@ async def respond(
         "multimodal": true
     }
     ```
-
-    Notes
-    ----------
-    1. 当前可用的模型列表中未能找到模型名称和模型类型匹配的模型，返回{"ERROR": "No such model"}{"image_urls": []}
-    2. 正常返回片段有
-        - {"content": "正文片段"}
-        - {"tool_calls": "工具调用json字符串片段"}
-        - {"reasoning_content": "推理片段"}
-        - {"image_urls": ["/path/to/model/generated/image_1", "/path/to/model/generated/image_2"]}
-    3. 返回上述json的字节流，需前端实现处理各种类型回复以及增量更新的逻辑
     """
     if not (
         chat_query.query
