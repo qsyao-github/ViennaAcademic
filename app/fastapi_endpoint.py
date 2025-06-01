@@ -4,10 +4,12 @@ uvicorn fastapi_endpoint:app --host 0.0.0.0 --port 8000 --loop uvloop
 """
 
 import asyncio
+import shutil
 import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Annotated, Literal
+from pathlib import Path
+from typing import Annotated, List, Literal
 
 import aiofiles
 import magic
@@ -107,7 +109,9 @@ async def upload_image(
 
     # 异步流式上传
     folder_path = os.path.join("media", thread_id)
-    final_path = os.path.join(folder_path, file.filename)
+    final_path = os.path.join(
+        folder_path, os.path.basename(file.filename)
+    )  # 防止路径遍历
     os.makedirs(folder_path, exist_ok=True)
     async with aiofiles.open(final_path, "wb") as f:
         while chunk := await file.read(8192):
@@ -128,7 +132,7 @@ async def upload_paper(
     ```
     """
     # 重复上传保护
-    final_path = os.path.join("documents", user.username, "paper", file.filename)
+    final_path = os.path.join("documents", user.username, "paper", os.path.basename(file.filename))    # 防止路径遍历
 
     # 类型验证
     chunk = await file.read(2048)
@@ -147,7 +151,7 @@ async def upload_paper(
             while chunk := await file.read(8192):
                 await f.write(chunk)
     if detected_mime != "text/plain":
-        knowledgeBase_path = os.path.join("documents", user, "knowledgeBase")
+        knowledgeBase_path = os.path.join("documents", user.username, "knowledgeBase")
         await everything_to_markdown(final_path, knowledgeBase_path)
     return f"/{final_path}" '''
 
@@ -165,7 +169,12 @@ async def upload_code(
     ```
     """
     # 重复上传保护
-    final_path = os.path.join("documents", user.username, "code", file.filename)
+    final_path = os.path.join(
+        "documents",
+        user.username,
+        "code",
+        os.path.basename(file.filename),  # 防止路径遍历
+    )
     if os.path.exists(final_path):
         return f"/{final_path}"
 
@@ -209,13 +218,53 @@ async def list_directory(
     ]
 
 
+class DeleteRequests(BaseModel):
+    file_urls: List[str]
+
+
+@app.post("/delete")
+async def delete_files(
+    files: DeleteRequests, user: Annotated[User, Depends(get_current_user)]
+):
+    """
+    删除文件或目录
+
+    输入示例：
+    ```json
+    {
+        "file_urls": [
+            "/documents/user/paper/1706.03762.pdf",
+            "/media/thread_1",
+            "/media/thread_2/image.png"
+        ]
+    }
+    ```
+    非法路径将被忽略
+    目前此端口一定返回null
+    """
+    document_path = Path(f"documents/{user.username}").resolve()
+    media_path = Path("media").resolve()
+    for item in (
+        path
+        for url in files.file_urls
+        if (path := Path(url.strip("/")).resolve()).exists()  # 合法性检验
+        and (
+            path.is_relative_to(document_path) or path.is_relative_to(media_path)
+        )  # 防止路径遍历，删除非法文件
+    ):
+        if item.is_file():
+            item.unlink()
+        else:
+            shutil.rmtree(item)
+
+
 # 模型回复
 
 
 class ChatQuery(BaseModel):
     query: str
-    image_urls: list[str]
-    file_urls: list[str]
+    image_urls: List[str]
+    file_urls: List[str]
     model: str
     enable_tool: bool = False
     enable_thinking: bool = False

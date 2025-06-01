@@ -154,9 +154,13 @@ async def astream_response(
     }
     # 预处理：处理文本和图片
     content = build_message_content(process_attachments(text, documents), images)
+    # 维护是否推理，是否是第一个content块，前一个输出的模式三种状态
     in_reasoning = False
     start_chunks = True
+    prior_mode: str = None
+    # 初始化content缓冲区
     content_buffer: str = ""
+    # 接收模型回复+处理
     async for chunk, _ in (await get_agent_app()).astream(
         {"messages": [HumanMessage(content=content)]},
         config=chat_config,
@@ -164,13 +168,18 @@ async def astream_response(
     ):
         # 流式输出，空内容不输出。<think> tag特殊处理
         if content := chunk.content:
+            # 检查上次输出是否是tool_call或reasoning，若是，发送finish信息
+            if prior_mode == "tool_call":
+                yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+            elif prior_mode == "reasoning":
+                yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
             # 通过buffer处理content中的<think> tag
             content_buffer += content
             # 固定buffer长度为11，这是最小长度，减少find的开销
             if (current_length := len(content_buffer)) > 11:
                 # 未开始推理
                 if not in_reasoning:
-                    # 推理开始标志，think仅出现在回复流开头，不是开头可直接跳过startswith判断
+                    # 有推理开始标志，think仅出现在回复流开头，不是开头可直接跳过startswith判断
                     if start_chunks and content_buffer.startswith("<think>\n"):
                         # 更新状态：正在推理/非开头
                         in_reasoning = True
@@ -180,41 +189,55 @@ async def astream_response(
                     else:
                         # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
-                        yield {"content": content_buffer[:border]}
+                        yield f"""event: chat\ndata: {{content: "{content_buffer[:border]}", status: "typing", reason: ""}}\n\n"""
                         content_buffer = content_buffer[border:]
                 # 已开始推理
                 else:
-                    # 推理结束标志
+                    # 有推理结束标志
                     if (index := content_buffer.rfind("\n</think>\n")) != -1:
                         # 更新状态：未开始推理
                         in_reasoning = False
                         # 完整输出</think> tag前内容，去除</think> tag
-                        yield {"reasoning_content": content_buffer[:index]}
+                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:index]}", status: "typing", reason: ""}}\n\n"""
                         content_buffer = content_buffer[index + 10 :]
                     else:
                         # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
-                        yield {"reasoning_content": content_buffer[:border]}
+                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:border]}", status: "typing", reason: ""}}\n\n"""
                         content_buffer = content_buffer[border:]
+            # 将上次输出模式设置为chat
+            prior_mode = "chat"
         elif content := chunk.additional_kwargs.get("tool_calls", ""):
             # yield content_buffer中未输出的内容，状态复位
-            if content_buffer:
-                yield {"content": content_buffer}
+            if prior_mode == "chat":
+                yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "tool_call"}}\n\n"""
                 content_buffer = ""
+            elif prior_mode == "reasoning":
+                yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
             start_chunks = True
             in_reasoning = False
-            yield {"tool_calls": content[0]["function"]["arguments"]}
+            yield f"""event: tool_call\ndata: {{content: "{content[0]["function"]["arguments"]}", status: "typing", reason: ""}}\n\n"""
+            # 将上次输出模式设置为tool_call
+            prior_mode = "tool_call"
         elif content := chunk.additional_kwargs.get("reasoning_content", ""):
             # yield content_buffer中未输出的内容，状态复位
-            if content_buffer:
-                yield {"content": content_buffer}
+            if prior_mode == "chat":
+                yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "finish"}}\n\n"""
                 content_buffer = ""
+            elif prior_mode == "tool_call":
+                yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
             start_chunks = True
             in_reasoning = False
-            yield {"reasoning_content": content}
-    # yield content_buffer中未输出的内容
-    if content_buffer:
-        yield {"content": content_buffer}
+            yield f"""event: reasoning\ndata: {{content: "{content}", status: "typing", reason: ""}}\n\n"""
+            # 将上次输出模式设置为reasoning
+            prior_mode = "reasoning"
+    # yield content_buffer中未输出的内容，发送finish信息
+    if prior_mode == "chat":
+        yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "finish"}}\n\n"""
+    elif prior_mode == "tool_call":
+        yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+    elif prior_mode == "reasoning":
+        yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
     # 推理模型特殊处理：移除<think></think>内容
     await process_reasoning(chat_config)
     # 工具模型特殊处理：可能生成图片，需加入历史对话

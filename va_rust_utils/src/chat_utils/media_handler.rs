@@ -53,7 +53,7 @@ fn encode_image(image_path: &str) -> String {
 #[pyfunction]
 pub fn create_image_component(py: Python, image_path: &str) -> Py<PyDict> {
     let dict = PyDict::new(py);
-    let trimmed_path = image_path.trim_start_matches('/');
+    let trimmed_path = image_path.trim_start_matches([' ', '/']);
     let Some(ext) = Path::new(trimmed_path)
         .extension()
         .and_then(|ext| ext.to_str())
