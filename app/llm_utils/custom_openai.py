@@ -131,6 +131,7 @@ class CustomOpenAI(BaseChatOpenAI):
                 connector = aiohttp.TCPConnector(
                     limit_per_host=100,
                     ssl=False,
+                    ssl_shutdown_timeout=1,
                 )
                 self.aiohttp_session = aiohttp.ClientSession(
                     base_url=f"{self.base_url}/",

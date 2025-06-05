@@ -41,24 +41,23 @@ def build_message_content(
 
 
 async def handle_generated_image(
-    thread_id: str, chat_config: Dict[str, Dict[str, str]]
+    chat_config: Dict[str, Dict[str, str]], image_files_set: set
 ) -> None:
     """处理生成的图片并更新状态
 
     Parameters
     ----------
-    thread_id: str
-        当前线程
     chat_config : Dict
         聊天配置，包含线程id。对指定线程的状态进行更新
+    image_files_set : set
+        需要处理的媒体文件路径
 
     Notes
     ----------
     1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
     """
-    image_paths = glob.glob(f"media/{thread_id}/*.png")
-    for image_component in (create_image_component(f) for f in image_paths):
+    for image_component in (create_image_component(f) for f in image_files_set):
         if image_component:
             await (await get_agent_app()).aupdate_state(
                 chat_config, {"messages": HumanMessage([image_component])}
@@ -118,7 +117,8 @@ async def astream_response(
     str
         模型返回内容，可能为chat(一般文本), tool_call(工具调用文本), reasoning(推理部分)。流式返回增量部分
     """
-
+    # 已有媒体文件
+    old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 构建配置
     chat_config = {
         "configurable": {
@@ -216,7 +216,9 @@ async def astream_response(
     # 推理模型特殊处理：移除<think></think>内容
     await process_reasoning(chat_config)
     # 工具模型特殊处理：可能生成图片，需加入历史对话
-    await handle_generated_image(thread_id, chat_config)
+    image_files = set(glob.iglob(f"media/{thread_id}/*.png")) - old_file_set
+    await handle_generated_image(chat_config, image_files)
+    yield f"""event: image_output\ndata: {{content: {[f"/{path}" for path in image_files]}}}\n\n"""
 
 
 async def append_search_result(query: str, thread_id: str) -> AsyncGenerator[str, None]:

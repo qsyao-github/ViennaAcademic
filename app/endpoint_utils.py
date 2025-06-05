@@ -1,4 +1,5 @@
-import glob
+import shutil
+from pathlib import Path
 from typing import AsyncGenerator, List
 
 from chat_utils.agent_backend import ModelInfo, models
@@ -71,7 +72,6 @@ async def respond_stream(
     if not models.get(ModelInfo(model, model_type_code)):
         yield """event: system\ndata: {type: "error", notice: "No such model"}\n\n"""
         return
-    old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 流式输出
     bot_response = astream_response(
         query,
@@ -84,8 +84,20 @@ async def respond_stream(
     try:
         async for response_chunk in bot_response:
             yield response_chunk
-
-        # 附加图片
-        yield f"""event: image_output\ndata: {{content: {[f"/{path}" for path in (set(glob.iglob(f"media/{thread_id}/*.png")) - old_file_set)]}}}\n\n"""
     except Exception as e:
         yield f"""event: system\ndata: {{type: "error", notice: "{e}"}}\n\n"""
+
+
+def delete_file(path: Path) -> None:
+    """
+    删除单个文件或目录
+
+    Parameters
+    ----------
+    path: Path
+        文件或目录路径
+    """
+    if path.is_file():
+        path.unlink()
+    else:
+        shutil.rmtree(path)

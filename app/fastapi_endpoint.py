@@ -5,7 +5,6 @@ uvicorn fastapi_endpoint:app --host 0.0.0.0 --port 8000 --loop uvloop
 
 import asyncio
 import os
-import shutil
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -27,7 +26,12 @@ from chat_utils.agent_backend import (
     close_conn,
     get_agent_app,
 )
-from endpoint_utils import ALLOWED_IMAGE_TYPE, ALLOWED_PAPER_TYPE, respond_stream
+from endpoint_utils import (
+    ALLOWED_IMAGE_TYPE,
+    ALLOWED_PAPER_TYPE,
+    delete_file,
+    respond_stream,
+)
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -241,18 +245,13 @@ async def delete_files(
     """
     document_path = Path(f"documents/{user.username}").resolve()
     media_path = Path("media").resolve()
-    for item in (
-        path
-        for url in files.file_urls
-        if (path := Path(url.strip("/")).resolve()).exists()  # 合法性检验
-        and (
+
+    for url in files.file_urls:
+        # 合法性检验
+        if (path := Path(url.strip("/")).resolve()).exists() and (
             path.is_relative_to(document_path) or path.is_relative_to(media_path)
-        )  # 防止路径遍历，删除非法文件
-    ):
-        if item.is_file():
-            item.unlink()
-        else:
-            shutil.rmtree(item)
+        ):
+            delete_file(path)
 
 
 # 模型回复
