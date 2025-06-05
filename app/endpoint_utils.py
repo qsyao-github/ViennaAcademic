@@ -1,7 +1,7 @@
 import glob
 from typing import AsyncGenerator, List
 
-import orjson
+from chat_utils.agent_backend import ModelInfo, models
 from chat_utils.chat import astream_response
 from llm_utils.modelclient import model_type
 
@@ -34,9 +34,9 @@ async def respond_stream(
     enable_tool: bool,
     enable_thinking: bool,
     multimodal: bool,
-) -> AsyncGenerator[bytes, None]:
+) -> AsyncGenerator[str, None]:
     """
-    生成模型回复字节流
+    生成模型回复流
 
     Parameters
     ----------
@@ -59,18 +59,19 @@ async def respond_stream(
 
     Yields
     ----------
-    bytes
-        模型回复字节流
+    str
+        模型回复流
 
     Notes
     ----------
-    1. 当前可用的模型列表中未能找到模型名称和模型类型匹配的模型，返回{"ERROR": "No such model"}
-    2. 正常返回值有
-        - {"content": "正文片段"}
-        - {"tool_calls": "工具调用json字符串片段"}
-        - {"reasoning_content": "推理片段"}
-        - {"image_urls": ["/path/to/model/generated/image_1", "/path/to/model/generated/image_2"]}
+    可能返回system(错误), chat(一般文本片段), tool_call(工具调用json片段), reasoning(推理内容片段), image_output(生成图片列表)
     """
+    # 获取模型，处理模型错误的情况
+    model_type_code = model_type(enable_tool, enable_thinking, multimodal)
+    if not models.get(ModelInfo(model, model_type_code)):
+        yield """event: system\ndata: {type: "error", notice: "No such model"}\n\n"""
+        return
+    old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 流式输出
     bot_response = astream_response(
         query,
@@ -78,19 +79,13 @@ async def respond_stream(
         file_urls,
         thread_id,
         model,
-        model_type(enable_tool, enable_thinking, multimodal),
+        model_type_code,
     )
     try:
         async for response_chunk in bot_response:
-            yield orjson.dumps(response_chunk)
+            yield response_chunk
 
         # 附加图片
-        yield orjson.dumps(
-            f"""event: image_output\ndata: {{content: {[
-                    f"/{path}" for path in glob.glob(f"media/{thread_id}/*.png")
-                ]}}}"""
-        )
+        yield f"""event: image_output\ndata: {{content: {[f"/{path}" for path in (set(glob.iglob(f"media/{thread_id}/*.png")) - old_file_set)]}}}\n\n"""
     except Exception as e:
-        yield orjson.dumps(
-            f"""event: systen\ndata: {{type: "error", notice: "{e}"}}\n\n"""
-        )
+        yield f"""event: system\ndata: {{type: "error", notice: "{e}"}}\n\n"""

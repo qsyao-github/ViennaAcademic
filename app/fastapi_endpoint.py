@@ -4,8 +4,8 @@ uvicorn fastapi_endpoint:app --host 0.0.0.0 --port 8000 --loop uvloop
 """
 
 import asyncio
-import shutil
 import os
+import shutil
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -23,12 +23,9 @@ from auth import (
     get_current_user,
 )
 from chat_utils.agent_backend import (
-    ENABLE_REASONING,
-    ENABLE_TOOL,
-    MULTIMODAL,
+    available_models,
     close_conn,
     get_agent_app,
-    models,
 )
 from endpoint_utils import ALLOWED_IMAGE_TYPE, ALLOWED_PAPER_TYPE, respond_stream
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
@@ -309,10 +306,12 @@ async def respond(
             chat_query.image_urls,
             chat_query.file_urls,
             thread_id,
+            chat_query.model,
             chat_query.enable_tool,
             chat_query.enable_thinking,
             chat_query.multimodal,
         ),
+        media_type="text/event-stream",
     )
 
 
@@ -371,13 +370,4 @@ async def get_model_list():
     ]
     ```
     """
-    return [
-        {
-            "enable_tool": bool(code & ENABLE_TOOL),
-            "enable_reasoning": bool(code & ENABLE_REASONING),
-            "multimodal": bool(code & MULTIMODAL),
-            "models": selected_models,
-        }
-        for code in range(8)
-        if (selected_models := [model[2] for model in models if model[1] == code])
-    ]
+    return available_models

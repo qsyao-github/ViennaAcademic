@@ -13,7 +13,7 @@ from langchain_core.messages import (
 from va_rust_utils import create_image_component, process_attachments
 from web_utils.search import generate_academic_search_summary
 
-from .agent_backend import ENABLE_REASONING, get_agent_app, models
+from .agent_backend import ENABLE_REASONING, get_agent_app
 
 
 def build_message_content(
@@ -88,27 +88,6 @@ async def process_reasoning(chat_config: Dict[str, Dict[str, str]]) -> None:
         )
 
 
-def get_available_model(model_type_code: int, model: str) -> List[str]:
-    """
-    获取满足条件的模型
-
-    模型名和模型类型均需对应
-
-    Parameters
-    ----------
-    model_type_code: int
-        模型类型位掩码
-    model: str
-        模型名称
-
-    Returns
-    ----------
-    List[str]
-        满足条件的模型，一般只有1个，若前端请求不慎可能为0个
-    """
-    return [m[2] for m in models if m[1] == model_type_code and m[2] == model]
-
-
 async def astream_response(
     text: str,
     images: List[str],
@@ -116,7 +95,7 @@ async def astream_response(
     thread_id: str,
     model: str,
     model_type_code: int,
-) -> AsyncGenerator[Dict[str, str], None]:
+) -> AsyncGenerator[str, None]:
     """流式处理聊天响应
 
     Parameters
@@ -136,14 +115,10 @@ async def astream_response(
 
     Yields
     ----------
-    Dict[str, str]
-        模型返回内容，键可能为content(一般文本), tool_calls(工具调用文本), reasoning_content(推理部分)。流式返回增量部分
+    str
+        模型返回内容，可能为chat(一般文本), tool_call(工具调用文本), reasoning(推理部分)。流式返回增量部分
     """
-    # 获取模型，处理模型错误的情况
-    available_model = get_available_model(model_type_code, model)
-    if not available_model:
-        yield {"ERROR": "No such model"}
-        return
+
     # 构建配置
     chat_config = {
         "configurable": {

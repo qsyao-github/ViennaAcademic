@@ -3,7 +3,7 @@ React Agent后端，处理ViennaAcademic中的聊天部分
 """
 
 from typing import Any, Dict, List
-
+from collections import namedtuple
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -32,7 +32,7 @@ from llm_utils.modelclient import (
     qwen3_235B_A22B_no_thinking,
     qwen3_235B_A22B_thinking,
 )
-from llm_utils.system_prompt import REGEX_TOOLCALL
+from llm_utils.system_prompt import TOOLCALL
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from typing_extensions import Annotated
@@ -48,10 +48,12 @@ MULTIMODAL = model_type(False, False, True)
 empty_template = ChatPromptTemplate.from_messages(
     [MessagesPlaceholder(variable_name="messages")]
 )
-regex_toolcall_template = ChatPromptTemplate.from_messages(
-    [("system", REGEX_TOOLCALL), MessagesPlaceholder(variable_name="messages")]
+toolcall_template = ChatPromptTemplate.from_messages(
+    [("system", TOOLCALL), MessagesPlaceholder(variable_name="messages")]
 )
 
+
+graph_builder = StateGraph(AgentState)
 
 # 绑定工具
 
@@ -94,25 +96,62 @@ def ipython(code: str, thread_id: Annotated[str, InjectedToolArg]) -> str:
     return python_tool(code, thread_id)
 
 
-graph_builder = StateGraph(AgentState)
 tools = [ipython]
 deepseek_v3_with_tools = deepseek_v3.bind_tools(tools)
 qwen3_235B_A22B_no_thinking_with_tools = qwen3_235B_A22B_no_thinking.bind_tools(tools)
 qwen3_235B_A22B_thinking_with_tools = qwen3_235B_A22B_thinking.bind_tools(tools)
 
 # 模型, 位掩码(enable_tool, enable_thinking, multimodal), 模型简称
-models = [
-    (deepseek_v3, model_type(False, False, False), "deepseek-v3"),
-    (deepseek_v3_with_tools, model_type(True, False, False), "deepseek-v3"),
-    (deepseek_r1_671b, model_type(False, True, False), "deepseek-r1"),
-    (mistral_small_latest, model_type(False, False, True), "mistral-small"),
-    (glm_z1_flash, model_type(False, True, False), "glm-z1-flash"),
-    (qwen3_235B_A22B_no_thinking, model_type(False, False, False), "qwen3"),
-    (qwen3_235B_A22B_no_thinking_with_tools, model_type(True, False, False), "qwen3"),
-    (qwen3_235B_A22B_thinking, model_type(False, True, False), "qwen3"),
-    (qwen3_235B_A22B_thinking_with_tools, model_type(True, True, False), "qwen3"),
+ModelInfo = namedtuple("ModelInfo", ["name", "type_code"])
+
+models: Dict[ModelInfo, Runnable] = {
+    ModelInfo(
+        type_code=model_type(False, False, False),
+        name="deepseek-v3",
+    ): deepseek_v3,
+    ModelInfo(
+        type_code=model_type(True, False, False),
+        name="deepseek-v3",
+    ): deepseek_v3_with_tools,
+    ModelInfo(
+        type_code=model_type(False, True, False),
+        name="deepseek-r1",
+    ): deepseek_r1_671b,
+    ModelInfo(
+        type_code=model_type(False, False, True),
+        name="mistral-small",
+    ): mistral_small_latest,
+    ModelInfo(
+        type_code=model_type(False, True, False),
+        name="glm-z1-flash",
+    ): glm_z1_flash,
+    ModelInfo(
+        type_code=model_type(False, False, False),
+        name="qwen3",
+    ): qwen3_235B_A22B_no_thinking,
+    ModelInfo(
+        type_code=model_type(True, False, False),
+        name="qwen3",
+    ): qwen3_235B_A22B_no_thinking_with_tools,
+    ModelInfo(
+        type_code=model_type(False, True, False),
+        name="qwen3",
+    ): qwen3_235B_A22B_thinking,
+    ModelInfo(
+        type_code=model_type(True, True, False),
+        name="qwen3",
+    ): qwen3_235B_A22B_thinking_with_tools,
+}
+available_models = [
+    {
+        "enable_tool": bool(code & ENABLE_TOOL),
+        "enable_reasoning": bool(code & ENABLE_REASONING),
+        "multimodal": bool(code & MULTIMODAL),
+        "models": selected_models,
+    }
+    for code in range(8)
+    if (selected_models := [model.name for model in models if model.type_code == code])
 ]
-models.sort(key=lambda x: x[2])
 
 
 # 自定义信息过滤器，参考langchain_core.messages.filter_messages
@@ -246,13 +285,13 @@ async def chatbot(
     model_name = config["configurable"].get("model")
     thread_id = config["configurable"].get("thread_id")
     # 获取模型与对应的提示词
-    model = [m[0] for m in models if m[1] == model_type and m[2] == model_name][0]
+    model = models[ModelInfo(name=model_name, type_code=model_type)]
     model = (
         model | tool_argument_injector({"ipython": {"thread_id": thread_id}})
         if model_type & ENABLE_TOOL
         else model
     )
-    template = regex_toolcall_template if model_type & ENABLE_TOOL else empty_template
+    template = toolcall_template if model_type & ENABLE_TOOL else empty_template
     prompted_message = await template.ainvoke({"messages": state["messages"]})
     # 过滤无法处理的信息并合并来自同一主体的连续信息
     merged = merge_message_runs(apply_safety_filter(model_type, prompted_message))

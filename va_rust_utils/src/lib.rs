@@ -5,8 +5,8 @@
     clippy::single_call_fn,
     clippy::implicit_return,
     clippy::question_mark_used,
-    clippy::mod_module_files,
-    reason = "PyO3函数需函数签名，且必然需要?传播错误。implicit_return, mod_module_files与其余lint冲突"
+    clippy::self_named_module_files,
+    reason = "PyO3函数需函数签名，且必然需要?传播错误。implicit_return, self_named_module_files与其余lint冲突"
 )]
 mod academic_utils;
 mod chat_utils;
