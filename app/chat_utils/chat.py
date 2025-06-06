@@ -30,14 +30,12 @@ def build_message_content(
 
     Returns
     ----------
-    content: List[Dict]
+    List[Dict]
         消息内容
     """
-    content = [{"type": "text", "text": text}]
-    for f in files:
-        if component := create_image_component(f):
-            content.append(component)
-    return content
+    return [component for f in files if (component := create_image_component(f))] + [
+        {"type": "text", "text": text}
+    ]
 
 
 async def handle_generated_image(
@@ -57,11 +55,24 @@ async def handle_generated_image(
     1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
     2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
     """
-    for image_component in (create_image_component(f) for f in image_files_set):
-        if image_component:
+    """ for f in image_files_set:
+        if image_component := create_image_component(f):
             await (await get_agent_app()).aupdate_state(
                 chat_config, {"messages": HumanMessage([image_component])}
-            )
+            ) """
+    if image_files_set:
+        await (await get_agent_app()).aupdate_state(
+            chat_config,
+            {
+                "messages": HumanMessage(
+                    [
+                        image_component
+                        for f in image_files_set
+                        if (image_component := create_image_component(f))
+                    ]
+                )
+            },
+        )
 
 
 async def process_reasoning(chat_config: Dict[str, Dict[str, str]]) -> None:

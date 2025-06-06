@@ -2,8 +2,9 @@
 React Agent后端，处理ViennaAcademic中的聊天部分
 """
 
-from typing import Any, Dict, List
 from collections import namedtuple
+from typing import Any, Dict, List
+
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -14,7 +15,7 @@ from langchain_core.messages import (
 )
 from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import chain, Runnable
+from langchain_core.runnables import Runnable, chain
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import InjectedToolArg, tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -92,7 +93,7 @@ async def websearch(query: str) -> str:
 
 @tool
 def ipython(code: str, thread_id: Annotated[str, InjectedToolArg]) -> str:
-    """使用IPython。用!执行命令，用numpy, scipy, sympy做数值/符号计算，pandas处理数据，matplotlib绘图"""
+    """使用IPython。!: 执行cmd命令，numpy, scipy, pandas: 科学计算，scikit-learn, statsmodels, patsy: 机器学习&统计，matplotlib, seaborn: 数据可视化，scikit-image: 图像处理，numba, numexpr, bottleneck: 性能加速，dask: 大数据处理，h5py, openpyxl, xlrd: 文件I/O，sympy: 符号计算"""
     return python_tool(code, thread_id)
 
 

@@ -24,12 +24,25 @@ client = docker.from_env()
 container = client.containers.get("scipy-light")
 
 
-def get_base_path(tar_info: TarInfo):
+def get_base_path(tar_info: TarInfo) -> TarInfo:
+    """
+    去除tar_info中的路径前缀，使其只包含文件名
+
+    Parameters
+    ----------
+    tar_info: TarInfo
+        原始tar_info
+
+    Returns
+    ----------
+    TarInfo
+        去除路径前缀的tar_info
+    """
     tar_info.path = os.path.basename(tar_info.path)
     return tar_info
 
 
-def copy_file(stream):
+def copy_file(stream) -> None:
     """
     将png文件夹tar流解压并写入本地
 
@@ -72,7 +85,7 @@ def python_tool(code: str, thread_id) -> str:
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
     exec_id = container.exec_run(f"mkdir -p {thread_id}")
     exec_id = container.exec_run(
-        f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace("\"", "\'")}"',
+        f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace('"', "'")}"',
         workdir=workdir,
     )
     # 获取执行结果，处理超时
@@ -81,7 +94,7 @@ def python_tool(code: str, thread_id) -> str:
     output = f'\n```\n{clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())}\n```\n\n'
     # png文件处理
     container_png_files_str = container.exec_run(
-        "sh -c 'ls -1 | grep *.png'", workdir=workdir
+        "ls -1 | grep png", workdir=workdir
     ).output.decode("utf-8")
     if not container_png_files_str:
         return output
