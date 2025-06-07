@@ -1,3 +1,7 @@
+"""
+多用户系统，用户认证和授权及其文件系统初始化
+"""
+
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
@@ -11,7 +15,9 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
+# 初始化所有环境变量
 load_dotenv()
+
 # 连接用户数据库
 conn = psycopg.connect(
     conninfo="postgresql://vienna_academic:vienna_academic@postgres:5432/vadb"
@@ -28,6 +34,15 @@ cursor.execute(
     );
 """
 )
+conn.commit()
+
+# 设立用户文件系统
+DIRECTORIES = ("code", "knowledgeBase", "paper", "convert", "retrievers")
+cursor.execute("SELECT username FROM users;")
+for user in cursor.fetchall():
+    for directory in DIRECTORIES:
+        os.makedirs(f"documents/{user[0]}/{directory}", exist_ok=True)
+
 
 # 初始化密钥，数据类型，token有效期
 SECRET_KEY = os.getenv("SECRET_KEY")

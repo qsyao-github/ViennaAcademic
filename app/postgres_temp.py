@@ -40,10 +40,20 @@ def delete_utils(thread_id=""):
 def inspect_utils(thread_id=""):
     if thread_id:
         cursor.execute("SELECT * FROM checkpoints WHERE thread_id = %s;", (thread_id,))
-        print(cursor.fetchall())
+        for i in cursor.fetchall():
+            print(i)
+            print("\n")
     else:
         cursor.execute("SELECT thread_id FROM checkpoints;")
-        print(cursor.fetchall())
+        for i in cursor.fetchall():
+            print(i)
+            print("\n")
+
+
+def get_timestamps(thread_id):
+    cursor.execute("SELECT * FROM checkpoints WHERE thread_id = %s;", (thread_id,))
+    for i in cursor.fetchall():
+        print(i[-2]["ts"])
 
 
 inspect_utils()

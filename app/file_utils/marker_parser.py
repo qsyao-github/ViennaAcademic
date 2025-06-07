@@ -13,8 +13,17 @@ config = {
     "languages": "en,zh",
     "output_format": "markdown",
     "strip_existing_ocr": True,
+    "format_lines": True,
     "disable_image_extraction": True,
     "disable_links": True,
+    "disable_tqdm": True,
+    # Test features from here
+    # "redo_inline_math": True,
+    # "use_llm": True,
+    # "llm_service": "marker.services.openai.OpenAIService",
+    # "openai_model": "",
+    # "openai_api_key": "",
+    # "openai_base_url": "",
 }
 config_parser = ConfigParser(config)
 

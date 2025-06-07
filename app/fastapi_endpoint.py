@@ -1,4 +1,6 @@
 """
+后端入口文件，fastapi app主体
+
 运行：
 uvicorn fastapi_endpoint:app --host 0.0.0.0 --port 8000 --loop uvloop
 """
@@ -36,17 +38,15 @@ from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from file_utils.file_conversion import everything_to_markdown
 from llm_utils.modelclient import close_models, init_models
 from pydantic import BaseModel
-
-# from file_utils.file_conversion import everything_to_markdown
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
     await init_models()
     await get_agent_app()
     yield
@@ -110,9 +110,8 @@ async def upload_image(
 
     # 异步流式上传
     folder_path = os.path.join("media", thread_id)
-    final_path = os.path.join(
-        folder_path, os.path.basename(file.filename)
-    )  # 防止路径遍历
+    # 防止路径遍历
+    final_path = os.path.join(folder_path, os.path.basename(file.filename))
     os.makedirs(folder_path, exist_ok=True)
     async with aiofiles.open(final_path, "wb") as f:
         while chunk := await file.read(8192):
@@ -120,7 +119,7 @@ async def upload_image(
     return f"/{final_path}"
 
 
-''' @app.post("/upload/document/paper", response_class=PlainTextResponse)
+'''@app.post("/upload/document/paper", response_class=PlainTextResponse)
 async def upload_paper(
     file: UploadFile, user: Annotated[User, Depends(get_current_user)]
 ):
@@ -132,13 +131,17 @@ async def upload_paper(
     "/documents/example_user/paper/filename.pdf"
     ```
     """
-    # 重复上传保护
-    final_path = os.path.join("documents", user.username, "paper", os.path.basename(file.filename))    # 防止路径遍历
+    # 防止路径遍历
+    final_path = os.path.join(
+        "documents", user.username, "paper", os.path.basename(file.filename)
+    )
 
     # 类型验证
     chunk = await file.read(2048)
 
     detected_mime = magic.from_buffer(chunk, mime=True)
+
+    # 重复上传保护
     if not os.path.exists(final_path):
         if detected_mime not in ALLOWED_PAPER_TYPE:
             raise HTTPException(
@@ -151,10 +154,12 @@ async def upload_paper(
         async with aiofiles.open(final_path, "wb") as f:
             while chunk := await file.read(8192):
                 await f.write(chunk)
+
+    # 非纯文本解析
     if detected_mime != "text/plain":
         knowledgeBase_path = os.path.join("documents", user.username, "knowledgeBase")
         await everything_to_markdown(final_path, knowledgeBase_path)
-    return f"/{final_path}" '''
+    return f"/{final_path}"'''
 
 
 @app.post("/upload/document/code", response_class=PlainTextResponse)
@@ -211,6 +216,7 @@ async def list_directory(
         "/documents/example_user/code/backend.rs",
         "/documents/example_user/code/frontend.py"
     ]
+    ```
     """
     dir_path = os.path.join("documents", user.username, directory)
     return [
@@ -254,7 +260,7 @@ async def delete_files(
             delete_file(path)
 
 
-# 模型回复
+# 聊天
 
 
 class ChatQuery(BaseModel):
@@ -370,3 +376,15 @@ async def get_model_list():
     ```
     """
     return available_models
+
+
+@app.post("/delete_thread/{thread_id}")
+async def delete_thread(thread_id: str):
+    """
+    删除后端某个对话线程的历史记录
+
+    目前此端口一定返回null
+
+    这是一个暂时的实现，后续可能要考虑根据上次对话时间删除历史记录
+    """
+    await (await get_agent_app()).checkpointer.adelete_thread(thread_id)

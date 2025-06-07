@@ -1,3 +1,7 @@
+"""
+fastapi端点的辅助函数/类/变量
+"""
+
 import shutil
 from pathlib import Path
 from typing import AsyncGenerator, List

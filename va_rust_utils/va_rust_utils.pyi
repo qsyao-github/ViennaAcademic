@@ -24,7 +24,7 @@ def attach(file_path: str) -> str:
         文件内容。若为代码则放入代码框
     """
 
-def chunk(file: str, current_user_directory: str) -> list[str]:
+def chunk(file_path: str) -> list[str]:
     """
     分段
 

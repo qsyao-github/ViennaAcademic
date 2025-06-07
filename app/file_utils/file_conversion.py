@@ -4,10 +4,11 @@
 
 import os
 
+import aiofiles
+from semaphore import semaphore1
+from va_rust_utils import pandoc_to_markdown
+
 from .marker_parser import pdf_to_markdown
-from va_rust_utils import (
-    file_utils_file_conversion_pandoc_to_markdown as pandoc_to_markdown,
-)
 
 # 由marker处理的文件类型
 marker_ext = frozenset([".pdf", ".pptx", ".xlsx"])
@@ -28,9 +29,14 @@ async def marker_parse(file_basename: str, original_file_path: str, target_path:
     output_path = os.path.join(target_path, f"{file_basename}.md")
     if os.path.exists(output_path):
         return
-    result = await pdf_to_markdown(original_file_path)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(result)
+
+    # marker消耗资源极大，任意时刻只允许一个marker任务运行
+    async with semaphore1:
+        result = await pdf_to_markdown(original_file_path)
+
+    # 写入
+    async with aiofiles.open(output_path, "w", encoding="utf-8") as f:
+        await f.write(result)
 
 
 async def everything_to_markdown(original_path: str, target_path: str):
@@ -42,11 +48,6 @@ async def everything_to_markdown(original_path: str, target_path: str):
         原文件路径
     target_path: str
         目标路径
-
-    Returns
-    ----------
-    str
-        解析结果
     """
     file_name, ext = os.path.splitext(original_path)
     file_basename = os.path.basename(file_name)

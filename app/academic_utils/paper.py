@@ -3,10 +3,10 @@
 """
 
 import asyncio
-import os
-from io import StringIO
-from typing import AsyncGenerator, List, Literal
+from pathlib import Path
+from typing import AsyncGenerator, Literal
 
+import aiofiles
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai.chat_models.base import BaseChatOpenAI
 from llm_utils.modelclient import deepseek_v3
@@ -16,8 +16,7 @@ from llm_utils.system_prompt import (
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
 from semaphore import semaphore1024
-from va_rust_utils import academic_utils_paper_attach as attach
-from va_rust_utils import academic_utils_paper_chunk as chunk
+from va_rust_utils import attach, chunk
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
@@ -42,57 +41,52 @@ process_paper_prompt_template = ChatPromptTemplate.from_messages(
 )
 
 
-async def read_paper(
-    file_path: str, current_user_directory: str
-) -> AsyncGenerator[str, None]:
+async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
     """论文解读
 
     Parameters
     ----------
     file_path: str
         文件路径
-    current_user_directory: str
-        当前用户根目录
 
     Yields
     ----------
     str
-        解读结果。Gradio不支持增量更新，每次均返回完整字符串
+        解读结果，返回增量部分
     """
-    prompt = await read_paper_prompt_template.ainvoke(
-        {"content": attach(file_path, current_user_directory)}
-    )
-    answer = StringIO()
-    async for answer_chunk in deepseek_v3.astream(prompt):
-        answer.write(answer_chunk.content)
-        yield answer.getvalue()
-    answer.close()
+    async for answer_chunk in deepseek_v3.astream(
+        await read_paper_prompt_template.ainvoke({"content": attach(file_path)})
+    ):
+        yield answer_chunk.content
 
 
 async def worker(
     text: str,
     system_prompt: str,
     model: BaseChatOpenAI,
-    index: int,
-    result: List[str],
     semaphore: asyncio.Semaphore,
-) -> None:
-    async with semaphore:
-        if text.strip():
-            prompt = await process_paper_prompt_template.ainvoke(
-                {"system": system_prompt, "content": text}
-            )
-            result[index] = (await model.ainvoke(prompt)).content
+) -> str:
+    if content := text.strip():
+        async with semaphore:
+            return (
+                await model.ainvoke(
+                    await process_paper_prompt_template.ainvoke(
+                        {"system": system_prompt, "content": content}
+                    )
+                )
+            ).content
+    return ""
 
 
 async def process_paper(
     file_path: str,
+    user: str,
     suffix: Literal["Chi", "Eng", "Pol"],
     prompt: str,
-    current_user_directory: str,
     model: BaseChatOpenAI,
 ) -> AsyncGenerator[str, None]:
-    """处理论文
+    """
+    处理论文
 
     论文翻译、润色的抽象函数。
 
@@ -100,46 +94,43 @@ async def process_paper(
     ----------
     file_path: str
         文件路径
+    user: str
+        用户名
     suffix: Literal['Chi', 'Eng', 'Pol']
         文件后缀。分别对应英译中、中译英、润色
     prompt: str
         系统提示词
-    current_user_directory: str
-        当前用户目录
     model: BaseChatOpenAI
         模型，目前都使用deepseek-v3
 
     Yields
     ----------
     str
-        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+        已处理的文段。返回处理好的一个段落
     """
     # 初始化输出路径和内容块
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    knowledgeBase_file_path = (
-        f"documents/{current_user_directory}/knowledgeBase/{base_name}{suffix}.md"
-    )
-    document_chunks = chunk(file_path, current_user_directory)
+    base_path = Path(file_path).stem
+    knowledgeBase_path = f"documents/{user}/knowledgeBase/{base_path}{suffix}.md"
+    document_chunks = chunk(file_path)
 
     # 并行处理文本块
-    processed_chunks = [""] * len(document_chunks)
-    tasks = [
-        worker(chunk, prompt, model, index, processed_chunks, semaphore1024)
-        for index, chunk in enumerate(document_chunks)
-    ]
-    for future in asyncio.as_completed(tasks):
-        await future
-        yield "\n\n".join(processed_chunks)
-
-    # 写入最终结果并返回
-    final_content = "\n\n".join(processed_chunks)
-    with open(knowledgeBase_file_path, "w", encoding="utf-8") as output_file:
-        output_file.write(final_content)
-    yield final_content
+    tasks = [worker(chunk, prompt, model, semaphore1024) for chunk in document_chunks]
+    async with aiofiles.open(knowledgeBase_path, "w", encoding="utf-8") as output_file:
+        for i, task in enumerate(tasks):
+            processed_chunk = (await task).strip()
+            # 非空
+            if not processed_chunk:
+                continue
+            # 非首块加入换行符
+            if i != 0:
+                processed_chunk = f"\n\n{processed_chunk}"
+            # 写入文件
+            await output_file.write(processed_chunk)
+            yield processed_chunk
 
 
 async def translate_paper_to_Chinese(
-    file_path: str, current_user_directory: str
+    file_path: str, user: str
 ) -> AsyncGenerator[str, None]:
     """论文英译中
 
@@ -147,8 +138,8 @@ async def translate_paper_to_Chinese(
     ----------
     file_path: str
         文件路径
-    current_user_directory: str
-        当前用户目录
+    user: str
+        用户名
 
     Yields
     ----------
@@ -157,16 +148,16 @@ async def translate_paper_to_Chinese(
     """
     async for item in process_paper(
         file_path,
+        user,
         "Chi",
         TRANSLATE_TO_CHINESE_PROMPT,
-        current_user_directory,
         deepseek_v3,
     ):
         yield item
 
 
 async def translate_paper_to_English(
-    file_path: str, current_user_directory: str
+    file_path: str, user: str
 ) -> AsyncGenerator[str, None]:
     """论文中译英
 
@@ -174,8 +165,8 @@ async def translate_paper_to_English(
     ----------
     file_path: str
         文件路径
-    current_user_directory: str
-        当前用户目录
+    user: str
+        用户名
 
     Yields
     ----------
@@ -184,32 +175,28 @@ async def translate_paper_to_English(
     """
     async for item in process_paper(
         file_path,
+        user,
         "Eng",
         TRANSLATE_TO_ENGLISH_PROMPT,
-        current_user_directory,
         deepseek_v3,
     ):
         yield item
 
 
-async def polish_paper(
-    file_path: str, current_user_directory: str
-) -> AsyncGenerator[str, None]:
+async def polish_paper(file_path: str, user: str) -> AsyncGenerator[str, None]:
     """论文润色
 
     Parameters
     ----------
     file_path: str
         文件路径
-    current_user_directory: str
-        当前用户目录
+    user: str
+        用户名
 
     Yields
     ----------
     str
         已处理的文段。Gradio不支持增量更新，故返回完整字符串
     """
-    async for item in process_paper(
-        file_path, "Pol", POLISH_PROMPT, current_user_directory, deepseek_v3
-    ):
+    async for item in process_paper(file_path, user, "Pol", POLISH_PROMPT, deepseek_v3):
         yield item
