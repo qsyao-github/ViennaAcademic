@@ -26,7 +26,6 @@ use pyo3::prelude::*;
 /// ```
 #[pyfunction]
 fn initialize_static() {
-    paper::LINEBREAK_RE.split("Line1  \n\n  Line2");
     paper::SUFFIX_MAP.get("py");
     // tool_formatter::TOOL_CALL_PATTERN.replace_all(r#"{ \n "tool_name": \n "arg_name""#, "");
     media_handler::VALID_EXTS.contains_key(&"png");

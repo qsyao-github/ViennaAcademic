@@ -3,6 +3,7 @@
 """
 
 import asyncio
+import re
 from pathlib import Path
 from typing import AsyncGenerator, Literal
 
@@ -18,6 +19,7 @@ from llm_utils.system_prompt import (
 from semaphore import semaphore1024
 from va_rust_utils import attach, chunk
 
+ENGLISH_AND_CHINESE_PATTERN = re.compile(r"[a-zA-Z\u4e00-\u9fa5]")
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
         (
@@ -55,9 +57,11 @@ async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
         解读结果，返回增量部分
     """
     async for answer_chunk in deepseek_v3.astream(
-        await read_paper_prompt_template.ainvoke({"content": attach(file_path)})
+        await read_paper_prompt_template.ainvoke(
+            {"content": attach(file_path)[:-4].strip("`\n ")}
+        )
     ):
-        yield answer_chunk.content
+        yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}, status: "typing"}}\n\n"""
 
 
 async def worker(
@@ -66,16 +70,16 @@ async def worker(
     model: BaseChatOpenAI,
     semaphore: asyncio.Semaphore,
 ) -> str:
-    if content := text.strip():
+    if ENGLISH_AND_CHINESE_PATTERN.search(text):
         async with semaphore:
             return (
                 await model.ainvoke(
                     await process_paper_prompt_template.ainvoke(
-                        {"system": system_prompt, "content": content}
+                        {"system": system_prompt, "content": text}
                     )
                 )
             ).content
-    return ""
+    return text
 
 
 async def process_paper(
@@ -114,16 +118,17 @@ async def process_paper(
     document_chunks = chunk(file_path)
 
     # 并行处理文本块
-    tasks = [worker(chunk, prompt, model, semaphore1024) for chunk in document_chunks]
+    tasks = [
+        asyncio.create_task(worker(chunk, prompt, model, semaphore1024))
+        for chunk in document_chunks
+    ]
     async with aiofiles.open(knowledgeBase_path, "w", encoding="utf-8") as output_file:
         for i, task in enumerate(tasks):
-            processed_chunk = (await task).strip()
-            # 非空
+            # 等待任务完成
+            await task
+            processed_chunk = task.result()
             if not processed_chunk:
                 continue
-            # 非首块加入换行符
-            if i != 0:
-                processed_chunk = f"\n\n{processed_chunk}"
             # 写入文件
             await output_file.write(processed_chunk)
             yield processed_chunk
@@ -147,11 +152,7 @@ async def translate_paper_to_Chinese(
         已处理的文段。Gradio不支持增量更新，故返回完整字符串
     """
     async for item in process_paper(
-        file_path,
-        user,
-        "Chi",
-        TRANSLATE_TO_CHINESE_PROMPT,
-        deepseek_v3,
+        file_path, user, "Chi", TRANSLATE_TO_CHINESE_PROMPT, deepseek_v3
     ):
         yield item
 
@@ -174,11 +175,7 @@ async def translate_paper_to_English(
         已处理的文段。Gradio不支持增量更新，故返回完整字符串
     """
     async for item in process_paper(
-        file_path,
-        user,
-        "Eng",
-        TRANSLATE_TO_ENGLISH_PROMPT,
-        deepseek_v3,
+        file_path, user, "Eng", TRANSLATE_TO_ENGLISH_PROMPT, deepseek_v3
     ):
         yield item
 

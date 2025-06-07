@@ -9,11 +9,9 @@
 //! ```
 use core::mem;
 use pyo3::prelude::*;
-use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, PathBuf};
-use std::process;
 use std::sync::LazyLock;
 
 /// 论文分块每段最少字符数
@@ -45,18 +43,6 @@ pub static SUFFIX_MAP: LazyLock<HashMap<&str, &str>> = LazyLock::new(|| {
         ("r", "r"),
         ("sql", "sql"),
     ])
-});
-
-/// 匹配任何空行
-///
-/// # 示例
-/// ```
-/// LINEBREAK_RE.split("Line1  \n\n  Line2");
-/// ```
-pub static LINEBREAK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\s*\n+\s*").unwrap_or_else(|_| {
-        process::exit(1);
-    })
 });
 
 /// 附加文件内容
@@ -128,23 +114,29 @@ pub fn attach(file_path: &str) -> String {
 #[pyfunction]
 pub fn chunk(file_path: &str) -> Vec<String> {
     let content = attach(file_path);
-    let mut final_list = Vec::new();
+    let line_iter = content.trim_matches(['`', ' ', '\n']).split('\n');
     let mut temp_string = String::with_capacity(MIN_CHARACTER_THRESHOLD * 2);
+    let mut result_list: Vec<String> = Vec::new();
     let mut char_count = 0;
-
-    for para in LINEBREAK_RE.split(&content) {
-        let para_len = para.chars().count();
-        temp_string.push_str(para);
-        char_count += para_len;
+    for line in line_iter {
+        let trimmed_line = line.trim();
+        let line_len = trimmed_line.chars().count();
+        if temp_string.is_empty() && trimmed_line.is_empty() {
+            result_list.push("\n".to_owned());
+            continue;
+        }
+        temp_string.push_str(trimmed_line);
+        char_count += line_len;
         if char_count > MIN_CHARACTER_THRESHOLD {
-            final_list.push(mem::take(&mut temp_string));
+            result_list.push(mem::take(&mut temp_string));
+            result_list.push("\n".to_owned());
             char_count = 0;
             continue;
         }
-        temp_string.push_str("\n\n");
+        temp_string.push('\n');
     }
-
-    final_list.push(temp_string);
-
-    final_list
+    if !temp_string.is_empty() {
+        result_list.push(temp_string);
+    }
+    result_list
 }
