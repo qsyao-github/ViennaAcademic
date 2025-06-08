@@ -43,6 +43,7 @@ from fastapi.staticfiles import StaticFiles
 # from file_utils.file_conversion import everything_to_markdown
 from llm_utils.modelclient import close_models, init_models
 from pydantic import BaseModel
+from va_rust_utils import markdown_to_everything
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -126,7 +127,7 @@ async def upload_paper(
     file: UploadFile, user: Annotated[User, Depends(get_current_user)]
 ):
     """
-    用户上传论文，支持纯文本, html, xml, epub, json, rtf, docx, xlsx, pptx, odt, pdf
+    用户上传论文，支持纯文本, tex, html, xml, epub, json, rtf, docx, xlsx, pptx, odt, pdf
 
     示例输出：
     ```json
@@ -148,7 +149,7 @@ async def upload_paper(
         if detected_mime not in ALLOWED_PAPER_TYPE:
             raise HTTPException(
                 400,
-                detail=f"Only plain text, html, xml, epub, json, rtf, docx, xlsx, pptx, odt, pdf are allowed. Got {detected_mime}",
+                detail=f"Only plain text, tex, html, xml, epub, json, rtf, docx, xlsx, pptx, odt, pdf are allowed. Got {detected_mime}",
             )
         await file.seek(0)
 
@@ -456,3 +457,51 @@ async def paper_response_stream(
         paper_stream(paper_query.file_url, paper_query.function, user.username),
         media_type="text/event-stream",
     )
+
+
+# 文件转换
+
+
+class ConvertQuery(BaseModel):
+    file_url: str
+    format: Literal[
+        "docx", "pdf", "tex", "typ", "pptx", "html", "xml", "epub", "json", "rtf"
+    ]
+
+
+@app.post("/convert")
+async def convert_file(
+    convert_query: ConvertQuery, user: Annotated[User, Depends(get_current_user)]
+):
+    """
+    markdown导出请求，支持docx, pdf, tex, typ, pptx, html, xml, epub, json, rtf
+
+    推荐转换为docx, pdf, tex(latex源文件格式), typ(typst源文件格式)。pptx对于分段复杂的文本效果较差，json实用性较低，其余格式使用场景不多。
+
+    pdf由pandoc转换为typ，经少量预处理后再由typst转换为pdf。其余均由pandoc直接转换。
+
+    输入示例：
+    ```json
+    {
+        "file_url": "/documents/example_user/knowledgeBase/1706.03762.md",
+        "format": "docx"
+    }
+    ```
+
+    输出示例：
+    ```
+    /documents/example_user/convert/1706.03762.docx
+    ```
+
+    当转换失败，HTTP状态码为400
+    """
+    convert_dir_path = os.path.join("documents", user.username, "convert")
+    markdown_to_everything(
+        convert_query.file_url, convert_dir_path, convert_query.format
+    )
+    convert_file_path = os.path.join(
+        convert_dir_path, f"{Path(convert_query.file_url).stem}.{convert_query.format}"
+    )
+    if os.path.exists(convert_file_path):
+        return f"/{convert_file_path}"
+    raise HTTPException(400, detail="Conversion failed")

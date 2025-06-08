@@ -112,7 +112,7 @@ fn pandoc_convert(
         return;
     };
 
-    let Ok(_) = Command::new("pandoc")
+    let Ok(mut child) = Command::new("pandoc")
         .args([
             "-s",
             "--link-images=false",
@@ -127,6 +127,8 @@ fn pandoc_convert(
     else {
         return;
     };
+
+    if child.wait().is_err() {}
 }
 
 /// 将markdown转换为pdf
@@ -222,14 +224,15 @@ fn markdown_to_pdf(file_basename: &str, original_path: &str, target_path: &str) 
 /// * `target_ext`: 目标文件后缀
 #[pyfunction]
 pub fn markdown_to_everything(original_path: &str, target_path: &str, target_ext: &str) {
-    let path = Path::new(original_path);
+    let trimmed_path = original_path.trim_start_matches(['/', ' ']);
+    let path = Path::new(trimmed_path);
     let Some(file_name) = path.file_stem().and_then(|stem| stem.to_str()) else {
         return;
     };
 
     if target_ext == "pdf" {
-        markdown_to_pdf(file_name, original_path, target_path);
+        markdown_to_pdf(file_name, trimmed_path, target_path);
     } else {
-        pandoc_convert(file_name, original_path, target_path, target_ext);
+        pandoc_convert(file_name, trimmed_path, target_path, target_ext);
     }
 }
