@@ -15,7 +15,7 @@ from llm_utils.system_prompt import (
     TRANSLATE_TO_CHINESE_PROMPT,
     TRANSLATE_TO_ENGLISH_PROMPT,
 )
-from semaphore import semaphore1024
+from semaphore import semaphore100
 from va_rust_utils import attach, chunk
 
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
@@ -54,9 +54,14 @@ async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
     str
         解读结果，返回增量部分
     """
+    content = attach(file_path)
+    # 文件异常保护
+    if not content:
+        yield """event: system\ndata: {type: "error", notice: "File not found"}"""
+        return
     async for answer_chunk in deepseek_v3.astream(
         await read_paper_prompt_template.ainvoke(
-            {"content": attach(file_path)[:-4].strip("`\n ")}
+            {"content": content[:-4].strip("`\n ")}
         )
     ):
         yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}, status: "typing"}}\n\n"""
@@ -113,13 +118,17 @@ async def process_paper(
         已处理的文段。返回处理好的一个段落
     """
     # 初始化输出路径和内容块
+    document_chunks = chunk(file_path)
+    # 文件异常保护
+    if not document_chunks:
+        yield """event: system\ndata: {type: "error", notice: "File not found"}"""
+        return
     base_path = Path(file_path).stem
     knowledgeBase_path = f"documents/{user}/knowledgeBase/{base_path}{suffix}.md"
-    document_chunks = chunk(file_path)
 
     # 并行处理文本块
     tasks = [
-        asyncio.create_task(worker(chunk, prompt, model, semaphore1024))
+        asyncio.create_task(worker(chunk, prompt, model, semaphore100))
         for chunk in document_chunks
     ]
     async with aiofiles.open(knowledgeBase_path, "w", encoding="utf-8") as output_file:

@@ -4,11 +4,17 @@ fastapi端点的辅助函数/类/变量
 
 import shutil
 from pathlib import Path
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Literal
 
 from chat_utils.agent_backend import ModelInfo, models
 from chat_utils.chat import astream_response
 from llm_utils.modelclient import model_type
+from academic_utils.paper import (
+    read_paper,
+    translate_paper_to_Chinese,
+    translate_paper_to_English,
+    polish_paper,
+)
 
 # 文件类型
 ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
@@ -29,7 +35,7 @@ ALLOWED_PAPER_TYPE = frozenset(
     ]
 )
 
-
+# 聊天
 async def respond_stream(
     query: str,
     image_urls: List[str],
@@ -105,3 +111,26 @@ def delete_file(path: Path) -> None:
         path.unlink()
     else:
         shutil.rmtree(path)
+
+
+# 论文
+paper_functions = {
+    "translate_to_Chinese": translate_paper_to_Chinese,
+    "translate_to_English": translate_paper_to_English,
+    "polish": polish_paper,
+}
+
+
+async def paper_stream(
+    paper_path: str,
+    function: Literal["read", "translate_to_Chinese", "translate_to_English", "polish"],
+    user: str,
+):
+    process_function = paper_functions.get(function)
+    answer_generator = (
+        read_paper(paper_path)
+        if process_function is None
+        else process_function(paper_path, user)
+    )
+    async for chunk in answer_generator:
+        yield chunk

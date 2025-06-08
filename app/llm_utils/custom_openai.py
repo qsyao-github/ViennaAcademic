@@ -130,8 +130,9 @@ class CustomOpenAI(BaseChatOpenAI):
             if self.aiohttp_session is None or self.aiohttp_session.closed:
                 connector = aiohttp.TCPConnector(
                     limit_per_host=100,
-                    ssl=False,
                     ssl_shutdown_timeout=1,
+                    force_close=False,
+                    enable_cleanup_closed=True,
                 )
                 self.aiohttp_session = aiohttp.ClientSession(
                     base_url=f"{self.base_url}/",

@@ -32,13 +32,15 @@ from endpoint_utils import (
     ALLOWED_IMAGE_TYPE,
     ALLOWED_PAPER_TYPE,
     delete_file,
+    paper_stream,
     respond_stream,
 )
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from file_utils.file_conversion import everything_to_markdown
+
+# from file_utils.file_conversion import everything_to_markdown
 from llm_utils.modelclient import close_models, init_models
 from pydantic import BaseModel
 
@@ -298,6 +300,20 @@ async def respond(
         "multimodal": true
     }
     ```
+    输出示例：
+    ```
+    event: chat
+    data: {content: "chat_buffer", status: "typing", reason: ""}
+
+    event: tool_call
+    data: {content: "tool_call_buffer", status: "typing", reason: ""}
+
+    event: reasoning
+    data: {content: "reasoning_buffer", status: "typing", reason: ""}
+
+    event: image_output
+    data: {content: ["/media/thread_id/code_generated_image1.png", "/media/thread_id/code_generated_image2.png"]}
+    ```
     """
     if not (
         chat_query.query
@@ -388,3 +404,55 @@ async def delete_thread(thread_id: str):
     这是一个暂时的实现，后续可能要考虑根据上次对话时间删除历史记录
     """
     await (await get_agent_app()).checkpointer.adelete_thread(thread_id)
+
+
+# 论文
+
+
+class PaperQuery(BaseModel):
+    file_url: str
+    function: Literal["read", "translate_to_Chinese", "translate_to_English", "polish"]
+
+
+@app.post("/paper")
+async def paper_response_stream(
+    paper_query: PaperQuery,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    论文模块请求
+
+    目前支持四种模式：
+    - read: 论文解读
+    - translate_to_Chinese: 论文翻译为中文
+    - translate_to_English: 论文翻译为英文
+    - polish: 论文润色
+
+    输入示例：
+    ```json
+    {
+        "file_url": "/documents/example_user/paper/1706.03762.pdf",
+        "function": "read"
+    }
+    ```
+    输出示例：
+    ```
+    event: read_paper
+    data: {content: "{paper_interpretation_buffer}", status: "typing"}
+
+    event: process_paper
+    data: {content: "{a_translated_or_polished_paragraph_or_newline}", status: "typing"}
+    ```
+
+    当文件不存在或为空时返回
+    ```
+    event: system
+    data: {type: "error", notice: "File not found"}
+    ```
+
+    论文解读流式返回模型生成的token。其余模式以段落为单位返回处理后文本。为校准分段，可能存在整个段落仅有单个换行符的情况。前端仅需按顺序将所有文本拼接即可，不需处理分段换行的逻辑。
+    """
+    return StreamingResponse(
+        paper_stream(paper_query.file_url, paper_query.function, user.username),
+        media_type="text/event-stream",
+    )
