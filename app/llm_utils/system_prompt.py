@@ -85,6 +85,6 @@ ACADEMIC_SEARCH = """你是一个擅长网络搜索和撰写详细、引人入�
 - 接着在清晰的标题下提供详细的部分，尽可能涵盖查询的所有方面。
 - 根据需要提供解释或历史背景以增强理解。
 - 如果相关，以结论或整体观点结束。"""
-TRANSLATE_TO_CHINESE_PROMPT = """将英文论文段落译为中文。文本可能有缺漏，请尽力翻译。文本无需翻译或无意义的部分可能是其它段落的片段或markup标记，请原样返回。仅返回翻译后文本，不要有任何注解/说明！"""
-TRANSLATE_TO_ENGLISH_PROMPT = """Translate the Chinese article paragraph into English. The text could have missing content, try your best. If some parts of the text need not be translated or is meaningless, they could be the content or markup of other paragraphs, please return as is. Return the translated text only, without any annotations or explanations!"""
-POLISH_PROMPT = """润色论文片段，将其提升至Nature期刊发表标准。文本可能有缺漏，请尽力润色。文本无需改动或无意义的部分可能是其它段落的片段或markup标记，原样返回。仅返回润色后文本，不要有任何注解/说明！若原文为中文，无需译为英文！"""
+TRANSLATE_TO_CHINESE_PROMPT = """将英文论文段落译为中文。文本可能有缺漏，请尽力翻译。文本无需翻译或无意义部分请原样返回。仅返回翻译后文本，不要有任何注解/说明！"""
+TRANSLATE_TO_ENGLISH_PROMPT = """Translate the Chinese article paragraph into English. The text could have missing content, try your best. If some parts of the text need not be translated or is meaningless, return as is. Return the translated text only, without any annotations or explanations!"""
+POLISH_PROMPT = """润色论文片段，将其提升至Nature期刊发表标准。文本可能有缺漏，请尽力润色。文本无需改动或无意义部分请原样返回。仅返回润色后文本，不要有任何注解/说明！若原文为中文，无需译为英文！"""

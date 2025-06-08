@@ -3,7 +3,6 @@
 """
 
 import asyncio
-import re
 from pathlib import Path
 from typing import AsyncGenerator, Literal
 
@@ -19,7 +18,6 @@ from llm_utils.system_prompt import (
 from semaphore import semaphore1024
 from va_rust_utils import attach, chunk
 
-ENGLISH_AND_CHINESE_PATTERN = re.compile(r"[a-zA-Z\u4e00-\u9fa5]")
 read_paper_prompt_template = ChatPromptTemplate.from_messages(
     [
         (
@@ -62,6 +60,7 @@ async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
         )
     ):
         yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}, status: "typing"}}\n\n"""
+    yield """event: read_paper\ndata: {content: "", status: "stop"}\n\n"""
 
 
 async def worker(
@@ -70,16 +69,17 @@ async def worker(
     model: BaseChatOpenAI,
     semaphore: asyncio.Semaphore,
 ) -> str:
-    if ENGLISH_AND_CHINESE_PATTERN.search(text):
-        async with semaphore:
-            return (
-                await model.ainvoke(
-                    await process_paper_prompt_template.ainvoke(
-                        {"system": system_prompt, "content": text}
-                    )
+    # 换行符在chunk函数返回值中会单独出现，直接返回
+    if text == "\n":
+        return text
+    async with semaphore:
+        return (
+            await model.ainvoke(
+                await process_paper_prompt_template.ainvoke(
+                    {"system": system_prompt, "content": text}
                 )
-            ).content
-    return text
+            )
+        ).content
 
 
 async def process_paper(
@@ -123,15 +123,14 @@ async def process_paper(
         for chunk in document_chunks
     ]
     async with aiofiles.open(knowledgeBase_path, "w", encoding="utf-8") as output_file:
-        for i, task in enumerate(tasks):
-            # 等待任务完成
-            await task
-            processed_chunk = task.result()
+        for task in tasks:
+            processed_chunk = await task
             if not processed_chunk:
                 continue
             # 写入文件
             await output_file.write(processed_chunk)
-            yield processed_chunk
+            yield f"""event: process_paper\ndata: {{content: {processed_chunk}, status: "typing"}}\n\n"""
+    yield """event: process_paper\ndata: {content: "", status: "stop"}\n\n"""
 
 
 async def translate_paper_to_Chinese(
