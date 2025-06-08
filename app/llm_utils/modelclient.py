@@ -45,14 +45,13 @@ deepseek_r1_671b = CustomOpenAI(
     max_tokens=16384,
 )
 
-glm_z1_flash = CustomOpenAI(
-    model="glm-z1-flash",
-    api_key=zhipu_client_API_KEY,
-    base_url=zhipu_client_BASE_URL,
+deepseek_r1_qwen3_8b = CustomOpenAI(
+    model="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+    api_key=silicon_client_API_KEY,
+    base_url=silicon_client_BASE_URL,
     temperature=0.6,
     top_p=0.95,
-    max_tokens=30000,
-    model_kwargs={"top_k": 40},
+    model_kwargs={"top_k": 20, "min_p": 0},
 )
 
 qwen3_235B_A22B_no_thinking = CustomOpenAI(
@@ -114,7 +113,7 @@ async def init_models():
     await mistral_small_latest.init()
     await glm_4v_flash.init()
     await deepseek_r1_671b.init()
-    await glm_z1_flash.init()
+    await deepseek_r1_qwen3_8b.init()
     await qwen3_235B_A22B_no_thinking.init()
     await qwen3_235B_A22B_thinking.init()
 
@@ -127,6 +126,6 @@ async def close_models():
     await mistral_small_latest.close()
     await glm_4v_flash.close()
     await deepseek_r1_671b.close()
-    await glm_z1_flash.close()
+    await deepseek_r1_qwen3_8b.close()
     await qwen3_235B_A22B_no_thinking.close()
     await qwen3_235B_A22B_thinking.close()

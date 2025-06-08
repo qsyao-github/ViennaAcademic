@@ -26,8 +26,9 @@ from langgraph.prebuilt.chat_agent_executor import AgentState
 from llm_utils.execute_code import python_tool
 from llm_utils.modelclient import (
     deepseek_r1_671b,
+    deepseek_r1_qwen3_8b,
     deepseek_v3,
-    glm_z1_flash,
+    glm_4v_flash,
     mistral_small_latest,
     model_type,
     qwen3_235B_A22B_no_thinking,
@@ -120,12 +121,16 @@ models: Dict[ModelInfo, Runnable] = {
     ): deepseek_r1_671b,
     ModelInfo(
         type_code=model_type(False, False, True),
+        name="glm-4v-flash",
+    ): glm_4v_flash,
+    ModelInfo(
+        type_code=model_type(False, False, True),
         name="mistral-small",
     ): mistral_small_latest,
     ModelInfo(
         type_code=model_type(False, True, False),
-        name="glm-z1-flash",
-    ): glm_z1_flash,
+        name="deepseek-r1-qwen3-8b",
+    ): deepseek_r1_qwen3_8b,
     ModelInfo(
         type_code=model_type(False, False, False),
         name="qwen3",
