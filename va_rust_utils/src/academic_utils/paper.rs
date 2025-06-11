@@ -160,7 +160,7 @@ pub fn chunk(file_path: &str) -> Vec<String> {
     }
     let line_iter = lines.split('\n');
     let mut temp_string = String::with_capacity(MIN_BYTE_THRESHOLD * 2);
-    let mut result_list: Vec<String> = Vec::new();
+    let mut result_list = Vec::new();
     for line in line_iter {
         let trimmed_line = line.trim();
         // 处理完整段落或空行

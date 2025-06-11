@@ -112,41 +112,37 @@ models: Dict[ModelInfo, Runnable] = {
         name="deepseek-v3",
     ): deepseek_v3,
     ModelInfo(
-        type_code=model_type(True, False, False),
-        name="deepseek-v3",
-    ): deepseek_v3_with_tools,
-    ModelInfo(
-        type_code=model_type(False, True, False),
-        name="deepseek-r1",
-    ): deepseek_r1_671b,
-    ModelInfo(
-        type_code=model_type(False, False, True),
-        name="glm-4v-flash",
-    ): glm_4v_flash,
-    ModelInfo(
-        type_code=model_type(False, False, True),
-        name="mistral-small",
-    ): mistral_small_latest,
-    ModelInfo(
-        type_code=model_type(False, True, False),
-        name="deepseek-r1-qwen3-8b",
-    ): deepseek_r1_qwen3_8b,
-    ModelInfo(
         type_code=model_type(False, False, False),
         name="qwen3",
     ): qwen3_235B_A22B_no_thinking,
+    ModelInfo(
+        type_code=model_type(True, False, False),
+        name="deepseek-v3",
+    ): deepseek_v3_with_tools,
     ModelInfo(
         type_code=model_type(True, False, False),
         name="qwen3",
     ): qwen3_235B_A22B_no_thinking_with_tools,
     ModelInfo(
         type_code=model_type(False, True, False),
-        name="qwen3",
-    ): qwen3_235B_A22B_thinking,
+        name="deepseek-r1",
+    ): deepseek_r1_671b,
+    ModelInfo(
+        type_code=model_type(False, True, False),
+        name="deepseek-r1-qwen3-8b",
+    ): deepseek_r1_qwen3_8b,
     ModelInfo(
         type_code=model_type(True, True, False),
         name="qwen3",
     ): qwen3_235B_A22B_thinking_with_tools,
+    ModelInfo(
+        type_code=model_type(False, False, True),
+        name="mistral-small",
+    ): mistral_small_latest,
+    ModelInfo(
+        type_code=model_type(False, False, True),
+        name="glm-4v-flash",
+    ): glm_4v_flash,
 }
 available_models = [
     {

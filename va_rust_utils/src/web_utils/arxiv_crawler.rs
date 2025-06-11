@@ -9,7 +9,7 @@
 //! ```
 
 use pyo3::prelude::*;
-use regex::Regex;
+use regex::{Captures, Regex};
 use std::process;
 use std::sync::LazyLock;
 
@@ -18,7 +18,7 @@ use std::sync::LazyLock;
 /// # 示例
 /// ```
 /// COMBINED_REGEX
-///     .replace_all(markdown_content, |caps: &regex::Captures| {
+///     .replace_all(markdown_content, |caps: &Captures| {
 ///         caps.get(1).map_or_else(
 ///             || "\n\n".to_owned(),
 ///             |link_text| format!("[{}]", link_text.as_str()),
@@ -80,7 +80,7 @@ pub fn extract_article(html: &str) -> &str {
 #[pyfunction]
 pub fn process_markdown(markdown_content: &str) -> String {
     COMBINED_REGEX
-        .replace_all(markdown_content, |caps: &regex::Captures| {
+        .replace_all(markdown_content, |caps: &Captures| {
             caps.get(1).map_or_else(
                 || "\n\n".to_owned(),
                 |link_text| format!("[{}]", link_text.as_str()),

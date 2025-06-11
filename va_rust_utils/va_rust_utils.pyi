@@ -86,7 +86,7 @@ def create_image_component(image_path: str) -> dict:
 ## file_conversion
 
 def pandoc_to_markdown(
-    file_basename: str,
+    file_name: str,
     original_file_path: str,
     target_path: str,
 ) -> None:
@@ -95,8 +95,8 @@ def pandoc_to_markdown(
 
     Parameters
     ----------
-    file_basename: str
-        文件名，用于指定生成文件名
+    file_name: str
+        文件名，用于指定生成文件名。需要有后缀
     original_file_path: str
         文件路径
     target_path: str

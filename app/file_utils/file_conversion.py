@@ -49,9 +49,9 @@ async def everything_to_markdown(original_path: str, target_path: str):
     target_path: str
         目标路径
     """
-    file_name, ext = os.path.splitext(original_path)
-    file_basename = os.path.basename(file_name)
+    file_basename = os.path.basename(original_path)
+    file_name, ext = os.path.splitext(file_basename)
     if ext in marker_ext:
-        await marker_parse(file_basename, original_path, target_path)
+        await marker_parse(file_name, original_path, target_path)
     else:
         pandoc_to_markdown(file_basename, original_path, target_path)
