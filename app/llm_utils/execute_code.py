@@ -83,24 +83,25 @@ def python_tool(code: str, thread_id) -> str:
     # 单独为线程分配工作目录
     workdir = f"/root/{thread_id}"
     # 将报错信息改为了无色，防止彩色转义符在Gradio端渲染异常/影响模型输出。用timeout命令限制执行时间
-    exec_id = container.exec_run(f"mkdir -p {thread_id}")
+    container.exec_run(f"mkdir -p {thread_id}")
     exec_id = container.exec_run(
         f'timeout -k {KILL_AFTER} {TIMEOUT} ipython --InteractiveShell.ast_node_interactivity=all --colors=NoColor -c "{code.replace('"', "'")}"',
         workdir=workdir,
     )
-    # 获取执行结果，处理超时
+    # 处理超时
     if exec_id.exit_code == 124:
         return f"执行超时：用时超过{TIMEOUT}s，请勿重试"
-    output = clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())
     # png文件处理
     container_png_files_str = container.exec_run(
         "sh -c 'ls -1 | grep png'", workdir=workdir
     ).output.decode("utf-8")
     if not container_png_files_str:
-        return output
+        # 不需处理图片，返回执行结果
+        return clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())
     # 获取整个文件夹的tar流
     stream, _ = container.get_archive(workdir)
     copy_file(stream)
     # 删除线程目录
     container.exec_run(f"rm -rf {thread_id}")
-    return output
+    # 返回执行结果
+    return clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())

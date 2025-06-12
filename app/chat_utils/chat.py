@@ -34,43 +34,6 @@ def build_message_content(
     ]
 
 
-async def handle_generated_image(
-    chat_config: Dict[str, Dict[str, str]], image_files_set: set
-) -> None:
-    """处理生成的图片并更新状态
-
-    Parameters
-    ----------
-    chat_config : Dict
-        聊天配置，包含线程id。对指定线程的状态进行更新
-    image_files_set : set
-        需要处理的媒体文件路径
-
-    Notes
-    ----------
-    1. 对于messages，langchain实现了reducer函数，信息默认附加在上一个状态后
-    2. 图片由模型工具调用生成，但将其作为HumanMessage储存，以便多模态模型推理
-    """
-    """ for f in image_files_set:
-        if image_component := create_image_component(f):
-            await (await get_agent_app()).aupdate_state(
-                chat_config, {"messages": HumanMessage([image_component])}
-            ) """
-    if image_files_set:
-        await (await get_agent_app()).aupdate_state(
-            chat_config,
-            {
-                "messages": HumanMessage(
-                    [
-                        image_component
-                        for f in image_files_set
-                        if (image_component := create_image_component(f))
-                    ]
-                )
-            },
-        )
-
-
 async def process_reasoning(chat_config: Dict[str, Dict[str, str]]) -> None:
     """
     对于返回<think></think>的模型，删去其思考过程。正常模型不变
@@ -132,17 +95,24 @@ async def astream_response(
             "model_type": model_type_code,
         }
     }
-    # 预处理：处理文本和图片
-    content = build_message_content(process_attachments(text, documents), images)
+    # 预处理：已存在图片
     old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 维护是否推理，是否是第一个content块，前一个输出的模式三种状态
     in_reasoning = False
     start_chunks = True
     # 初始化content缓冲区
     content_buffer: str = ""
-    # 接收模型回复+处理
+    # 预处理用户图片、引用文本->接收模型回复+处理
     async for chunk, _ in (await get_agent_app()).astream(
-        {"messages": [HumanMessage(content=content)]},
+        {
+            "messages": [
+                HumanMessage(
+                    content=build_message_content(
+                        process_attachments(text, documents), images
+                    )
+                )
+            ]
+        },
         config=chat_config,
         stream_mode="messages",
     ):

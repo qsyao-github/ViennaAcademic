@@ -306,10 +306,11 @@ async def chatbot(
     model_type = config["configurable"].get(
         "model_type",
     )
-    model_name = config["configurable"].get("model")
     thread_id = config["configurable"].get("thread_id")
     # 获取模型与对应的提示词模板
-    model = models[ModelInfo(name=model_name, type_code=model_type)]
+    model = models[
+        ModelInfo(name=config["configurable"].get("model"), type_code=model_type)
+    ]
     if model_type & ENABLE_TOOL:
         model = model | tool_argument_injector({"ipython": {"thread_id": thread_id}})
         template = toolcall_template
@@ -317,24 +318,30 @@ async def chatbot(
         template = empty_template
     # 处理图片
     current_images = set(glob.iglob(f"media/{thread_id}/*.png"))
-    past_images = state.get("images", current_images)
     # 新生成图片的message
-    generated_images = current_images - past_images
     image_components = [
         component
-        for image in generated_images
+        for image in current_images - state.get("images", current_images)
         if (component := create_image_component(image))
     ]
     image_messages = HumanMessage(image_components)
-    messages = (
-        state["messages"]
-        if not image_components
-        else add_messages(state["messages"], image_messages)
+    # 生成附加图片的消息->加提示词模板->过滤->合并
+    response = await model.ainvoke(
+        merge_message_runs(
+            apply_safety_filter(
+                model_type,
+                await template.ainvoke(
+                    {
+                        "messages": (
+                            state["messages"]
+                            if not image_components
+                            else add_messages(state["messages"], image_messages)
+                        )
+                    }
+                ),
+            )
+        )
     )
-    prompted_message = await template.ainvoke({"messages": messages})
-    # 过滤无法处理的信息并合并来自同一主体的连续信息
-    merged = merge_message_runs(apply_safety_filter(model_type, prompted_message))
-    response = await model.ainvoke(merged)
     # 添加生成图片
     return {"messages": [image_messages, response], "images": current_images}
 

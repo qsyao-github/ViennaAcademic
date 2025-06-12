@@ -57,15 +57,14 @@ async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
     content = attach(file_path)
     # 文件异常保护
     if not content:
-        yield """event: system\ndata: {type: "error", notice: "File not found"}"""
+        yield """event: system\ndata: {type: "error", notice: "Empty file"}"""
         return
     async for answer_chunk in deepseek_v3.astream(
         await read_paper_prompt_template.ainvoke(
             {"content": content[:-4].strip("`\n ")}
         )
     ):
-        yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}, status: "typing"}}\n\n"""
-    yield """event: read_paper\ndata: {content: "", status: "stop"}\n\n"""
+        yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}}}\n\n"""
 
 
 async def worker(
@@ -121,25 +120,26 @@ async def process_paper(
     document_chunks = chunk(file_path)
     # 文件异常保护
     if not document_chunks:
-        yield """event: system\ndata: {type: "error", notice: "File not found"}"""
+        yield """event: system\ndata: {type: "error", notice: "Empty file"}"""
         return
-    base_path = Path(file_path).stem
-    knowledgeBase_path = f"documents/{user}/knowledgeBase/{base_path}{suffix}.md"
 
     # 并行处理文本块
     tasks = [
         asyncio.create_task(worker(chunk, prompt, model, semaphore100))
         for chunk in document_chunks
     ]
-    async with aiofiles.open(knowledgeBase_path, "w", encoding="utf-8") as output_file:
+    async with aiofiles.open(
+        f"documents/{user}/knowledgeBase/{Path(file_path).stem}{suffix}.md",
+        "w",
+        encoding="utf-8",
+    ) as output_file:
         for task in tasks:
             processed_chunk = await task
             if not processed_chunk:
                 continue
             # 写入文件
             await output_file.write(processed_chunk)
-            yield f"""event: process_paper\ndata: {{content: {processed_chunk}, status: "typing"}}\n\n"""
-    yield """event: process_paper\ndata: {content: "", status: "stop"}\n\n"""
+            yield f"""event: process_paper\ndata: {{content: {processed_chunk}}}\n\n"""
 
 
 async def translate_paper_to_Chinese(

@@ -80,11 +80,13 @@ async def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+    return Token(
+        access_token=create_access_token(
+            data={"sub": user.username},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        ),
+        token_type="bearer",
     )
-    return Token(access_token=access_token, token_type="bearer")
 
 
 # 文件系统
@@ -105,8 +107,7 @@ async def upload_image(
     # 类型验证
     chunk = await file.read(2048)
 
-    detected_mime = magic.from_buffer(chunk, mime=True)
-    if detected_mime not in ALLOWED_IMAGE_TYPE:
+    if (detected_mime := magic.from_buffer(chunk, mime=True)) not in ALLOWED_IMAGE_TYPE:
         raise HTTPException(
             400, detail=f"Only png, jpg, jpeg are allowed. Got {detected_mime}"
         )
@@ -161,8 +162,9 @@ async def upload_paper(
 
     # 非纯文本解析
     if detected_mime != "text/plain":
-        knowledgeBase_path = os.path.join("documents", user.username, "knowledgeBase")
-        await everything_to_markdown(final_path, knowledgeBase_path)
+        await everything_to_markdown(
+            final_path, os.path.join("documents", user.username, "knowledgeBase")
+        )
     return f"/{final_path}"'''
 
 
@@ -178,12 +180,9 @@ async def upload_code(
     "/documents/example_user/code/program.py"
     ```
     """
-    # 重复上传保护
+    # 重复上传保护，防止路径遍历
     final_path = os.path.join(
-        "documents",
-        user.username,
-        "code",
-        os.path.basename(file.filename),  # 防止路径遍历
+        "documents", user.username, "code", os.path.basename(file.filename)
     )
     if os.path.exists(final_path):
         return f"/{final_path}"
@@ -191,8 +190,7 @@ async def upload_code(
     # 类型验证
     chunk = await file.read(2048)
 
-    detected_mime = magic.from_buffer(chunk, mime=True)
-    if not detected_mime.startswith("text/"):
+    if not (detected_mime := magic.from_buffer(chunk, mime=True)).startswith("text/"):
         raise HTTPException(
             400,
             detail=f"Only text files are allowed. Got {detected_mime}",
@@ -222,10 +220,9 @@ async def list_directory(
     ]
     ```
     """
-    dir_path = os.path.join("documents", user.username, directory)
     return [
         f"/documents/{user.username}/{directory}/{entry.name}"
-        for entry in os.scandir(dir_path)
+        for entry in os.scandir(os.path.join("documents", user.username, directory))
     ]
 
 
@@ -256,8 +253,8 @@ async def delete_files(
     document_path = Path(f"documents/{user.username}").resolve()
     media_path = Path("media").resolve()
 
+    # 合法性检验，在documents对应用户文件夹下或media下的文件才允许删除
     for url in files.file_urls:
-        # 合法性检验
         if (path := Path(url.strip("/")).resolve()).exists() and (
             path.is_relative_to(document_path) or path.is_relative_to(media_path)
         ):
@@ -305,34 +302,37 @@ async def respond(
     输出示例：
     ```
     event: chat
-    data: {content: "chat_buffer", status: "typing", reason: ""}
+    data: {content: "chat_buffer"}
 
     event: tool_call
-    data: {content: "tool_call_buffer", status: "typing", reason: ""}
+    data: {content: "tool_call_buffer"}
+
+    event: tool_result
+    data: {content: "tool_result"}
 
     event: reasoning
-    data: {content: "reasoning_buffer", status: "typing", reason: ""}
+    data: {content: "reasoning_buffer"}
 
     event: image_output
     data: {content: ["/media/thread_id/code_generated_image1.png", "/media/thread_id/code_generated_image2.png"]}
     ```
     """
-    if not (
-        chat_query.query
-        or (chat_query.image_urls and chat_query.multimodal)
-        or chat_query.file_urls
-    ):
+    query = chat_query.query.strip()
+    image_urls = chat_query.image_urls
+    multimodal = chat_query.multimodal
+    file_urls = chat_query.file_urls
+    if not (query or (image_urls and multimodal) or file_urls):
         raise HTTPException(400, detail="Empty query")
     return StreamingResponse(
         respond_stream(
-            chat_query.query,
-            chat_query.image_urls,
-            chat_query.file_urls,
+            query,
+            image_urls,
+            file_urls,
             thread_id,
             chat_query.model,
             chat_query.enable_tool,
             chat_query.enable_thinking,
-            chat_query.multimodal,
+            multimodal,
         ),
         media_type="text/event-stream",
     )
@@ -343,6 +343,8 @@ async def get_model_list():
     """
     获取各种类型的可用模型
 
+    每类均按个人观点对能力由强到弱排序，每类都有至少一个免费模型
+
     示例输出：
     ```json
     [
@@ -352,7 +354,8 @@ async def get_model_list():
             "multimodal": false,
             "models": [
                 "deepseek-v3",
-                "qwen3"
+                "qwen3-235b-a22b",
+                "qwen3-8b"
             ]
         },
         {
@@ -360,6 +363,7 @@ async def get_model_list():
             "enable_reasoning": false,
             "multimodal": true,
             "models": [
+                "qwen2.5-vl-72b",
                 "mistral-small"
             ]
         },
@@ -368,9 +372,9 @@ async def get_model_list():
             "enable_reasoning": true,
             "multimodal": false,
             "models": [
-                "deepseek-r1",
-                "glm-z1-flash",
-                "qwen3"
+                "deepseek-r1-671b",
+                "qwen3-235b-a22b",
+                "deepseek-r1-qwen3-8b"
             ]
         },
         {
@@ -379,7 +383,8 @@ async def get_model_list():
             "multimodal": false,
             "models": [
                 "deepseek-v3",
-                "qwen3"
+                "qwen3-235b-a22b",
+                "qwen3-8b"
             ]
         },
         {
@@ -387,7 +392,8 @@ async def get_model_list():
             "enable_reasoning": true,
             "multimodal": false,
             "models": [
-                "qwen3"
+                "qwen3-235b-a22b",
+                "qwen3-8b"
             ]
         }
     ]
@@ -440,24 +446,31 @@ async def paper_response_stream(
     输出示例：
     ```
     event: read_paper
-    data: {content: "{paper_interpretation_buffer}", status: "typing"}
+    data: {content: "paper_interpretation_buffer"}
 
     event: process_paper
-    data: {content: "{a_translated_or_polished_paragraph_or_newline}", status: "typing"}
+    data: {content: "a_translated_or_polished_paragraph_or_newline"}
     ```
 
-    当文件不存在或为空时返回
+    当文件为空/模型错误返回
     ```
     event: system
-    data: {type: "error", notice: "File not found"}
+    data: {type: "error", notice: "error_message"}
     ```
+
+    当文件不存在或无权限，返回HTTP状态码400
 
     论文解读流式返回模型生成的token。其余模式以段落为单位返回处理后文本。为校准分段，可能存在整个段落仅有单个换行符的情况。前端仅需按顺序将所有文本拼接即可，不需处理分段换行的逻辑。
     """
-    return StreamingResponse(
-        paper_stream(paper_query.file_url, paper_query.function, user.username),
-        media_type="text/event-stream",
-    )
+    # 合法性检验，在documents对应用户文件夹下的文件才允许访问
+    if (file_path := Path(paper_query.file_url.strip("/ ")).resolve()).exists() and (
+        file_path.is_relative_to(Path(f"documents/{user.username}").resolve())
+    ):
+        return StreamingResponse(
+            paper_stream(paper_query.file_url, paper_query.function, user.username),
+            media_type="text/event-stream",
+        )
+    raise HTTPException(400, detail="File not found")
 
 
 # 文件转换
@@ -494,15 +507,20 @@ async def convert_file(
     /documents/example_user/convert/1706.03762.docx
     ```
 
-    当转换失败，HTTP状态码为400
+    当转换失败或文件不存在或无权限，HTTP状态码为400
     """
-    convert_dir_path = os.path.join("documents", user.username, "convert")
-    markdown_to_everything(
-        convert_query.file_url, convert_dir_path, convert_query.format
-    )
-    convert_file_path = os.path.join(
-        convert_dir_path, f"{Path(convert_query.file_url).stem}.{convert_query.format}"
-    )
-    if os.path.exists(convert_file_path):
-        return f"/{convert_file_path}"
-    raise HTTPException(400, detail="Conversion failed")
+    file_url = convert_query.file_url.strip("/")
+    format = convert_query.format
+    if (file_path := Path(file_url).resolve()).exists() and (
+        file_path.is_relative_to(Path(f"documents/{user.username}").resolve())
+    ):
+        convert_dir_path = os.path.join("documents", user.username, "convert")
+        markdown_to_everything(file_url, convert_dir_path, format)
+        convert_file_path = os.path.join(
+            convert_dir_path,
+            f"{file_path.stem}.{format}",
+        )
+        if os.path.exists(convert_file_path):
+            return f"/{convert_file_path}"
+        raise HTTPException(400, detail="Conversion failed")
+    raise HTTPException(400, detail="File not found")

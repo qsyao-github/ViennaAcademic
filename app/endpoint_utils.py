@@ -35,6 +35,7 @@ ALLOWED_PAPER_TYPE = frozenset(
     ]
 )
 
+
 # 聊天
 async def respond_stream(
     query: str,
@@ -132,5 +133,8 @@ async def paper_stream(
         if process_function is None
         else process_function(paper_path, user)
     )
-    async for chunk in answer_generator:
-        yield chunk
+    try:
+        async for chunk in answer_generator:
+            yield chunk
+    except Exception as e:
+        yield f"""event: system\ndata: {{type: "error", notice: "{e}"}}\n\n"""
