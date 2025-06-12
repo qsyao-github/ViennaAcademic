@@ -25,20 +25,18 @@ deepseek_v3 = CustomOpenAI(
     temperature=0.3,  # 不清楚火山引擎是否有温度映射
 )
 
-
-# 工具 SOTA
-qwen3_235B_A22B_no_thinking = CustomOpenAI(
-    model="Qwen/Qwen3-235B-A22B",
-    api_key=silicon_client_API_KEY,
-    base_url=silicon_client_BASE_URL,
-    temperature=0.7,
-    top_p=0.8,
-    model_kwargs={"enable_thinking": False, "top_k": 20, "min_p": 0},
+# 推理 SOTA FREE(limit)
+deepseek_r1_671b = CustomOpenAI(
+    model="deepseek-r1-minda",
+    api_key=xkx_client_API_KEY,
+    base_url=xkx_client_BASE_URL,
+    temperature=0.6,
+    max_tokens=16384,
 )
 
-# 工具 FREE
-qwen3_8b_no_thinking = CustomOpenAI(
-    model="Qwen/Qwen3-8B",
+# 工具 SOTA
+qwen3_235b_a22b_no_thinking = CustomOpenAI(
+    model="Qwen/Qwen3-235B-A22B",
     api_key=silicon_client_API_KEY,
     base_url=silicon_client_BASE_URL,
     temperature=0.7,
@@ -53,6 +51,34 @@ qwen_2_5_vl_72b = CustomOpenAI(
     base_url=silicon_client_BASE_URL,
 )
 
+# 多模态/多模态+工具(疑似无法同时使用) FREE(limit)
+mistral_small = CustomOpenAI(
+    model="mistral-small-latest",
+    api_key=laowei_mistral_client_API_KEY,
+    base_url="https://api.mistral.ai/v1",
+)
+
+
+# 推理/工具+推理 SOTA
+qwen3_235b_a22b_thinking = CustomOpenAI(
+    model="Qwen/Qwen3-235B-A22B",
+    api_key=silicon_client_API_KEY,
+    base_url=silicon_client_BASE_URL,
+    temperature=0.6,
+    top_p=0.95,
+    model_kwargs={"enable_thinking": True, "top_k": 20, "min_p": 0},
+)
+
+# 工具 FREE
+qwen3_8b_no_thinking = CustomOpenAI(
+    model="Qwen/Qwen3-8B",
+    api_key=silicon_client_API_KEY,
+    base_url=silicon_client_BASE_URL,
+    temperature=0.7,
+    top_p=0.8,
+    model_kwargs={"enable_thinking": False, "top_k": 20, "min_p": 0},
+)
+
 # 多模态 FREE
 glm_4v_flash = CustomOpenAI(
     model="glm-4v-flash",
@@ -60,21 +86,6 @@ glm_4v_flash = CustomOpenAI(
     base_url=zhipu_client_BASE_URL,
 )
 
-# 多模态/多模态+工具 SOTA FREE(limit)
-mistral_small_latest = CustomOpenAI(
-    model="mistral-small-latest",
-    api_key=laowei_mistral_client_API_KEY,
-    base_url="https://api.mistral.ai/v1",
-)
-
-# 推理 SOTA FREE(limit)
-deepseek_r1_671b = CustomOpenAI(
-    model="deepseek-r1-minda",
-    api_key=xkx_client_API_KEY,
-    base_url=xkx_client_BASE_URL,
-    temperature=0.6,
-    max_tokens=16384,
-)
 
 # 推理 FREE
 deepseek_r1_qwen3_8b = CustomOpenAI(
@@ -84,15 +95,6 @@ deepseek_r1_qwen3_8b = CustomOpenAI(
     temperature=0.6,
 )
 
-# 工具+推理 SOTA
-qwen3_235B_A22B_thinking = CustomOpenAI(
-    model="Qwen/Qwen3-235B-A22B",
-    api_key=silicon_client_API_KEY,
-    base_url=silicon_client_BASE_URL,
-    temperature=0.6,
-    top_p=0.95,
-    model_kwargs={"enable_thinking": True, "top_k": 20, "min_p": 0},
-)
 
 # 工具+推理 FREE
 qwen3_8b_thinking = CustomOpenAI(
@@ -137,26 +139,20 @@ def model_type(enable_tool: bool, enable_thinking: bool, multimodal: bool):
     return (enable_tool << 2) | (enable_thinking << 1) | multimodal
 
 
-current_model_list = [
-    deepseek_v3,
-    qwen3_235B_A22B_no_thinking,
-    qwen3_8b_no_thinking,
-    qwen_2_5_vl_72b,
-    glm_4v_flash,
-]
-
-
 async def init_models():
     """
     初始化当前可用的所有模型
     """
     await deepseek_v3.init()
-    await mistral_small_latest.init()
+    await qwen3_235b_a22b_no_thinking.init()
+    await qwen3_8b_no_thinking.init()
+    await qwen_2_5_vl_72b.init()
     await glm_4v_flash.init()
+    await mistral_small.init()
     await deepseek_r1_671b.init()
     await deepseek_r1_qwen3_8b.init()
-    await qwen3_235B_A22B_no_thinking.init()
-    await qwen3_235B_A22B_thinking.init()
+    await qwen3_235b_a22b_thinking.init()
+    await qwen3_8b_thinking.init()
 
 
 async def close_models():
@@ -164,9 +160,12 @@ async def close_models():
     关闭所有模型内的Client
     """
     await deepseek_v3.close()
-    await mistral_small_latest.close()
+    await qwen3_235b_a22b_no_thinking.close()
+    await qwen3_8b_no_thinking.close()
+    await qwen_2_5_vl_72b.close()
     await glm_4v_flash.close()
+    await mistral_small.close()
     await deepseek_r1_671b.close()
     await deepseek_r1_qwen3_8b.close()
-    await qwen3_235B_A22B_no_thinking.close()
-    await qwen3_235B_A22B_thinking.close()
+    await qwen3_235b_a22b_thinking.close()
+    await qwen3_8b_thinking.close()

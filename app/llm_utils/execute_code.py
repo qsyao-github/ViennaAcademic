@@ -91,10 +91,10 @@ def python_tool(code: str, thread_id) -> str:
     # 获取执行结果，处理超时
     if exec_id.exit_code == 124:
         return f"执行超时：用时超过{TIMEOUT}s，请勿重试"
-    output = f'\n```\n{clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())}\n```\n\n'
+    output = clean_output_pattern.sub("", exec_id.output.decode("utf-8").strip())
     # png文件处理
     container_png_files_str = container.exec_run(
-        "ls -1 | grep png", workdir=workdir
+        "sh -c 'ls -1 | grep png'", workdir=workdir
     ).output.decode("utf-8")
     if not container_png_files_str:
         return output

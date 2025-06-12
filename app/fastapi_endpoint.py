@@ -43,7 +43,7 @@ from fastapi.staticfiles import StaticFiles
 # from file_utils.file_conversion import everything_to_markdown
 from llm_utils.modelclient import close_models, init_models
 from pydantic import BaseModel
-from va_rust_utils import markdown_to_everything
+from va_rust_utils import markdown_to_everything, initialize_static
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -52,6 +52,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 async def lifespan(app: FastAPI):
     await init_models()
     await get_agent_app()
+    initialize_static()
     yield
     await close_models()
     await close_conn()

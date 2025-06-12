@@ -5,11 +5,7 @@
 import glob
 from typing import AsyncGenerator, Dict, List, Union
 
-from langchain_core.messages import (
-    AIMessage,
-    HumanMessage,
-    RemoveMessage,
-)
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, ToolMessage
 from va_rust_utils import create_image_component, process_attachments
 from web_utils.search import generate_academic_search_summary
 
@@ -126,10 +122,8 @@ async def astream_response(
     Yields
     ----------
     str
-        模型返回内容，可能为chat(一般文本), tool_call(工具调用文本), reasoning(推理部分)。流式返回增量部分
+        模型返回内容，可能为chat(一般文本), tool_call(工具调用文本), tool_result(工具调用结果), reasoning(推理部分)。流式返回增量部分
     """
-    # 已有媒体文件
-    old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 构建配置
     chat_config = {
         "configurable": {
@@ -140,10 +134,10 @@ async def astream_response(
     }
     # 预处理：处理文本和图片
     content = build_message_content(process_attachments(text, documents), images)
+    old_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
     # 维护是否推理，是否是第一个content块，前一个输出的模式三种状态
     in_reasoning = False
     start_chunks = True
-    prior_mode: str = None
     # 初始化content缓冲区
     content_buffer: str = ""
     # 接收模型回复+处理
@@ -154,11 +148,21 @@ async def astream_response(
     ):
         # 流式输出，空内容不输出。<think> tag特殊处理
         if content := chunk.content:
-            # 检查上次输出是否是tool_call或reasoning，若是，发送finish信息
-            if prior_mode == "tool_call":
-                yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
-            elif prior_mode == "reasoning":
-                yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+            # 处理上次工具调用
+            if isinstance(chunk, ToolMessage):
+                # 新生成的图像
+                new_file_set = set(glob.iglob(f"media/{thread_id}/*.png"))
+                generated_images = new_file_set - old_file_set
+                if generated_images:
+                    yield f"""event: image_output\ndata: {{content: {list(generated_images)}}}\n\n"""
+                    old_file_set = new_file_set
+                # 工具调用结果
+                yield f"""event: tool_result\ndata: {{content: "```\n{content}\n```\n\n"}}\n\n"""
+                continue
+            start_chunks = True
+            # 跳过执行过程中模型生成的图片信息。该图片信息类型为List
+            if not isinstance(content, str):
+                continue
             # 通过buffer处理content中的<think> tag
             content_buffer += content
             # 固定buffer长度为11，这是最小长度，减少find的开销
@@ -175,7 +179,7 @@ async def astream_response(
                     else:
                         # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
-                        yield f"""event: chat\ndata: {{content: "{content_buffer[:border]}", status: "typing", reason: ""}}\n\n"""
+                        yield f"""event: chat\ndata: {{content: "{content_buffer[:border]}"}}\n\n"""
                         content_buffer = content_buffer[border:]
                 # 已开始推理
                 else:
@@ -184,52 +188,34 @@ async def astream_response(
                         # 更新状态：未开始推理
                         in_reasoning = False
                         # 完整输出</think> tag前内容，去除</think> tag
-                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:index]}", status: "typing", reason: ""}}\n\n"""
+                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:index]}"}}\n\n"""
                         content_buffer = content_buffer[index + 10 :]
                     else:
                         # yield buffer前面的一部分并去除，保持buffer长度为11
                         border = current_length - 11
-                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:border]}", status: "typing", reason: ""}}\n\n"""
+                        yield f"""event: reasoning\ndata: {{content: "{content_buffer[:border]}"}}\n\n"""
                         content_buffer = content_buffer[border:]
-            # 将上次输出模式设置为chat
-            prior_mode = "chat"
         elif content := chunk.additional_kwargs.get("tool_calls", ""):
             # yield content_buffer中未输出的内容，状态复位
-            if prior_mode == "chat":
-                yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "tool_call"}}\n\n"""
-                content_buffer = ""
-            elif prior_mode == "reasoning":
-                yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+            if content_buffer:
+                yield f"""event: chat\ndata: {{content: "{content_buffer}"}}\n\n"""
+            content_buffer = ""
             start_chunks = True
             in_reasoning = False
-            yield f"""event: tool_call\ndata: {{content: "{content[0]["function"]["arguments"]}", status: "typing", reason: ""}}\n\n"""
-            # 将上次输出模式设置为tool_call
-            prior_mode = "tool_call"
+            yield f"""event: tool_call\ndata: {{content: "{content[0]["function"]["arguments"]}"}}\n\n"""
         elif content := chunk.additional_kwargs.get("reasoning_content", ""):
             # yield content_buffer中未输出的内容，状态复位
-            if prior_mode == "chat":
-                yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "finish"}}\n\n"""
-                content_buffer = ""
-            elif prior_mode == "tool_call":
-                yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+            if content_buffer:
+                yield f"""event: chat\ndata: {{content: "{content_buffer}"}}\n\n"""
+            content_buffer = ""
             start_chunks = True
             in_reasoning = False
-            yield f"""event: reasoning\ndata: {{content: "{content}", status: "typing", reason: ""}}\n\n"""
-            # 将上次输出模式设置为reasoning
-            prior_mode = "reasoning"
+            yield f"""event: reasoning\ndata: {{content: "{content}"}}\n\n"""
     # yield content_buffer中未输出的内容，发送finish信息
-    if prior_mode == "chat":
-        yield f"""event: chat\ndata: {{content: "{content_buffer}", status: "stop", reason: "finish"}}\n\n"""
-    elif prior_mode == "tool_call":
-        yield """event: tool_call\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
-    elif prior_mode == "reasoning":
-        yield """event: reasoning\ndata: {content: "", status: "stop", reason: "finish"}\n\n"""
+    if content_buffer:
+        yield f"""event: chat\ndata: {{content: "{content_buffer}"}}\n\n"""
     # 推理模型特殊处理：移除<think></think>内容
     await process_reasoning(chat_config)
-    # 工具模型特殊处理：可能生成图片，需加入历史对话
-    image_files = set(glob.iglob(f"media/{thread_id}/*.png")) - old_file_set
-    await handle_generated_image(chat_config, image_files)
-    yield f"""event: image_output\ndata: {{content: {[f"/{path}" for path in image_files]}}}\n\n"""
 
 
 async def append_search_result(query: str, thread_id: str) -> AsyncGenerator[str, None]:

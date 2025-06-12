@@ -2,8 +2,9 @@
 React Agent后端，处理ViennaAcademic中的聊天部分
 """
 
+import glob
 from collections import namedtuple
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 
 from langchain_core.messages import (
     AIMessage,
@@ -20,6 +21,7 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import InjectedToolArg, tool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
+from langgraph.graph.message import add_messages
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.prebuilt.chat_agent_executor import AgentState
@@ -28,16 +30,19 @@ from llm_utils.modelclient import (
     deepseek_r1_671b,
     deepseek_r1_qwen3_8b,
     deepseek_v3,
-    glm_4v_flash,
-    mistral_small_latest,
+    mistral_small,
     model_type,
-    qwen3_235B_A22B_no_thinking,
-    qwen3_235B_A22B_thinking,
+    qwen3_8b_no_thinking,
+    qwen3_8b_thinking,
+    qwen3_235b_a22b_no_thinking,
+    qwen3_235b_a22b_thinking,
+    qwen_2_5_vl_72b,
 )
 from llm_utils.system_prompt import TOOLCALL
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from typing_extensions import Annotated
+from va_rust_utils import create_image_component
 from web_utils.search import attach_web_result
 
 # 工具/推理/多模态位掩码
@@ -55,7 +60,16 @@ toolcall_template = ChatPromptTemplate.from_messages(
 )
 
 
-graph_builder = StateGraph(AgentState)
+# 多模态Agent状态
+class MultiModalAgentState(AgentState):
+    """
+    除了messages，维护一个images集合，用于储存过往生成/上传的图片，防止重复
+    """
+
+    images: Set[str] = set()
+
+
+graph_builder = StateGraph(MultiModalAgentState)
 
 # 绑定工具
 
@@ -93,56 +107,64 @@ async def websearch(query: str) -> str:
 
 
 @tool
-def ipython(code: str, thread_id: Annotated[str, InjectedToolArg]) -> str:
+def ipython(
+    code: str,
+    thread_id: Annotated[str, InjectedToolArg],
+) -> str:
     """使用IPython。!: 执行cmd命令，numpy, scipy, pandas: 科学计算，scikit-learn, statsmodels, patsy: 机器学习&统计，matplotlib, seaborn: 数据可视化，scikit-image: 图像处理，numba, numexpr, bottleneck: 性能加速，dask: 大数据处理，h5py, openpyxl, xlrd: 文件I/O，sympy: 符号计算"""
     return python_tool(code, thread_id)
 
 
 tools = [ipython]
 deepseek_v3_with_tools = deepseek_v3.bind_tools(tools)
-qwen3_235B_A22B_no_thinking_with_tools = qwen3_235B_A22B_no_thinking.bind_tools(tools)
-qwen3_235B_A22B_thinking_with_tools = qwen3_235B_A22B_thinking.bind_tools(tools)
+qwen3_235b_a22b_no_thinking_with_tools = qwen3_235b_a22b_no_thinking.bind_tools(tools)
+qwen3_235b_a22b_thinking_with_tools = qwen3_235b_a22b_thinking.bind_tools(tools)
+qwen3_8b_no_thinking_with_tools = qwen3_8b_no_thinking.bind_tools(tools)
+qwen3_8b_thinking_with_tools = qwen3_8b_thinking.bind_tools(tools)
 
 # 模型, 位掩码(enable_tool, enable_thinking, multimodal), 模型简称
 ModelInfo = namedtuple("ModelInfo", ["name", "type_code"])
 
 models: Dict[ModelInfo, Runnable] = {
     ModelInfo(
-        type_code=model_type(False, False, False),
-        name="deepseek-v3",
+        type_code=model_type(False, False, False), name="deepseek-v3"
     ): deepseek_v3,
     ModelInfo(
-        type_code=model_type(False, False, False),
-        name="qwen3",
-    ): qwen3_235B_A22B_no_thinking,
-    ModelInfo(
-        type_code=model_type(True, False, False),
-        name="deepseek-v3",
+        type_code=model_type(True, False, False), name="deepseek-v3"
     ): deepseek_v3_with_tools,
     ModelInfo(
-        type_code=model_type(True, False, False),
-        name="qwen3",
-    ): qwen3_235B_A22B_no_thinking_with_tools,
-    ModelInfo(
-        type_code=model_type(False, True, False),
-        name="deepseek-r1",
+        type_code=model_type(False, True, False), name="deepseek-r1-671b"
     ): deepseek_r1_671b,
     ModelInfo(
-        type_code=model_type(False, True, False),
-        name="deepseek-r1-qwen3-8b",
+        type_code=model_type(False, False, False), name="qwen3-235b-a22b"
+    ): qwen3_235b_a22b_no_thinking,
+    ModelInfo(
+        type_code=model_type(True, False, False), name="qwen3-235b-a22b"
+    ): qwen3_235b_a22b_no_thinking_with_tools,
+    ModelInfo(
+        type_code=model_type(False, True, False), name="qwen3-235b-a22b"
+    ): qwen3_235b_a22b_thinking,
+    ModelInfo(
+        type_code=model_type(True, True, False), name="qwen3-235b-a22b"
+    ): qwen3_235b_a22b_thinking_with_tools,
+    ModelInfo(
+        type_code=model_type(False, False, True), name="qwen2.5-vl-72b"
+    ): qwen_2_5_vl_72b,
+    ModelInfo(
+        type_code=model_type(False, False, True), name="mistral-small"
+    ): mistral_small,
+    ModelInfo(
+        type_code=model_type(False, False, False), name="qwen3-8b"
+    ): qwen3_8b_no_thinking,
+    ModelInfo(
+        type_code=model_type(True, False, False), name="qwen3-8b"
+    ): qwen3_8b_no_thinking_with_tools,
+    ModelInfo(
+        type_code=model_type(False, True, False), name="deepseek-r1-qwen3-8b"
     ): deepseek_r1_qwen3_8b,
     ModelInfo(
-        type_code=model_type(True, True, False),
-        name="qwen3",
-    ): qwen3_235B_A22B_thinking_with_tools,
-    ModelInfo(
-        type_code=model_type(False, False, True),
-        name="mistral-small",
-    ): mistral_small_latest,
-    ModelInfo(
-        type_code=model_type(False, False, True),
-        name="glm-4v-flash",
-    ): glm_4v_flash,
+        type_code=model_type(True, True, False), name="qwen3-8b"
+    ): qwen3_8b_thinking_with_tools,
 }
 available_models = [
     {
@@ -190,7 +212,7 @@ def _filter_multimodal_human_message(
 ) -> str:
     """过滤HumanMessage中的多模态部分
 
-    一个HumanMessage中至多有一个文本部分，直接用next获取返回字符串
+    一个HumanMessage中至多有一个文本部分，直接用next获取返回字符串。若没有文本部分，返回空字符串
 
     Parameters
     ----------
@@ -262,13 +284,13 @@ def apply_safety_filter(
 
 # 模型调用
 async def chatbot(
-    state: AgentState, config: RunnableConfig
+    state: MultiModalAgentState, config: RunnableConfig
 ) -> Dict[str, List[BaseMessage]]:
     """进行一轮React Agent推理
 
     Parameters
     ----------
-    state: ChatAgentState
+    state: AgentState
         当前状态
 
     Returns
@@ -286,19 +308,35 @@ async def chatbot(
     )
     model_name = config["configurable"].get("model")
     thread_id = config["configurable"].get("thread_id")
-    # 获取模型与对应的提示词
+    # 获取模型与对应的提示词模板
     model = models[ModelInfo(name=model_name, type_code=model_type)]
-    model = (
-        model | tool_argument_injector({"ipython": {"thread_id": thread_id}})
-        if model_type & ENABLE_TOOL
-        else model
+    if model_type & ENABLE_TOOL:
+        model = model | tool_argument_injector({"ipython": {"thread_id": thread_id}})
+        template = toolcall_template
+    else:
+        template = empty_template
+    # 处理图片
+    current_images = set(glob.iglob(f"media/{thread_id}/*.png"))
+    past_images = state.get("images", current_images)
+    # 新生成图片的message
+    generated_images = current_images - past_images
+    image_components = [
+        component
+        for image in generated_images
+        if (component := create_image_component(image))
+    ]
+    image_messages = HumanMessage(image_components)
+    messages = (
+        state["messages"]
+        if not image_components
+        else add_messages(state["messages"], image_messages)
     )
-    template = toolcall_template if model_type & ENABLE_TOOL else empty_template
-    prompted_message = await template.ainvoke({"messages": state["messages"]})
+    prompted_message = await template.ainvoke({"messages": messages})
     # 过滤无法处理的信息并合并来自同一主体的连续信息
     merged = merge_message_runs(apply_safety_filter(model_type, prompted_message))
     response = await model.ainvoke(merged)
-    return {"messages": [response]}
+    # 添加生成图片
+    return {"messages": [image_messages, response], "images": current_images}
 
 
 # Agent构建
@@ -331,7 +369,6 @@ async def get_agent_app() -> CompiledStateGraph:
         postgres_checkpointer = AsyncPostgresSaver(conn=conn)
         await postgres_checkpointer.setup()
         agent_app = graph_builder.compile(checkpointer=postgres_checkpointer)
-        print("agent_app started")
     return agent_app
 
 
@@ -343,4 +380,3 @@ async def close_conn() -> None:
     """
     global conn
     await conn.close()
-    print("agent_app stopped")
