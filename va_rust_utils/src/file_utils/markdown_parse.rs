@@ -5,7 +5,14 @@ use pulldown_cmark::{
 };
 use std::borrow::Cow;
 use std::fmt::Write as _;
+use std::fs::File;
+use std::io::{Read, Write};
 
+struct HeadingInfo<'a> {
+    id: Option<CowStr<'a>>,
+    classes: Vec<CowStr<'a>>,
+    attrs: Vec<(CowStr<'a>, Option<CowStr<'a>>)>,
+}
 struct LinkInfo<'a> {
     link_type: LinkType,
     dest_url: CowStr<'a>,
@@ -14,9 +21,10 @@ struct LinkInfo<'a> {
 }
 struct CachedState<'a> {
     // heading
-    id: Option<CowStr<'a>>,
+    /* id: Option<CowStr<'a>>,
     classes: Vec<CowStr<'a>>,
-    attrs: Vec<(CowStr<'a>, Option<CowStr<'a>>)>,
+    attrs: Vec<(CowStr<'a>, Option<CowStr<'a>>)>, */
+    heading_info: Option<HeadingInfo<'a>>,
     // blockquote
     padding: Vec<Cow<'a, str>>,
     // code block
@@ -27,37 +35,105 @@ struct CachedState<'a> {
     table_alignments: Vec<Alignment>,
     // link
     link_stack: Vec<LinkInfo<'a>>,
+    // text state
+    meaningfulness: bool,
+}
+#[derive(Debug)]
+enum ChunkType {
+    Text,
+    Fixed,
+    Delimiter,
+    List,
+    Table,
 }
 
-fn check_event_stream(md: &str) -> Vec<String> {
+#[derive(Debug)]
+enum ContentType {
+    Meaningless,
+    Meaningful,
+}
+
+#[derive(Debug)]
+struct StringChunk {
+    string: String,
+    chunk_type: ChunkType,
+    content_type: ContentType,
+}
+impl From<&str> for StringChunk {
+    fn from(s: &str) -> Self {
+        StringChunk {
+            string: s.to_string(),
+            chunk_type: ChunkType::Delimiter,
+            content_type: ContentType::Meaningless,
+        }
+    }
+}
+
+fn is_meaningful_string(s: &str) -> bool {
+    let mut has_alpha_or_cjk = false;
+    let mut has_punctuation = false;
+    const PUNCTUATION: [char; 13] = [
+        '.', ',', '!', '?', ';', ':', '。', '，', '！', '？', '；', '：', '、',
+    ];
+
+    for c in s.chars() {
+        // 检查中英文字符（条件一）
+        if !has_alpha_or_cjk {
+            has_alpha_or_cjk = c.is_ascii_alphabetic() || ('\u{4E00}' <= c && c <= '\u{9FFF}');
+        }
+
+        // 检查中英文标点（条件二）
+        if !has_punctuation {
+            has_punctuation = PUNCTUATION.contains(&c);
+        }
+
+        // 两个条件都满足时提前退出
+        if has_alpha_or_cjk && has_punctuation {
+            return true;
+        }
+    }
+
+    has_alpha_or_cjk && has_punctuation
+}
+
+// 改自pulldown_cmark_to_cmark cmark_resume_one_event
+fn check_event_stream(md: &str) -> Vec<StringChunk> {
     let parser = TextMergeStream::new(Parser::new_ext(&md, pulldown_cmark::Options::all()));
-    let mut result_vec: Vec<String> = Vec::new();
+    let mut result_vec: Vec<StringChunk> = Vec::new();
     // text 缓存
     let mut text_string = String::new();
     // 需要保存的状态
     let mut state = CachedState {
-        id: None,
-        classes: vec![],
-        attrs: vec![],
+        heading_info: None,
         padding: vec![],
         code_block: None,
         list_stack: vec![],
         table_alignments: vec![],
         link_stack: vec![],
+        meaningfulness: false,
     };
     for event in parser {
+        // println!("{:#?}", event);
         match event {
             // Paragraph
-            // Event::Start(Tag::Paragraph) => result_vec.push("\n\n".into()),
-            Event::End(
-                TagEnd::Paragraph
-                | TagEnd::HtmlBlock
-                | TagEnd::FootnoteDefinition
-                | TagEnd::DefinitionList,
-            ) => {
+            Event::End(TagEnd::Paragraph) => {
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Text
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: if state.meaningfulness {
+                        ContentType::Meaningful
+                    } else {
+                        ContentType::Meaningless
+                    },
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // Heading
             Event::Start(Tag::Heading {
@@ -74,40 +150,30 @@ fn check_event_stream(md: &str) -> Vec<String> {
                     HeadingLevel::H5 => "##### ",
                     HeadingLevel::H6 => "###### ",
                 });
-                state.id = id;
-                state.classes = classes;
-                state.attrs = attrs;
+                state.heading_info = Some(HeadingInfo { id, classes, attrs });
             }
             Event::End(TagEnd::Heading { .. }) => {
-                // 改自pulldown_cmark_to_cmark cmark_resume_one_event
-                let (id, classes, attributes) = (
-                    mem::take(&mut state.id),
-                    mem::take(&mut state.classes),
-                    mem::take(&mut state.attrs),
-                );
+                let Some(HeadingInfo {
+                    ref id,
+                    ref classes,
+                    attrs: attributes,
+                }) = state.heading_info
+                else {
+                    continue;
+                };
                 let emit_braces = id.is_some() || !classes.is_empty() || !attributes.is_empty();
                 if emit_braces {
                     text_string.push_str(" {");
                 }
                 if let Some(id_str) = id {
-                    /* text_string.push(' ');
-                    text_string.push('#');
-                    text_string.push_str(&id_str); */
                     let _ = write!(&mut text_string, " #{id_str} ");
                 }
-                for class in &classes {
-                    /* text_string.push(' ');
-                    text_string.push('.');
-                    text_string.push_str(class); */
+                for class in classes {
                     let _ = write!(&mut text_string, " .{class} ");
                 }
-                for (key, val) in &attributes {
-                    /* text_string.push(' ');
-                    text_string.push_str(key); */
+                for (key, val) in attributes {
                     let _ = write!(&mut text_string, " {key} ");
                     if let Some(val) = val {
-                        /* text_string.push('=');
-                        text_string.push_str(val); */
                         let _ = write!(&mut text_string, "={val}");
                     }
                 }
@@ -115,8 +181,15 @@ fn check_event_stream(md: &str) -> Vec<String> {
                     text_string.push_str(" }");
                 }
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: ChunkType::Text,
+                    content_type: ContentType::Meaningless,
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
+                state.heading_info = None;
+                state.meaningfulness = false;
             }
             Event::Start(Tag::BlockQuote(kind)) => {
                 let every_line_padding = " > ";
@@ -133,6 +206,7 @@ fn check_event_stream(md: &str) -> Vec<String> {
             Event::End(TagEnd::BlockQuote(_)) => {
                 state.padding.pop();
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // CodeBlock
             Event::Start(Tag::CodeBlock(CodeBlockKind::Indented)) => {
@@ -140,8 +214,6 @@ fn check_event_stream(md: &str) -> Vec<String> {
                 state.padding.push("    ".into());
             }
             Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(info))) => {
-                /* text_string.push_str("```");
-                text_string.push_str(&info); */
                 let _ = write!(&mut text_string, "```{info}");
                 state.code_block = Some(CodeBlockKind::Fenced(info));
             }
@@ -149,24 +221,41 @@ fn check_event_stream(md: &str) -> Vec<String> {
                 match state.code_block {
                     Some(CodeBlockKind::Fenced(..)) => {
                         text_string.push_str("```");
-                        result_vec.push(mem::take(&mut text_string));
+                        let string_chunk = StringChunk {
+                            string: mem::take(&mut text_string),
+                            chunk_type: ChunkType::Fixed,
+                            content_type: ContentType::Meaningless,
+                        };
+                        result_vec.push(string_chunk);
                     }
                     Some(CodeBlockKind::Indented) => {
                         state.padding.pop();
                         text_string.truncate(text_string.trim_end().len());
-                        result_vec.push(mem::take(&mut text_string));
+                        let string_chunk = StringChunk {
+                            string: mem::take(&mut text_string),
+                            chunk_type: ChunkType::Fixed,
+                            content_type: ContentType::Meaningless,
+                        };
+                        result_vec.push(string_chunk);
                     }
                     None => {}
                 }
                 state.code_block = None;
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // HtmlBlock
-            /* Event::End(TagEnd::HtmlBlock) => {
+            Event::End(TagEnd::HtmlBlock) => {
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: ChunkType::Fixed,
+                    content_type: ContentType::Meaningless,
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
-            } */
+                state.meaningfulness = false;
+            }
             // List
             Event::Start(Tag::List(list_type)) => {
                 if !state.list_stack.is_empty() {
@@ -178,8 +267,18 @@ fn check_event_stream(md: &str) -> Vec<String> {
                 state.list_stack.pop();
                 state.padding.pop();
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::List
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: ContentType::Meaningful,
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // Item
             Event::Start(Tag::Item) => {
@@ -187,7 +286,6 @@ fn check_event_stream(md: &str) -> Vec<String> {
                     match inner {
                         Some(n) => {
                             *n += 1;
-                            // text_string.push_str(format!("{n}. ").into());
                             let _ = write!(&mut text_string, "{n}. ");
                         }
                         None => {
@@ -196,37 +294,58 @@ fn check_event_stream(md: &str) -> Vec<String> {
                     }
                 }
             }
-            Event::End(TagEnd::Item | TagEnd::DefinitionListTitle) => {
+            Event::End(TagEnd::Item) => {
                 text_string.push('\n');
             }
             // footnote definition
             Event::Start(Tag::FootnoteDefinition(name)) => {
-                /* text_string.push_str("[^");
-                text_string.push_str(&name);
-                text_string.push_str("]: "); */
                 let _ = write!(&mut text_string, "[^{name}]: ");
             }
-            /* Event::End(TagEnd::FootnoteDefinition) => {
+            Event::End(TagEnd::FootnoteDefinition) => {
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Text
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: if state.meaningfulness {
+                        ContentType::Meaningful
+                    } else {
+                        ContentType::Meaningless
+                    },
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
-            } */
+                state.meaningfulness = false;
+            }
             // definition list
             Event::Start(Tag::DefinitionListDefinition) => {
                 state.padding.push("  : ".into());
             }
-            /* Event::End(TagEnd::DefinitionListTitle) => {
+            Event::End(TagEnd::DefinitionListTitle) => {
                 text_string.push('\n');
-            } */
+            }
             Event::End(TagEnd::DefinitionListDefinition) => {
                 state.padding.pop();
                 text_string.push('\n');
             }
-            /* Event::End(TagEnd::DefinitionList) => {
+            Event::End(TagEnd::DefinitionList) => {
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::List
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: ContentType::Meaningful,
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
-            } */
+                state.meaningfulness = false;
+            }
             Event::Start(Tag::Table(alignments)) => {
                 state.table_alignments = alignments;
             }
@@ -238,8 +357,18 @@ fn check_event_stream(md: &str) -> Vec<String> {
             Event::End(TagEnd::Table) => {
                 state.table_alignments.clear();
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Table
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: ContentType::Meaningful,
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // Event::End(TagEnd::TableCell) => {}
             Event::End(TagEnd::TableRow) => {
@@ -335,23 +464,14 @@ fn check_event_stream(md: &str) -> Vec<String> {
                         }
                         text_string.push('(');
                         if !dest_url.is_empty() {
-                            /* text_string.push('<');
-                            text_string.push_str(&dest_url);
-                            text_string.push('>'); */
                             let _ = write!(&mut text_string, "<{dest_url}>");
                         }
                         if !title.is_empty() {
-                            /* text_string.push_str(" \"");
-                            text_string.push_str(&title);
-                            text_string.push('\"'); */
                             let _ = write!(&mut text_string, " \"{title}\"");
                         }
                         text_string.push(')');
                     }
                     LinkType::Reference => {
-                        /* text_string.push_str("][");
-                        text_string.push_str(&id);
-                        text_string.push(']'); */
                         let _ = write!(&mut text_string, "][{id}]");
                     }
                     LinkType::Collapsed => {
@@ -368,31 +488,58 @@ fn check_event_stream(md: &str) -> Vec<String> {
             }
             // MetadataBlock
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::YamlStyle)) => {
-                text_string.push_str("---\n");
+                result_vec.push("---\n".into());
+                state.meaningfulness = false;
             }
             Event::Start(Tag::MetadataBlock(MetadataBlockKind::PlusesStyle)) => {
-                text_string.push_str("+++\n");
+                result_vec.push("+++\n".into());
+                state.meaningfulness = false;
             }
             Event::End(TagEnd::MetadataBlock(MetadataBlockKind::YamlStyle)) => {
-                text_string.push_str("---");
-                result_vec.push(mem::take(&mut text_string));
-                result_vec.push("\n\n".into());
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Text
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: if state.meaningfulness {
+                        ContentType::Meaningful
+                    } else {
+                        ContentType::Meaningless
+                    },
+                };
+                result_vec.push(string_chunk);
+                result_vec.push("---\n\n".into());
+                state.meaningfulness = false;
             }
             Event::End(TagEnd::MetadataBlock(MetadataBlockKind::PlusesStyle)) => {
-                text_string.push_str("+++");
-                result_vec.push(mem::take(&mut text_string));
-                result_vec.push("\n\n".into());
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Text
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: if state.meaningfulness {
+                        ContentType::Meaningful
+                    } else {
+                        ContentType::Meaningless
+                    },
+                };
+                result_vec.push(string_chunk);
+                result_vec.push("+++\n\n".into());
+                state.meaningfulness = false;
             }
             // Text
             Event::Text(text) => {
-                // text_string.push_str(&text);
                 let _ = write!(&mut text_string, "{}{text}", state.padding.join(""));
+                let meaningfulness = is_meaningful_string(&text);
+                // println!("{meaningfulness}");
+                state.meaningfulness |= meaningfulness;
             }
             // Code
             Event::Code(code) => {
-                /* text_string.push('`');
-                text_string.push_str(&code);
-                text_string.push('`'); */
                 let _ = write!(&mut text_string, "`{code}`");
             }
             // InlineMath
@@ -401,16 +548,17 @@ fn check_event_stream(md: &str) -> Vec<String> {
             }
             // DisplayMath
             Event::DisplayMath(math) => {
-                let _ = writeln!(&mut text_string, "$${math}$$");
+                let _ = write!(&mut text_string, "$${math}$$");
             }
             // Html
-            Event::Html(html) | Event::InlineHtml(html) => {
+            Event::Html(html) => {
                 text_string.push_str(&html);
+                state.meaningfulness |= is_meaningful_string(&html);
             }
             // InlineHtml
-            /* Event::InlineHtml(html) => {
+            Event::InlineHtml(html) => {
                 text_string.push_str(&html);
-            } */
+            }
             // FootnoteReference
             Event::FootnoteReference(name) => {
                 let _ = write!(&mut text_string, "[^{name}]");
@@ -422,12 +570,27 @@ fn check_event_stream(md: &str) -> Vec<String> {
             // HardBreak
             Event::HardBreak => {
                 text_string.truncate(text_string.trim_end().len());
-                result_vec.push(mem::take(&mut text_string));
+                let string_chunk = StringChunk {
+                    string: mem::take(&mut text_string),
+                    chunk_type: if state.meaningfulness {
+                        ChunkType::Text
+                    } else {
+                        ChunkType::Fixed
+                    },
+                    content_type: if state.meaningfulness {
+                        ContentType::Meaningful
+                    } else {
+                        ContentType::Meaningless
+                    },
+                };
+                result_vec.push(string_chunk);
                 result_vec.push("\n\n".into());
+                state.meaningfulness = false;
             }
             // Rule
             Event::Rule => {
                 result_vec.push("---\n\n".into());
+                state.meaningfulness = false;
             }
             // TaskListMarker
             Event::TaskListMarker(checked) => {
@@ -439,6 +602,7 @@ fn check_event_stream(md: &str) -> Vec<String> {
             }
             _ => {}
         }
+        // println!("{:?}", text_string);
     }
     result_vec
 }
