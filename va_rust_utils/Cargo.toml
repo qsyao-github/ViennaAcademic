@@ -10,7 +10,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 base64 = "0.22.1"
-pyo3 = "0.25.0"
+pulldown-cmark = "0.13.0"
+pyo3 = "0.25.1"
 regex = "1.11.1"
 
 [lints.clippy]

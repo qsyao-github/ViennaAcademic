@@ -45,7 +45,7 @@ qwen3_235b_a22b_no_thinking = CustomOpenAI(
 )
 
 # 多模态 SOTA
-qwen_2_5_vl_72b = CustomOpenAI(
+qwen2_5_vl_72b = CustomOpenAI(
     model="Qwen/Qwen2.5-VL-72B-Instruct",
     api_key=silicon_client_API_KEY,
     base_url=silicon_client_BASE_URL,
@@ -146,7 +146,7 @@ async def init_models():
     await deepseek_v3.init()
     await qwen3_235b_a22b_no_thinking.init()
     await qwen3_8b_no_thinking.init()
-    await qwen_2_5_vl_72b.init()
+    await qwen2_5_vl_72b.init()
     await glm_4v_flash.init()
     await mistral_small.init()
     await deepseek_r1_671b.init()
@@ -162,7 +162,7 @@ async def close_models():
     await deepseek_v3.close()
     await qwen3_235b_a22b_no_thinking.close()
     await qwen3_8b_no_thinking.close()
-    await qwen_2_5_vl_72b.close()
+    await qwen2_5_vl_72b.close()
     await glm_4v_flash.close()
     await mistral_small.close()
     await deepseek_r1_671b.close()

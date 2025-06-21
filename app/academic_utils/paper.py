@@ -54,15 +54,13 @@ async def read_paper(file_path: str) -> AsyncGenerator[str, None]:
     str
         解读结果，返回增量部分
     """
-    content = attach(file_path)
+    _header, content = attach(file_path).split("\n", 1)
     # 文件异常保护
     if not content:
         yield """event: system\ndata: {type: "error", notice: "Empty file"}"""
         return
     async for answer_chunk in deepseek_v3.astream(
-        await read_paper_prompt_template.ainvoke(
-            {"content": content[:-4].strip("`\n ")}
-        )
+        await read_paper_prompt_template.ainvoke({"content": content.strip("`\n ")})
     ):
         yield f"""event: read_paper\ndata: {{content: {answer_chunk.content}}}\n\n"""
 
@@ -157,7 +155,7 @@ async def translate_paper_to_Chinese(
     Yields
     ----------
     str
-        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+        已处理的文段。返回处理好的一个段落
     """
     async for item in process_paper(
         file_path, user, "Chi", TRANSLATE_TO_CHINESE_PROMPT, deepseek_v3
@@ -180,7 +178,7 @@ async def translate_paper_to_English(
     Yields
     ----------
     str
-        已处理的文段。Gradio不支持增量更新，故返回完整字符串
+        已处理的文段。返回处理好的一个段落
     """
     async for item in process_paper(
         file_path, user, "Eng", TRANSLATE_TO_ENGLISH_PROMPT, deepseek_v3

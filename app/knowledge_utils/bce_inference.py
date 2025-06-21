@@ -8,13 +8,14 @@ import asyncio
 import os
 
 import aiofiles.os as aios
-from custom_reranker import CustomCompressor
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 from llm_utils.modelclient import bce_embedding_base
+
+from .custom_reranker import CustomCompressor
 
 reranker = CustomCompressor()
 text_splitter = RecursiveCharacterTextSplitter(
@@ -34,20 +35,20 @@ check_chars = frozenset(["。", "！", "？", ".", "!", "?"])
 check_type = frozenset(["NarrativeText", "ListItem"])
 
 
-async def save_retriever(file: str, current_dir: str) -> None:
+async def save_retriever(file: str, user: str) -> None:
     """将召回器保存至本地
 
     Parameters
     ----------
     file: str
         文件名
-    current_dir: str
-        当前用户根目录
+    user: str
+        当前用户
     """
     # 处理未知错误
     try:
         documents = await UnstructuredMarkdownLoader(
-            f"{current_dir}/knowledgeBase/{file}.md", mode="elements"
+            f"documents/{user}/knowledgeBase/{file}.md", mode="elements"
         ).aload()
         if total_texts := text_splitter.split_documents(documents):
             retriever = await FAISS.afrom_documents(
@@ -55,13 +56,13 @@ async def save_retriever(file: str, current_dir: str) -> None:
                 bce_embedding_base,
                 distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
             )
-            retriever.save_local(f"{current_dir}/retrievers", file)
+            retriever.save_local(f"documents/{user}/retrievers", file)
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"{e}")
 
 
-async def remove_retriever(file: str, current_dir: str) -> None:
-    retrievers_dir = os.path.join(current_dir, "retrievers")
+async def remove_retriever(file: str, user: str) -> None:
+    retrievers_dir = os.path.join(user, "retrievers")
     pkl_file = os.path.join(retrievers_dir, f"{file}.pkl")
     faiss_file = os.path.join(retrievers_dir, f"{file}.faiss")
 
@@ -71,48 +72,47 @@ async def remove_retriever(file: str, current_dir: str) -> None:
         await aios.remove(faiss_file)
 
 
-async def update(current_dir: str) -> None:
+async def update(user: str) -> None:
     """更新知识库
 
     在上传、删除或程序生成文件后调用
 
     Parameters
     ----------
-    current_dir: str
-        当前用户根目录
+    user: str
+        当前用户
     """
     knowledgeBase = {
         os.path.splitext(entry.name)[0]
-        for entry in os.scandir(f"{current_dir}/knowledgeBase")
+        for entry in os.scandir(f"documents/{user}/knowledgeBase")
     }
+
     retrievers = {
         os.path.splitext(entry.name)[0]
-        for entry in os.scandir(f"{current_dir}/retrievers")
+        for entry in os.scandir(f"documents/{user}/retrievers")
     }
+    input(str(knowledgeBase - retrievers))
+    input(str(retrievers - knowledgeBase))
     # 保存上传、生成的文件
-    save_tasks = [
-        save_retriever(file, current_dir) for file in knowledgeBase - retrievers
-    ]
-    remove_tasks = [
-        remove_retriever(file, current_dir) for file in retrievers - knowledgeBase
-    ]
+    save_tasks = [save_retriever(file, user) for file in knowledgeBase - retrievers]
+    remove_tasks = [remove_retriever(file, user) for file in retrievers - knowledgeBase]
     await asyncio.gather(*save_tasks, *remove_tasks)
 
 
-def merge_retrievers(current_dir: str) -> ContextualCompressionRetriever:
+def merge_retrievers(user: str) -> ContextualCompressionRetriever:
     """合并所有本地的召回器，并加入reranker精排，返回压缩召回器
 
     Parameters
     ----------
-    current_dir: str
-        当前用户根目录
+    user: str
+        当前用户
 
     Returns
     ----------
     ContextualCompressionRetriever
         所有文件的压缩召回器
     """
-    retriever_directory = f"{current_dir}/retrievers"
+    retriever_directory = f"{user}/retrievers"
     retrievers = [
         FAISS.load_local(
             retriever_directory,

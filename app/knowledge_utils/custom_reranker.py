@@ -49,7 +49,9 @@ async def get_rerank(
         if _reranker_session is None or _reranker_session.closed:
             connector = aiohttp.TCPConnector(
                 limit_per_host=100,
-                ssl=False,
+                ssl_shutdown_timeout=1,
+                force_close=False,
+                enable_cleanup_closed=True,
             )
             _reranker_session = aiohttp.ClientSession(
                 base_url=BASE_URL,

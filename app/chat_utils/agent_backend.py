@@ -32,11 +32,11 @@ from llm_utils.modelclient import (
     deepseek_v3,
     mistral_small,
     model_type,
+    qwen2_5_vl_72b,
     qwen3_8b_no_thinking,
     qwen3_8b_thinking,
     qwen3_235b_a22b_no_thinking,
     qwen3_235b_a22b_thinking,
-    qwen_2_5_vl_72b,
 )
 from llm_utils.system_prompt import TOOLCALL
 from psycopg import AsyncConnection
@@ -149,7 +149,7 @@ models: Dict[ModelInfo, Runnable] = {
     ): qwen3_235b_a22b_thinking_with_tools,
     ModelInfo(
         type_code=model_type(False, False, True), name="qwen2.5-vl-72b"
-    ): qwen_2_5_vl_72b,
+    ): qwen2_5_vl_72b,
     ModelInfo(
         type_code=model_type(False, False, True), name="mistral-small"
     ): mistral_small,

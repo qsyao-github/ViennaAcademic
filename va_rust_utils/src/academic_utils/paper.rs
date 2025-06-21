@@ -74,8 +74,8 @@ pub fn attach(file_path: &str) -> String {
             if let Ok(content) = fs::read_to_string(&kb_path) {
                 return format!("```\n{content}\n```\n\n");
             }
+            return String::new();
         }
-        return String::new();
     }
 
     // 检查并读取代码文件
@@ -158,7 +158,9 @@ pub fn chunk(file_path: &str) -> Vec<String> {
     if lines.is_empty() {
         return Vec::new();
     }
-    let line_iter = lines.split('\n');
+    let mut line_iter = lines.split('\n');
+    // 跳过第一行，可能为markdown文本框的标签
+    line_iter.next();
     let mut temp_string = String::with_capacity(MIN_BYTE_THRESHOLD * 2);
     let mut result_list = Vec::new();
     for line in line_iter {
