@@ -6,19 +6,20 @@ use pulldown_cmark::{
 use std::borrow::Cow;
 use std::cmp::max;
 use std::fmt::Write as _;
-use std::fs::File;
-use std::io::{Read, Write};
+
 struct HeadingInfo<'a> {
     id: Option<CowStr<'a>>,
     classes: Vec<CowStr<'a>>,
     attrs: Vec<(CowStr<'a>, Option<CowStr<'a>>)>,
 }
+
 struct LinkInfo<'a> {
     link_type: LinkType,
     dest_url: CowStr<'a>,
     title: CowStr<'a>,
     id: CowStr<'a>,
 }
+
 struct CachedState<'a> {
     // heading
     heading_info: Option<HeadingInfo<'a>>,
@@ -36,7 +37,8 @@ struct CachedState<'a> {
     meaningful: bool,
     has_display_math: bool,
 }
-#[derive(Debug, PartialEq)]
+
+#[derive(PartialEq)]
 enum ChunkType {
     Text,
     Fixed,
@@ -45,19 +47,19 @@ enum ChunkType {
     Table,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq)]
 enum ContentType {
     Meaningless,
     Meaningful,
     Merge,
 }
 
-#[derive(Debug)]
 struct StringChunk {
     string: String,
     chunk_type: ChunkType,
     content_type: ContentType,
 }
+
 impl From<&str> for StringChunk {
     fn from(s: &str) -> Self {
         Self {
@@ -67,6 +69,7 @@ impl From<&str> for StringChunk {
         }
     }
 }
+
 impl From<char> for StringChunk {
     fn from(c: char) -> Self {
         Self {
@@ -82,7 +85,6 @@ fn is_paragraph(s: &str) -> bool {
     let mut alpha_count = 0;
 
     for c in s.chars() {
-        // 检查中英文字符（条件一）
         has_cjk = ('\u{4E00}'..='\u{9FFF}').contains(&c);
         if has_cjk {
             return true;
@@ -750,4 +752,58 @@ fn into_text_chunk(chunks: Vec<StringChunk>) -> Vec<(String, bool)> {
         }
     }
     result_vec
+}
+
+fn into_meaningful_chunk(chunks: &mut Vec<StringChunk>) -> Vec<String> {
+    let mut result_vec: Vec<String> = Vec::new();
+    let mut temp_string = String::new();
+    let mut left_index;
+    let mut right_index;
+    loop {
+        let Some(index) = chunks
+            .iter()
+            .position(|chunk| chunk.content_type == ContentType::Merge)
+        else {
+            for chunk in chunks {
+                if chunk.content_type == ContentType::Meaningful {
+                    result_vec.push(mem::take(&mut chunk.string));
+                }
+            }
+            return result_vec;
+        };
+        left_index = index;
+        for i in (0..index).rev() {
+            if chunks[i].chunk_type == ChunkType::Delimiter {
+                continue;
+            }
+            if chunks[i].content_type == ContentType::Meaningful {
+                left_index = i;
+            }
+            break;
+        }
+        right_index = index;
+        for i in index + 1..chunks.len() {
+            if chunks[i].chunk_type == ChunkType::Delimiter {
+                continue;
+            }
+            if chunks[i].content_type == ContentType::Meaningful {
+                right_index = i;
+            } else if chunks[i].content_type == ContentType::Merge {
+                continue;
+            }
+            break;
+        }
+        for i in left_index..=right_index {
+            temp_string.push_str(&chunks[i].string);
+        }
+        // left与right之间的所有chunk.string
+        chunks.splice(
+            left_index..=right_index,
+            vec![StringChunk {
+                string: mem::take(&mut temp_string),
+                chunk_type: ChunkType::Text,
+                content_type: ContentType::Meaningful,
+            }],
+        );
+    }
 }
