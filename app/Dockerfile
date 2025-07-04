@@ -62,6 +62,6 @@ RUN mamba run -n vienna_beta maturin build -m /root/va_rust_utils_src/Cargo.toml
 RUN mamba run -n vienna_beta pip3 install --no-index --find-links /root/va_rust_utils_src/output/ va_rust_utils
 RUN rm -r /root/va_rust_utils_src
 
-WORKDIR /root
+WORKDIR /root/ViennaAcademic/app
 
-CMD ["tail", "-f", "/dev/null"]
+CMD ["mamba", "run", "-n", "vienna_beta", "uvicorn", "fastapi_endpoint:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "uvloop"]
