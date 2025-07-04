@@ -5,7 +5,8 @@ ENV PATH="/root/conda/bin:/root/.cargo/bin:${PATH}" \
     RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static \
     RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
 
-COPY requirements.txt /root/requirements.txt
+COPY app/requirements.txt /root/requirements.txt
+COPY va_rust_utils /root/va_rust_utils_src
 
 # apt镜像
 RUN sed -i 's@archive.ubuntu.com@mirrors.sustech.edu.cn@g' /etc/apt/sources.list.d/ubuntu.sources && \
@@ -51,13 +52,15 @@ RUN mamba run -n vienna_beta pip3 install --no-cache-dir -r /root/requirements.t
     mamba clean --all -f -y && \
     rm /root/requirements.txt
 # Rust & typst
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+RUN curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh -s -- -y && \
     . "$HOME/.cargo/env" && \
-    echo '[source.crates-io]\nreplace-with = "ustc"\n\n[source.ustc]\nregistry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"\n\n[registries.ustc]\nindex = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"' > root/.cargo/config.toml
+    printf '[source.crates-io]\nreplace-with = "ustc"\n\n[source.ustc]\nregistry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"\n\n[registries.ustc]\nindex = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"' > /root/.cargo/config.toml
 RUN cargo install --locked typst-cli
-# 更多cargo工具
-RUN cargo install cargo-update cargo-cache cargo-edit && \
-    cargo cache -a
+
+# 编译安装va_rust_utils
+RUN mamba run -n vienna_beta maturin build -m /root/va_rust_utils_src/Cargo.toml -o /root/va_rust_utils_src/output
+RUN mamba run -n vienna_beta pip3 install --no-index --find-links /root/va_rust_utils_src/output/ va_rust_utils
+RUN rm -r /root/va_rust_utils_src
 
 WORKDIR /root
 
