@@ -7,7 +7,9 @@ services:
       - vienna_net
 
   vienna_gpu:
-    build: ./app
+    build:
+      context: .
+      dockerfile: app/Dockerfile
     image: vienna_gpu
     container_name: vienna_gpu
     volumes:
