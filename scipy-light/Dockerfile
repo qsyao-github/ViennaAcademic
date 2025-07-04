@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+RUN pip3 config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple && \
     pip3 install --no-cache-dir \
     'bottleneck' \
     'cython' \
