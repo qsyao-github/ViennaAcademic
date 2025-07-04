@@ -8,6 +8,7 @@ services:
 
   vienna_gpu:
     build: ./app
+    image: vienna_gpu
     container_name: vienna_gpu
     volumes:
       - ./:/root/ViennaAcademic
@@ -16,6 +17,15 @@ services:
     depends_on:
       - postgres
       - scipy-light
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - vienna_net
   postgres:
@@ -27,8 +37,6 @@ services:
       POSTGRES_DB: vadb
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     networks:
       - vienna_net
 
