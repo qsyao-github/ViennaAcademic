@@ -1,0 +1,423 @@
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '我需要'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '计算'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' ∫'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '1'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '/c'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'os'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' dx'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '这个'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '就是'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' ∫'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' sec'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' dx'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '我们知道'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' sec'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '导'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '数是'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')，'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '所以'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '应该是'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' +'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' C'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '不过'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '为了'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '确认'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '我'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '可以用'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' sym'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'py'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '计算'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '一下'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '让我'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '用'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' sym'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'py'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '计算'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ''}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n\n'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': ''}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '{'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '"code": "import sympy as sp\\nx = sp.symbols(\'x\')\\nintegral = sp.integrate(1/(sp.cos(x)**2), x)\\nintegral"'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '}'}
+
+data: {'role': 'assistant', 'type': 'tool_call', 'content': "```python\nimport sympy as sp\nx = sp.symbols('x')\nintegral = sp.integrate(1/(sp.cos(x)**2), x)\nintegral\n```"}
+
+data: {'role': 'tool', 'type': 'text', 'content': '["Out[0]: sin(x)/cos(x)\\n"]'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '结果'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '显示了'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '不定'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '：'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'sin'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')/'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'cos'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '但'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '我想'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '更'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '简化'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '一下'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '另外'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '1'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '/c'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': 'os'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '^'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '2'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '就是'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' sec'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '^'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '2'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')，'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '它的'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '是'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ')。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '让我'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '验证'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '一下'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ''}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n\n'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': ''}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '{'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '"code": "import sympy as sp\\nx = sp.symbols(\'x\')\\nintegral = sp.integrate(sp.sec(x)**2, x)\\nintegral"'}
+
+data: {'role': 'assistant', 'type': 'tool_call_chunk', 'content': '}'}
+
+data: {'role': 'assistant', 'type': 'tool_call', 'content': "```python\nimport sympy as sp\nx = sp.symbols('x')\nintegral = sp.integrate(sp.sec(x)**2, x)\nintegral\n```"}
+
+data: {'role': 'tool', 'type': 'text', 'content': '["Out[0]: sin(x)/cos(x)\\n"]'}
+
+data: {'role': 'assistant', 'type': 'reasoning', 'content': ''}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '我'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '使用'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' sym'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'py'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '计算'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '了'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' ∫'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '('}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '1'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '/c'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'os'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' dx'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或者'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' ∫'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'sec'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' dx'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结果是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' sin'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')/'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'cos'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '即'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')。'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '很'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '合理'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '因为'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' d'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '/d'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' ='}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' sec'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' ='}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '1'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '/c'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'os'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')。\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '所以'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '∫'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '('}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '1'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '/c'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'os'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '²'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '))'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' dx'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' ='}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' tan'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '(x'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ')'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' +'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' C'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '其中'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' C'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '积分'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '常数'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。'}

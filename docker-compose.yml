@@ -1,50 +1,30 @@
 services:
   scipy-light:
-    build: ./scipy-light
-    image: scipy-light
+    # build:
+      # context: ./scipy-light
+      # dockerfile: Dockerfile
+    image: qsyao215/scipy_light:latest
+    # command: ["tail", "-f", "/dev/null"]
+    command: ["fastmcp", "run", "ipython_server.py:mcp", "--transport", "http", "--host", "0.0.0.0", "--port", "${SCIPY_LIGHT_PORT:-8000}"]
     container_name: scipy-light
-    networks:
-      - vienna_net
-
-  vienna_gpu:
-    build:
-      context: .
-      dockerfile: app/Dockerfile
-    image: vienna_gpu
-    container_name: vienna_gpu
     volumes:
-      - ./:/root/ViennaAcademic
-      - ./marker:/root/.cache/datalab
-      - //var/run/docker.sock:/var/run/docker.sock
+      - ./scipy-light/ipython_server.py:/root/ipython_server.py
+    ports:
+      - "${SCIPY_LIGHT_PORT:-8000}:${SCIPY_LIGHT_PORT:-8000}"
+
+  vienna_academic:
+    # build:
+      # context: ./app
+      # dockerfile: Dockerfile
+    image: qsyao215/vienna_academic
+    # command: ["tail", "-f", "/dev/null"]
+    command: ["fastapi", "run", "server.py", "--port", "${VIENNA_ACADEMIC_PORT:-8001}"]
+    container_name: vienna_academic
+    environment:
+      - SCIPY_LIGHT_PORT=${SCIPY_LIGHT_PORT:-8000}
+    volumes:
+      - ./app:/root
     depends_on:
-      - postgres
       - scipy-light
     ports:
-      - "8000:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    networks:
-      - vienna_net
-  postgres:
-    image: postgres:latest
-    container_name: postgres
-    environment:
-      POSTGRES_USER: vienna_academic
-      POSTGRES_PASSWORD: vienna_academic
-      POSTGRES_DB: vadb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - vienna_net
-
-networks:
-  vienna_net:
-    driver: bridge
-
-volumes:
-  postgres_data:
+      - "${VIENNA_ACADEMIC_PORT:-8001}:${VIENNA_ACADEMIC_PORT:-8001}"

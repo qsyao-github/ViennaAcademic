@@ -1,0 +1,1001 @@
+data: {'role': 'assistant', 'type': 'text', 'content': '这张'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '图片'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '展示'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '一个'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '飞机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '数字'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '很'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '可能是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '使用'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '三维'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '动画'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '软件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '如'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'Bl'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'ender'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'May'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'a'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'ds'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' Max'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '）'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '创建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '以下是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '图像'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '详细'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '描述'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' **'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '飞机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '类型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '是一'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '架'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '双'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '螺旋'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '桨'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '涡'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '轮'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '螺旋'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '桨'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '飞机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '从'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '外形'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结构'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '判断'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '很'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '可能是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '庞'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '巴'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '迪'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'Dash'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '8'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'HC'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '8'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '）'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '系列'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '类似'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '设计'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '支线'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '客'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '其'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '主要'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '特征'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '包括'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 高'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '置'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '安装'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '在'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机身'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '顶部'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '）\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '身后'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '部'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '安装'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '双'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '螺旋'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '桨'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '发动机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' T'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '尾'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '水平'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '尾'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '安装'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '在'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '垂直'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '尾'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '顶部'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '）\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机身'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '侧面'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '一'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '排'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '窗户'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '一个'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '舱'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '门'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '表明'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '其'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '为'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '客运'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '设计'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' **'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '状态'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '处于'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '灰'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '度'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模式'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '无'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '贴'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '图'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '材质'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '），'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '通常'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '用于'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '雕刻'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '阶段'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '以'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '专注'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '几何'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '形状'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结构'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机身'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '表面'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '光滑'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '但'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '保留'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '了'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '必要的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结构'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '细节'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '如'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '引擎'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '舱'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '起'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '落'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '架'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '前'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '缘'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '襟'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '轮廓'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '  \n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' **'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '软件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '界面'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '元素'}
+
+: ping - 2026-01-20 01:55:56.252203+00:00
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '画面'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '中央'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '有一个'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '光'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '标'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '变换'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '控'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '（'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '红色'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '绿色'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '轴'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '线'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '红'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '圈'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '标记'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '点'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '），'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这是'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '三维'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '软件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '中的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '标准'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '选'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '中'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '/'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '操作'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '指示'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '器'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '表明'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '用户'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '正'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '对'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '进行'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '编辑'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '定位'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 实'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '际'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '在'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '软件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '环境中'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这些'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '轴'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '线'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '用于'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '移动'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '旋转'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '缩'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '放'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '对象'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '  \n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' **'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '视角'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '与'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '构'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '图'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 视'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '角'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '为'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '侧'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '后'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '方'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '斜'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '角'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '视角'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '能'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '清晰'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '看到'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的整体'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结构'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '包括'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '尾'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '翼'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '螺旋'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '桨'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '起'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '落'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '架'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '和'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机身'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 背'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '景'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '为'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '纯'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '灰色'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '无'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '其他'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '环境'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '元素'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '凸显'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '主体'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '-'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' **'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '用途'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '推测'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '**'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 这'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '个'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '可能'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '用于'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 游'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '戏'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '开发'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '中的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '资产'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 动'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '画'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '影视'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '特效'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 工'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '程'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '教育'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '演示'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' '}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' -'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 航'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '空'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '爱好者'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '设计师'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '创作'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '项目'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '✅'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': ' 总'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '结'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '：'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '是一'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '张'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '软件'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '中的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '支线'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '涡'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '轮'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '螺旋'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '桨'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '客'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '尚未'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '加'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '材质'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '处于'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '编辑'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '阶段'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '带有'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '标准'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '的'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '3'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': 'D'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '操作'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '界面'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '元素'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '---\n\n'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '如果你'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '正在'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '制作'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '这个'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '可以'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '考虑'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '下一步'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '添加'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '材质'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '贴'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '图'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '、'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '动画'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '灯光'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '渲染'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '如果你'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '需要'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '识别'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '具体'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '机型'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '或'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '建'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '模'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '技巧'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '，'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '也可以'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '提供更多'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '上下'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '文'}
+
+data: {'role': 'assistant', 'type': 'text', 'content': '。'}

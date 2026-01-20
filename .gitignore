@@ -1,8 +1,2 @@
-private/
-marker/
-documents/
 __pycache__/
-app/root.code-workspace
-.gitignore
-.env
-*test*
+.*

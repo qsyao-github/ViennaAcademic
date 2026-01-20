@@ -1,27 +1,17 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-RUN pip3 config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple && \
-    pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir \
     'bottleneck' \
-    'cython' \
-    'dask' \
-    'h5py' \
     'matplotlib' \
-    'numba' \
-    'numexpr' \
-    'openpyxl' \
     'pandas' \
     'patsy' \
-    'scikit-image' \
     'scikit-learn' \
     'scipy' \
     'seaborn' \
     'statsmodels' \
     'sympy' \
-    'xlrd' \
     'ipython' \
-    'numpy'
+    'numpy' \
+    'fastmcp'
 
 WORKDIR /root
-
-CMD ["tail", "-f", "/dev/null"]
