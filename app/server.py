@@ -10,20 +10,23 @@ from typing import Annotated
 
 import magic
 import uvloop
-from dotenv import load_dotenv
 from fastapi import FastAPI, Form, UploadFile
 from sse_starlette import EventSourceResponse, ServerSentEvent
 
-load_dotenv()
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 from chat import chat_stream, delete_thread, get_history
 from chat.agent import close_agent, get_agent
 from chat.history_management import get_thread_ids
-from chat.message_chunk_wrapper import image_chunk, text_chunk
+from chat.message_chunk_wrapper import (
+    ALLOWED_FILE_TYPE,
+    ALLOWED_IMAGE_TYPE,
+    media_chunk,
+    text_chunk,
+)
 from chat.tools import ToolName
 
-ALLOWED_IMAGE_TYPE = frozenset(["image/jpeg", "image/png"])
+ALLOWED_TYPES = ALLOWED_IMAGE_TYPE | frozenset(ALLOWED_FILE_TYPE.keys())
 mime = magic.Magic(mime=True)
 
 
@@ -44,7 +47,7 @@ app = FastAPI(lifespan=lifespan)
 async def chat(
     thread_id: str,
     text: Annotated[str, Form()],
-    images: list[UploadFile] = [],
+    files: list[UploadFile] = [],
     multimodal: Annotated[bool, Form()] = False,
     thinking: Annotated[bool, Form()] = False,
     tools: Annotated[frozenset[ToolName], Form()] = frozenset(),
@@ -54,7 +57,7 @@ async def chat(
     - Args:
         - thread_id (str): 当前对话标识符。详见Notes
         - text (Annotated[str, Form()]): 用户发送的文字信息
-        - images (list[UploadFile]): 用户发送的图片（若有）
+        - files (list[UploadFile]): 用户发送的图片/临时文件（若有）。详见Notes
         - multimodal (Annotated[bool, Form()]): 是否使用多模态模型
         - thinking (Annotated[bool, Form()]): 是否使用推理模型
         - tools (Annotated[frozenset[ToolName], Form()]): 启用的工具
@@ -68,6 +71,12 @@ async def chat(
             - 后端会根据thread_id获取以前的对话历史，因此该端口只接受用户最新发送的文本、图片
             - thread_id须由前端提供，因为只有前端才知道用户正在参与哪个对话
             - 建议: thread_id可以包含用户信息、对话创建时间、对话内容概要（例如用户输入的第一句话）等信息，保证唯一性，也方便前端显示概要、后端筛选某用户的对话
+
+        - files:
+            - 支持pdf（非扫描件）, docx, xlsx, pptx和任何纯文本（即可utf-8解码）的文件格式（如.html, .txt, .py）
+            - 支持png, jpg, jpeg格式图片
+            - 支持的文件将被解析为文本，不必开启多模态。支持的图片将转换为base64，必须开启多模态才可看到。不支持的格式会被忽略
+            - 这个参数只用于上传临时文件，即本次对话需要用到，以后未必需要，不进入知识库，pdf解析也不会追求精度。需要长久储存在知识库中的文件须用另一独立端点（开发中）
 
         - tools:
             - 必须为下列几种字符串: ipython, general_search, academic_search
@@ -91,11 +100,16 @@ async def chat(
                     - tool_call也可单独出现
                 - image: 图片
     """
+    # 获取所有支持的格式的message chunk，排除不可转换的
     messages = [
-        image_chunk(data, mime_type)
-        for image in images
-        if (mime_type := mime.from_buffer((data := await image.read())))
-        in ALLOWED_IMAGE_TYPE
+        chunk
+        for file in files
+        if (
+            (mime_type := mime.from_buffer((data := await file.read())))
+            in ALLOWED_TYPES
+            or mime_type.startswith("text")
+        )
+        and (chunk := media_chunk(data, mime_type)) is not None
     ]
     messages.append(text_chunk(text))
     event_stream = (

@@ -3,7 +3,7 @@ services:
     # build:
       # context: ./scipy-light
       # dockerfile: Dockerfile
-    image: qsyao215/scipy_light:latest
+    image: qsyao215/scipy_light
     # command: ["tail", "-f", "/dev/null"]
     command: ["fastmcp", "run", "ipython_server.py:mcp", "--transport", "http", "--host", "0.0.0.0", "--port", "${SCIPY_LIGHT_PORT:-8000}"]
     container_name: scipy-light
@@ -22,6 +22,9 @@ services:
     container_name: vienna_academic
     environment:
       - SCIPY_LIGHT_PORT=${SCIPY_LIGHT_PORT:-8000}
+      - SILICONFLOW_BASE_URL=${SILICONFLOW_BASE_URL}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
     volumes:
       - ./app:/root
     depends_on:

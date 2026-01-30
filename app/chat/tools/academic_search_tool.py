@@ -1,3 +1,7 @@
+"""
+Semantic Scholar搜索
+"""
+
 from langchain.tools import tool
 from semanticscholar import AsyncSemanticScholar
 

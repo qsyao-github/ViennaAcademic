@@ -1,3 +1,7 @@
+"""
+管理储存聊天历史的sqlite数据库
+"""
+
 import aiosqlite
 
 conn = None

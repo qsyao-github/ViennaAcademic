@@ -1,10 +1,12 @@
-aiosqlite<0.22.0
+aiosqlite
 fastapi[standard-no-fastapi-cloud-cli]
 langchain
 langchain-deepseek
 langchain-mcp-adapters
 langgraph-checkpoint-sqlite
 pymupdf
+pymupdf-layout
+pymupdf4llm
 python-magic
 semanticscholar
 tavily-python

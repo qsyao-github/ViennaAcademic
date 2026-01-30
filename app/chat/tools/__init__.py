@@ -1,7 +1,12 @@
+"""
+所有工具的获取和工具调用格式化
+"""
+
+from typing import Literal
+
 from .academic_search_tool import academic_search
 from .mcp_tools import get_mcp_tools
 from .tavily_tool import general_search
-from typing import Literal
 
 ToolName = Literal["ipython", "general_search", "academic_search"]
 

@@ -1,3 +1,7 @@
+"""
+为前端各端点请求准备响应数据
+"""
+
 from typing import AsyncGenerator, Optional
 
 from langchain.messages import (
@@ -8,6 +12,7 @@ from langchain.messages import (
     SystemMessage,
     ToolMessage,
 )
+
 from .agent import get_agent
 from .tools import format_tool_call
 

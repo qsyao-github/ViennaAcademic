@@ -1,6 +1,11 @@
+"""
+Tavily搜索
+"""
+
+import os
+
 from langchain.tools import tool
 from tavily import AsyncTavilyClient
-import os
 
 client = AsyncTavilyClient(os.getenv("TAVILY_API_KEY"))
 

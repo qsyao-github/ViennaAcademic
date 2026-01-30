@@ -1,3 +1,7 @@
+"""
+聊天agent
+"""
+
 from typing import Callable
 
 from langchain.agents import create_agent
@@ -122,7 +126,5 @@ async def get_agent():
 
 
 async def close_agent():
-    """关闭agent，清理资源"""
-    global agent
+    """关闭agent，关闭sqlite连接"""
     await close_sqlite_connection()
-    agent = None

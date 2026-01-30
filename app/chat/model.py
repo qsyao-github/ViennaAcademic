@@ -1,3 +1,7 @@
+"""
+LLM/VLM配置
+"""
+
 import os
 
 from langchain.chat_models import init_chat_model
@@ -14,6 +18,7 @@ DEEPSEEK_V3_2_NO_REASONING = init_chat_model(
     top_p=0.95,
     extra_body={"enable_thinking": False},
 )
+
 DEEPSEEK_V3_2_REASONING = init_chat_model(
     model_provider="deepseek",
     api_base=SILICONFLOW_BASE_URL,
@@ -45,24 +50,3 @@ DEEPSEEK_OCR = init_chat_model(
     model="deepseek-ai/DeepSeek-OCR",
     temperature=0.0,
 )
-
-"""
-QWEN3_NEXT_80B_A3B_INSTRUCT = init_chat_model(
-    model_provider="deepseek",
-    api_base=SILICONFLOW_BASE_URL,
-    api_key=SILICONFLOW_API_KEY,
-    model="Qwen/Qwen3-Next-80B-A3B-Instruct",
-    temperature=0.7,
-    top_p=0.8,
-    extra_body={"top_k": 20, "min_p": 0},
-)
-
-QWEN3_NEXT_80B_A3B_THINKING = init_chat_model(
-    model_provider="deepseek",
-    api_base=SILICONFLOW_BASE_URL,
-    api_key=SILICONFLOW_API_KEY,
-    model="Qwen/Qwen3-Next-80B-A3B-Thinking",
-    temperature=0.7,
-    top_p=0.8,
-    extra_body={"top_k": 20, "min_p": 0},
-)"""
